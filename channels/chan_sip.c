@@ -11575,7 +11575,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 	int debug = sip_debug_test_pvt(p);
 
 	if (!strncasecmp(a, "ptime", 5)) {
-		char *tmp = strrchr(a, ':');
+		const char *tmp = strrchr(a, ':');
 		long int framing = 0;
 		if (tmp) {
 			tmp++;
@@ -12077,7 +12077,8 @@ static void add_route(struct sip_request *req, struct sip_route *route, int skip
  */
 static void set_destination(struct sip_pvt *p, const char *uri)
 {
-	char *trans, *maddr, hostname[256];
+	char *trans, hostname[256];
+	const char *maddr;
 	const char *h;
 	int hn;
 	int debug=sip_debug_test_pvt(p);
@@ -12337,7 +12338,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 		if (p->expiry) {	/* Only add contact if we have an expiry time */
 			char contact[SIPBUFSIZE];
 			const char *contact_uri = p->method == SIP_SUBSCRIBE ? p->our_contact : p->fullcontact;
-			char *brackets = strchr(contact_uri, '<');
+			const char *brackets = strchr(contact_uri, '<');
 			snprintf(contact, sizeof(contact), "%s%s%s;expires=%d", brackets ? "" : "<", contact_uri, brackets ? "" : ">", p->expiry);
 			add_header(resp, "Contact", contact);	/* Not when we unregister */
 		}
@@ -16412,6 +16413,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 {
 	char from[256];
 	const char *of;
+	char *uri;
 	char *c;
 	char referto[256];
 	int	use_tls=FALSE;
@@ -16428,12 +16430,12 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	}
 
 	ast_copy_string(from, of, sizeof(from));
-	of = get_in_brackets(from);
-	ast_string_field_set(p, from, of);
-	if (!strncasecmp(of, "sip:", 4)) {
-		of += 4;
-	} else if (!strncasecmp(of, "sips:", 5)) {
-		of += 5;
+	uri = get_in_brackets(from);
+	ast_string_field_set(p, from, uri);
+	if (!strncasecmp(uri, "sip:", 4)) {
+		uri += 4;
+	} else if (!strncasecmp(uri, "sips:", 5)) {
+		uri += 5;
 		use_tls = TRUE;
 	} else {
 		ast_log(LOG_NOTICE, "From address missing 'sip(s):', assuming sip:\n");
@@ -16441,7 +16443,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	/* Get just the username part */
 	if (strchr(dest, '@')) {
 		c = NULL;
-	} else if ((c = strchr(of, '@'))) {
+	} else if ((c = strchr(uri, '@'))) {
 		*c++ = '\0';
 	}
 	if (c) {
@@ -19528,7 +19530,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			t += 4;
 		}
 		ast_string_field_set(p, exten, t);
-		t = strchr(p->exten, '@');
+		t = strchr((char *) p->exten, '@');
 		if (t)
 			*t = '\0';
 
@@ -19687,7 +19689,7 @@ static int set_message_vars_from_req(struct ast_msg *msg, struct sip_request *re
 	char name_buf[1024];
 	char val_buf[1024];
 	const char *name;
-	char *c;
+	const char *c;
 	int res = 0;
 
 	for (x = 0; x < req->headers; x++) {
@@ -25743,7 +25745,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 	/* This is mostly a skeleton for future improvements */
 	/* Mostly created to return proper answers on notifications on outbound REFER's */
 	int res = 0;
-	const char *event = sip_get_header(req, "Event");
+	char *event = ast_strdupa(sip_get_header(req, "Event"));
 	char *sep;
 
 	if( (sep = strchr(event, ';')) ) {	/* XXX bug here - overwriting string ? */
@@ -28525,7 +28527,7 @@ static void add_peer_mwi_subs(struct sip_peer *peer)
 
 static int handle_cc_subscribe(struct sip_pvt *p, struct sip_request *req)
 {
-	const char *uri = REQ_OFFSET_TO_STR(req, rlpart2);
+	char *uri = ast_strdupa(REQ_OFFSET_TO_STR(req, rlpart2));
 	char *param_separator;
 	struct ast_cc_agent *agent;
 	struct sip_cc_agent_pvt *agent_pvt;
@@ -31860,7 +31862,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 			} else if (!strcasecmp(v->name, "fromdomain")) {
 				char *fromdomainport;
 				ast_string_field_set(peer, fromdomain, v->value);
-				if ((fromdomainport = strchr(peer->fromdomain, ':'))) {
+				if ((fromdomainport = strchr((char *) peer->fromdomain, ':'))) {
 					*fromdomainport++ = '\0';
 					if (!(peer->fromdomainport = port_str2int(fromdomainport, 0))) {
 						ast_log(LOG_NOTICE, "'%s' is not a valid port number for fromdomain.\n",fromdomainport);
@@ -32407,7 +32409,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 	if (!ast_strlen_zero(peer->callback)) { /* build string from peer info */
 		char *reg_string;
 		if (ast_asprintf(&reg_string, "%s?%s:%s:%s@%s/%s", peer->name, S_OR(peer->fromuser, peer->username), S_OR(peer->remotesecret, peer->secret), peer->username, peer->tohost, peer->callback) >= 0) {
-			sip_register(reg_string, 0); /* XXX TODO: count in registry_count */
+			sip_register(reg_string, 0);
 			ast_free(reg_string);
 		}
 	}
@@ -32531,7 +32533,7 @@ static int reload_config(enum channelreloadreason reason)
 	struct ast_flags config_flags = { (reason == CHANNEL_MODULE_LOAD || reason == CHANNEL_ACL_RELOAD) ? 0 : ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	int auto_sip_domains = FALSE;
 	struct ast_sockaddr old_bindaddr = bindaddr;
-	int registry_count = 0, peer_count = 0, timerb_set = 0, timert1_set = 0;
+	int timerb_set = 0, timert1_set = 0;
 	int subscribe_network_change = 1;
 	time_t run_start, run_end;
 	int bindport = 0;
@@ -33182,9 +33184,7 @@ static int reload_config(enum channelreloadreason reason)
 				add_sip_domain(ast_strip(domain), SIP_DOMAIN_CONFIG, cntx ? ast_strip(cntx) : "");
 			}
 		} else if (!strcasecmp(v->name, "register")) {
-			if (sip_register(v->value, v->lineno) == 0) {
-				registry_count++;
-			}
+			sip_register(v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "mwi")) {
 			sip_subscribe_mwi(v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos_sip")) {
@@ -33568,7 +33568,6 @@ static int reload_config(enum channelreloadreason reason)
 						}
 
 						sip_unref_peer(peer, "sip_unref_peer: from reload_config");
-						peer_count++;
 					}
 				}
 				if (ast_true(registersip) || (!registersip && genregistersip)) {
@@ -33602,9 +33601,7 @@ static int reload_config(enum channelreloadreason reason)
 						} else {
 							snprintf(tmp, sizeof(tmp), "%s?%s@%s/%s", cat, username, host, contact);
 						}
-						if (sip_register(tmp, 0) == 0) {
-							registry_count++;
-						}
+						sip_register(tmp, 0);
 					}
 				}
 			}
@@ -33642,7 +33639,6 @@ static int reload_config(enum channelreloadreason reason)
 					ao2_t_link(peers_by_ip, peer, "link peer into peers_by_ip table");
 				}
 				sip_unref_peer(peer, "unref the result of the build_peer call. Now, the links from the tables are the only ones left.");
-				peer_count++;
 			}
 		}
 	}
