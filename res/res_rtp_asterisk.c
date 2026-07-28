@@ -5546,10 +5546,7 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red)
 	memcpy(&data[len], red->t140.data.ptr, red->t140.datalen);
 	red->t140red.datalen = len + red->t140.datalen;
 
-	/* no primary data and no generations to send */
-	if (len == red->hdrlen && !red->t140.datalen) {
-		return NULL;
-	}
+	/* We need to continue even if we get no payload, to forward idle packets */
 
 	/* reset t.140 buffer */
 	red->t140.datalen = 0;
@@ -5729,9 +5726,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 
 	if (rtp->red) {
 		ast_rtp_red_buffer(instance, frame);
-		/* no primary data or generations to send */
-		if ((frame = red_t140_to_red(rtp->red)) == NULL)
-			return 0;
+		frame = red_t140_to_red(rtp->red);
 	}
 
 	/* Grab the subclass and look up the payload we are going to use */
@@ -8256,9 +8251,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		}
 		/* Expose the selected contiguous T.140 payload as the frame data. */
 		payload_length = rtp->f.datalen - payload_offset;
-		if (!payload_length) {
-			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
-		}
+		/* Either we have payload available, or we need to send an idle packet without payload */
 		rtp->f.data.ptr = data + payload_offset;
 		rtp->f.datalen = payload_length;
 	red_done:
@@ -8290,7 +8283,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		rtp->f.subclass.frame_ending = mark ? 1 : 0;
 	} else if (ast_format_get_type(rtp->f.subclass.format) == AST_MEDIA_TYPE_TEXT) {
 		/* TEXT -- samples is # of samples vs. 1000 */
-		ast_debug(2, "processing AST_MEDIA_TYPE_TEXT, length %d\n", rtp->f.datalen);
+		ast_debug(2, "processing AST_MEDIA_TYPE_TEXT, payload length %d\n", rtp->f.datalen);
 		if (!rtp->lastitexttimestamp)
 			rtp->lastitexttimestamp = timestamp;
 		rtp->f.samples = timestamp - rtp->lastitexttimestamp;

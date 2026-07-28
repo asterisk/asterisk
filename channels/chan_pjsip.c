@@ -1068,7 +1068,11 @@ static int chan_pjsip_write_stream(struct ast_channel *ast, int stream_num, stru
 				ast_channel_name(ast), stream_num, ast_codec_media_type2str(media->type));
 			return 0;
 		} else if (media->write_callback) {
-			ast_debug(3, "Text data to write %.*s\n",frame->datalen,(char*)frame->data.ptr);
+			if (frame->datalen > 0) {
+				ast_debug(3, "Writing text data: %.*s\n",frame->datalen,(char*)frame->data.ptr);
+			} else {
+				ast_debug(3, "Writing text idle packet\n");
+			}
 			res = media->write_callback(session, media, frame);
 		}
 		break;
