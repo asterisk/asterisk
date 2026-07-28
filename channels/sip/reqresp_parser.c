@@ -1104,7 +1104,7 @@ int get_in_brackets_const(const char *src,const char **start,int *length)
 
 int get_in_brackets_full(char *tmp,char **out,char **residue)
 {
-	const char *parse = tmp;
+	char *parse = tmp;
 	char *first_bracket;
 	char *second_bracket;
 
@@ -1130,7 +1130,7 @@ int get_in_brackets_full(char *tmp,char **out,char **residue)
 			break; /* no need to look at quoted part */
 		}
 		/* the bracket is within quotes, so ignore it */
-		parse = find_closing_quote(first_quote + 1, NULL);
+		parse = (char *) find_closing_quote(first_quote + 1, NULL);
 		if (!*parse) {
 			ast_log(LOG_WARNING, "No closing quote found in '%s'\n", tmp);
 			return  -1;
@@ -2429,7 +2429,9 @@ struct sip_via *parse_via(const char *header)
 
 	/* store the port, we have to handle ipv6 addresses containing ':'
 	 * characters gracefully */
-	if (((parm = strchr(v->sent_by, ']')) && *(++parm) == ':') || (!(parm = strchr(v->sent_by, ']')) && (parm = strchr(v->sent_by, ':')))) {
+	if (((parm = strchr((char *) v->sent_by, ']')) && *(++parm) == ':')
+	   || (!(parm = strchr((char *) v->sent_by, ']'))
+		  && (parm = strchr((char *) v->sent_by, ':')))) {
 		char *endptr;
 
 		v->port = strtol(++parm, &endptr, 10);
