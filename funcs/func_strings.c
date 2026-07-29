@@ -86,7 +86,7 @@ AST_THREADSTORAGE(tmp_buf);
 		<description>
 			<para>Search the variable named <replaceable>varname</replaceable> for the string <replaceable>value</replaceable>
 			delimited by <replaceable>delim</replaceable> and return a 1-based offset as to its location. If not found
-			or an error occured, return <literal>0</literal>.</para>
+			or an error occurred, return <literal>0</literal>.</para>
 			<para>The delimiter may be specified as a special or extended ASCII character, by encoding it.  The characters
 			<literal>\n</literal>, <literal>\r</literal>, and <literal>\t</literal> are all recognized as the newline,
 			carriage return, and tab characters, respectively.  Also, octal and hexadecimal specifications are recognized
