@@ -509,8 +509,19 @@ static struct ast_format_cap *set_incoming_call_offer_cap(
 	 */
 	ast_rtp_codecs_payloads_xover(&codecs, &codecs, NULL);
 
-	ast_rtp_codecs_payloads_copy(&codecs,
-		ast_rtp_instance_get_codecs(session_media->rtp), session_media->rtp);
+	/*
+	 * This only merges the newly offered payloads into the live RTP instance
+	 * rather than doing a destructive replace, so any format the channel is
+	 * still actively sending in (e.g. while a reINVITE is in flight) remains
+	 * usable right up until set_caps() commits the channel to the new
+	 * negotiated format.
+	 */
+	if (ast_sip_session_media_state_payloads_merge(session->pending_media_state,
+			&codecs, ast_rtp_instance_get_codecs(session_media->rtp),
+			session_media->rtp)) {
+		ao2_cleanup(incoming_call_offer_cap);
+		incoming_call_offer_cap = NULL;
+	}
 
 	ast_rtp_codecs_payloads_destroy(&codecs);
 
@@ -581,13 +592,35 @@ static int set_caps(struct ast_sip_session *session,
 		 */
 		ast_rtp_codecs_payloads_xover(&codecs, &codecs, NULL);
 	}
+
+	/*
+	 * The channel lock is held from here through the nativeformats/read-write
+	 * format update below so the destructive RTP payload mapping replace and
+	 * the channel format switch happen as one atomic step with respect to a
+	 * concurrent bridge write (which also locks the channel before writing).
+	 * apply_negotiated_sdp_stream(), our only caller, guarantees session->channel
+	 * is non-NULL before calling set_caps().
+	 */
+	ast_channel_lock(session->channel);
 	ast_rtp_codecs_payloads_copy(&codecs, ast_rtp_instance_get_codecs(session_media->rtp),
 		session_media->rtp);
 
+	/*
+	 * The destructive replace above is the authoritative commit point for
+	 * this stream's RTP payloads, so retire the provisional merge transaction
+	 * immediately rather than after the channel format switch below. Leaving
+	 * it marked pending across the rest of this function would let a
+	 * rollback triggered elsewhere (e.g. session_inv_on_tsx_state_changed()
+	 * on a late failure response) find it still pending and restore the
+	 * stale pre-negotiation snapshot over payloads that were already
+	 * committed here.
+	 */
+	ast_sip_session_media_state_payloads_commit_one(session->pending_media_state,
+		ast_rtp_instance_get_codecs(session_media->rtp));
+
 	apply_cap_to_bundled(session_media, session_media_transport, asterisk_stream, joint);
 
-	if (session->channel && ast_sip_session_is_pending_stream_default(session, asterisk_stream)) {
-		ast_channel_lock(session->channel);
+	if (ast_sip_session_is_pending_stream_default(session, asterisk_stream)) {
 		ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel),
 			AST_MEDIA_TYPE_UNKNOWN);
@@ -641,9 +674,9 @@ static int set_caps(struct ast_sip_session *session,
 		if (ast_channel_is_bridged(session->channel)) {
 			ast_channel_set_unbridged_nolock(session->channel, 1);
 		}
-
-		ast_channel_unlock(session->channel);
 	}
+
+	ast_channel_unlock(session->channel);
 
 	ast_rtp_codecs_payloads_destroy(&codecs);
 	SCOPE_EXIT_RTN_VALUE(0);

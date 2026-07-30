@@ -1593,6 +1593,86 @@ void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp
  */
 void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance);
 
+/*! \brief Opaque transaction for a provisional RTP payload merge. */
+struct ast_rtp_codecs_payloads_merge_txn;
+
+/*!
+ * \brief Begin a provisional payload merge transaction
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ *
+ * \param src The source codecs structure
+ * \param dest The destination codecs structure that the values from src will be merged into
+ * \param instance Optionally the instance that the dest codecs structure belongs to
+ *
+ * This adds/updates the payloads from src into dest, without removing any
+ * existing dest mappings that src doesn't itself have. Unlike
+ * ast_rtp_codecs_payloads_copy(), this is safe to use when dest is a live,
+ * in-use RTP instance's codecs and some of its existing mappings must remain
+ * usable until a later, separate commit point (e.g. reflecting a new SDP
+ * offer's payloads before the channel's own read/write formats have caught
+ * up to match). This merges payload mappings and framing, since both are
+ * needed while generating the SDP answer. It never touches dest's preferred
+ * format or preferred DTMF metadata; those are only ever changed by
+ * ast_rtp_codecs_payloads_copy().
+ *
+ * The destination's pre-merge payload mappings and framing are retained as a
+ * rollback snapshot, so they can be restored if the surrounding SDP
+ * negotiation is abandoned.
+ *
+ * \retval non-NULL transaction on success
+ * \retval NULL on allocation failure; dest is not modified
+ */
+struct ast_rtp_codecs_payloads_merge_txn *ast_rtp_codecs_payloads_merge_begin(
+	struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest,
+	struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Add an additional provisional merge to an existing transaction
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ *
+ * \retval 0 on success
+ * \retval -1 if txn is invalid
+ */
+int ast_rtp_codecs_payloads_merge_update(
+	struct ast_rtp_codecs_payloads_merge_txn *txn,
+	struct ast_rtp_codecs *src);
+
+/*!
+ * \brief Determine whether a transaction belongs to a codecs structure
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ */
+int ast_rtp_codecs_payloads_merge_matches(
+	const struct ast_rtp_codecs_payloads_merge_txn *txn,
+	const struct ast_rtp_codecs *codecs);
+
+/*!
+ * \brief Commit a provisional merge and release its rollback state
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ *
+ * The transaction is consumed by this call; txn must not be used afterward.
+ */
+void ast_rtp_codecs_payloads_merge_commit(
+	struct ast_rtp_codecs_payloads_merge_txn *txn);
+
+/*!
+ * \brief Restore the state retained before a provisional merge
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ *
+ * The transaction is consumed by this call; txn must not be used afterward.
+ */
+void ast_rtp_codecs_payloads_merge_rollback(
+	struct ast_rtp_codecs_payloads_merge_txn *txn);
+
 /*!
  * \brief Crossover copy the tx payload mapping of src to the rx payload mapping of dest.
  * \since 14.0.0

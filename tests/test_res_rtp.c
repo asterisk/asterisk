@@ -690,8 +690,279 @@ AST_TEST_DEFINE(mes)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(payload_merge_abandoned_offer)
+{
+	struct ast_rtp_codecs offered = AST_RTP_CODECS_NULL_INIT;
+	struct ast_rtp_codecs active = AST_RTP_CODECS_NULL_INIT;
+	struct ast_rtp_payload_type *payload;
+	RAII_VAR(struct ast_format *, preferred, NULL, ao2_cleanup);
+	struct ast_rtp_codecs_payloads_merge_txn *txn = NULL;
+	enum ast_test_result_state result = AST_TEST_PASS;
+	int offered_initialized = 0;
+	int active_initialized = 0;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "payload_merge_abandoned_offer";
+		info->category = "/res/res_rtp/payload_merge/";
+		info->summary = "Verify an abandoned payload merge is rolled back";
+		info->description =
+			"Verifies that abandoning an SDP offer restores mappings, framing, "
+			"and leaves the preferred format and DTMF metadata present before "
+			"its provisional payload merge unchanged.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (ast_rtp_codecs_payloads_initialize(&offered)) {
+		ast_test_status_update(test, "Unable to initialize RTP codecs\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	offered_initialized = 1;
+	if (ast_rtp_codecs_payloads_initialize(&active)) {
+		ast_test_status_update(test, "Unable to initialize RTP codecs\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	active_initialized = 1;
+
+	/* Use dynamic PTs so lookup cannot fall back to the global static table. */
+	if (ast_rtp_codecs_payloads_set_rtpmap_type(
+			&active, NULL, 96, "audio", "PCMU", 0)
+		|| ast_rtp_codecs_payloads_set_rtpmap_type(
+			&offered, NULL, 97, "audio", "PCMA", 0)) {
+		ast_test_status_update(test, "Unable to create dynamic RTP mappings\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	ast_rtp_codecs_payloads_xover(&active, &active, NULL);
+	ast_rtp_codecs_payloads_xover(&offered, &offered, NULL);
+	ast_rtp_codecs_set_preferred_format(&active, ast_format_ulaw);
+	ast_rtp_codecs_set_preferred_dtmf_format(&active, 101, 8000);
+	ast_rtp_codecs_set_framing(&active, 20);
+	ast_rtp_codecs_set_preferred_format(&offered, ast_format_alaw);
+	ast_rtp_codecs_set_preferred_dtmf_format(&offered, 110, 16000);
+	ast_rtp_codecs_set_framing(&offered, 30);
+
+	txn = ast_rtp_codecs_payloads_merge_begin(&offered, &active, NULL);
+	if (!txn) {
+		ast_test_status_update(test, "Unable to begin payload merge transaction\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+
+	ast_rtp_codecs_payloads_merge_rollback(txn);
+	txn = NULL;
+
+	payload = ast_rtp_codecs_get_payload(&active, 96);
+	if (!payload || !payload->asterisk_format
+		|| ast_format_cmp(payload->format, ast_format_ulaw) != AST_FORMAT_CMP_EQUAL) {
+		ast_test_status_update(test, "Rollback did not restore active PCMU payload 96\n");
+		result = AST_TEST_FAIL;
+	}
+	ao2_cleanup(payload);
+
+	payload = ast_rtp_codecs_get_payload(&active, 97);
+	if (payload) {
+		ast_test_status_update(test, "Rollback retained provisional PCMA payload 97\n");
+		result = AST_TEST_FAIL;
+	}
+	ao2_cleanup(payload);
+	if (ast_rtp_codecs_get_framing(&active) != 20
+		|| ast_rtp_codecs_get_preferred_dtmf_format_pt(&active) != 101
+		|| ast_rtp_codecs_get_preferred_dtmf_format_rate(&active) != 8000) {
+		ast_test_status_update(test, "Rollback did not restore active RTP metadata\n");
+		result = AST_TEST_FAIL;
+	}
+	preferred = ast_rtp_codecs_get_preferred_format(&active);
+	if (!preferred
+		|| ast_format_cmp(preferred, ast_format_ulaw) != AST_FORMAT_CMP_EQUAL) {
+		ast_test_status_update(test, "Rollback did not restore preferred format\n");
+		result = AST_TEST_FAIL;
+	}
+
+cleanup:
+	ast_rtp_codecs_payloads_merge_commit(txn);
+	if (active_initialized) {
+		ast_rtp_codecs_payloads_destroy(&active);
+	}
+	if (offered_initialized) {
+		ast_rtp_codecs_payloads_destroy(&offered);
+	}
+	return result;
+}
+
+AST_TEST_DEFINE(payload_merge_commit)
+{
+	struct ast_rtp_codecs offered = AST_RTP_CODECS_NULL_INIT;
+	struct ast_rtp_codecs active = AST_RTP_CODECS_NULL_INIT;
+	struct ast_rtp_codecs_payloads_merge_txn *txn = NULL;
+	enum ast_test_result_state result = AST_TEST_PASS;
+	int offered_initialized = 0;
+	int active_initialized = 0;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "payload_merge_commit";
+		info->category = "/res/res_rtp/payload_merge/";
+		info->summary = "Verify a committed payload merge retains negotiated state";
+		info->description =
+			"Verifies that committing a provisional merge releases rollback "
+			"state without changing the final negotiated payloads and framing.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (ast_rtp_codecs_payloads_initialize(&offered)) {
+		ast_test_status_update(test, "Unable to initialize offered RTP codecs\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	offered_initialized = 1;
+	if (ast_rtp_codecs_payloads_initialize(&active)) {
+		ast_test_status_update(test, "Unable to initialize active RTP codecs\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	active_initialized = 1;
+
+	if (ast_rtp_codecs_payloads_set_rtpmap_type(
+			&active, NULL, 96, "audio", "PCMU", 0)
+		|| ast_rtp_codecs_payloads_set_rtpmap_type(
+			&offered, NULL, 97, "audio", "PCMA", 0)) {
+		ast_test_status_update(test, "Unable to create dynamic RTP mappings\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	ast_rtp_codecs_payloads_xover(&active, &active, NULL);
+	ast_rtp_codecs_payloads_xover(&offered, &offered, NULL);
+	ast_rtp_codecs_set_framing(&active, 20);
+	ast_rtp_codecs_set_framing(&offered, 30);
+
+	txn = ast_rtp_codecs_payloads_merge_begin(&offered, &active, NULL);
+	if (!txn) {
+		ast_test_status_update(test, "Unable to begin payload merge transaction\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	ast_rtp_codecs_payloads_copy(&offered, &active, NULL);
+	ast_rtp_codecs_payloads_merge_commit(txn);
+	txn = NULL;
+
+	if (ast_rtp_codecs_payload_code_tx(&active, 1, ast_format_ulaw, 0) != -1) {
+		ast_test_status_update(test, "Commit retained obsolete PCMU TX mapping\n");
+		result = AST_TEST_FAIL;
+	}
+	if (ast_rtp_codecs_payload_code_tx(&active, 1, ast_format_alaw, 0) != 97) {
+		ast_test_status_update(test, "Commit did not retain negotiated PCMA TX payload 97\n");
+		result = AST_TEST_FAIL;
+	}
+	if (ast_rtp_codecs_get_framing(&active) != 30) {
+		ast_test_status_update(test, "Commit did not retain negotiated framing\n");
+		result = AST_TEST_FAIL;
+	}
+
+cleanup:
+	ast_rtp_codecs_payloads_merge_commit(txn);
+	if (active_initialized) {
+		ast_rtp_codecs_payloads_destroy(&active);
+	}
+	if (offered_initialized) {
+		ast_rtp_codecs_payloads_destroy(&offered);
+	}
+	return result;
+}
+
+AST_TEST_DEFINE(payload_merge_preserves_preferences)
+{
+	struct ast_rtp_codecs offered = AST_RTP_CODECS_NULL_INIT;
+	struct ast_rtp_codecs active = AST_RTP_CODECS_NULL_INIT;
+	struct ast_rtp_codecs_payloads_merge_txn *txn = NULL;
+	RAII_VAR(struct ast_format *, preferred, NULL, ao2_cleanup);
+	enum ast_test_result_state result = AST_TEST_PASS;
+	int offered_initialized = 0;
+	int active_initialized = 0;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "payload_merge_preserves_preferences";
+		info->category = "/res/res_rtp/payload_merge/";
+		info->summary = "Verify a payload merge preserves active preferences";
+		info->description =
+			"Verifies that merging an SDP offer's provisional payload mappings "
+			"updates framing needed to generate the SDP answer without changing "
+			"the active preferred format or preferred DTMF metadata before the "
+			"offer is committed.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (ast_rtp_codecs_payloads_initialize(&offered)) {
+		ast_test_status_update(test, "Unable to initialize RTP codecs\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	offered_initialized = 1;
+	if (ast_rtp_codecs_payloads_initialize(&active)) {
+		ast_test_status_update(test, "Unable to initialize RTP codecs\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	active_initialized = 1;
+
+	ast_rtp_codecs_set_preferred_format(&active, ast_format_ulaw);
+	ast_rtp_codecs_set_preferred_dtmf_format(&active, 101, 8000);
+	ast_rtp_codecs_set_framing(&active, 20);
+	ast_rtp_codecs_set_preferred_format(&offered, ast_format_alaw);
+	ast_rtp_codecs_set_preferred_dtmf_format(&offered, 110, 16000);
+	ast_rtp_codecs_set_framing(&offered, 30);
+
+	txn = ast_rtp_codecs_payloads_merge_begin(&offered, &active, NULL);
+	if (!txn) {
+		ast_test_status_update(test, "Unable to begin payload merge transaction\n");
+		result = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	ast_rtp_codecs_payloads_merge_commit(txn);
+	txn = NULL;
+
+	preferred = ast_rtp_codecs_get_preferred_format(&active);
+	if (!preferred
+		|| ast_format_cmp(preferred, ast_format_ulaw) != AST_FORMAT_CMP_EQUAL) {
+		ast_test_status_update(test, "Payload merge changed the active preferred format\n");
+		result = AST_TEST_FAIL;
+	}
+	if (ast_rtp_codecs_get_preferred_dtmf_format_pt(&active) != 101
+		|| ast_rtp_codecs_get_preferred_dtmf_format_rate(&active) != 8000) {
+		ast_test_status_update(test,
+			"Payload merge changed the active preferred DTMF metadata\n");
+		result = AST_TEST_FAIL;
+	}
+	if (ast_rtp_codecs_get_framing(&active) != 30) {
+		ast_test_status_update(test, "Payload merge did not update offered framing\n");
+		result = AST_TEST_FAIL;
+	}
+
+cleanup:
+	ast_rtp_codecs_payloads_merge_commit(txn);
+	if (active_initialized) {
+		ast_rtp_codecs_payloads_destroy(&active);
+	}
+	if (offered_initialized) {
+		ast_rtp_codecs_payloads_destroy(&offered);
+	}
+	return result;
+}
+
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(payload_merge_preserves_preferences);
+	AST_TEST_UNREGISTER(payload_merge_commit);
+	AST_TEST_UNREGISTER(payload_merge_abandoned_offer);
 	AST_TEST_UNREGISTER(mes);
 	AST_TEST_UNREGISTER(nack_no_packet_loss);
 	AST_TEST_UNREGISTER(nack_nominal);
@@ -705,6 +976,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	AST_TEST_REGISTER(payload_merge_abandoned_offer);
+	AST_TEST_REGISTER(payload_merge_commit);
+	AST_TEST_REGISTER(payload_merge_preserves_preferences);
 	AST_TEST_REGISTER(nack_no_packet_loss);
 	AST_TEST_REGISTER(nack_nominal);
 	AST_TEST_REGISTER(nack_overflow);

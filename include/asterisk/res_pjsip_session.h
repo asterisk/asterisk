@@ -51,6 +51,8 @@ struct pjmedia_sdp_media;
 struct pjmedia_sdp_session;
 struct ast_dsp;
 struct ast_udptl;
+struct ast_rtp_codecs;
+struct ast_rtp_instance;
 
 /*! \brief T.38 states for a session */
 enum ast_sip_session_t38state {
@@ -946,6 +948,66 @@ void ast_sip_session_media_stats_save(struct ast_sip_session *sip_session, struc
  * \param media_state The media state to reset
  */
 void ast_sip_session_media_state_reset(struct ast_sip_session_media_state *media_state);
+
+/*!
+ * \brief Merge provisional RTP payloads into a pending media state
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ *
+ * A single rollback snapshot is retained for each destination codecs
+ * structure even when multiple bundled streams update the same RTP instance.
+ *
+ * \param media_state The pending media state that owns the merge transaction
+ * \param src The source codecs structure whose payloads are merged in
+ * \param dest The destination codecs structure that the values from src will be merged into
+ * \param instance Optionally the instance that the dest codecs structure belongs to
+ *
+ * \retval 0 on success
+ * \retval -1 on allocation failure
+ */
+int ast_sip_session_media_state_payloads_merge(
+	struct ast_sip_session_media_state *media_state,
+	struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest,
+	struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Roll back all provisional RTP payload merges in a media state
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ *
+ * \param media_state The media state whose pending merges are rolled back
+ */
+void ast_sip_session_media_state_payloads_rollback(
+	struct ast_sip_session_media_state *media_state);
+
+/*!
+ * \brief Commit the provisional merge for one RTP codecs structure
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ *
+ * \param media_state The media state that owns the merge transaction
+ * \param codecs The destination codecs structure whose pending merge is committed
+ */
+void ast_sip_session_media_state_payloads_commit_one(
+	struct ast_sip_session_media_state *media_state,
+	struct ast_rtp_codecs *codecs);
+
+/*!
+ * \brief Determine whether a media state has provisional RTP payload merges
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ *
+ * \param media_state The media state to check
+ *
+ * \retval 1 if provisional payload merges are present
+ * \retval 0 otherwise
+ */
+int ast_sip_session_media_state_payloads_pending(
+	const struct ast_sip_session_media_state *media_state);
 
 /*!
  * \brief Clone a media state

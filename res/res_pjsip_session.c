@@ -52,10 +52,19 @@
 #include "asterisk/test.h"
 #include "asterisk/stream.h"
 #include "asterisk/vector.h"
+#include "asterisk/rtp_engine.h"
 
 #include "res_pjsip_session/pjsip_session.h"
 
 #define SDP_HANDLER_BUCKETS 11
+
+/*
+ * Sized for call volume: every session's active and pending media_state gets
+ * an entry here while a payload merge is outstanding, so this scales with
+ * concurrent calls. Matches DIALOG_ASSOCIATIONS_BUCKETS in pjsip_distributor.c,
+ * which is sized for the same reason.
+ */
+#define MEDIA_STATE_PAYLOAD_MERGE_BUCKETS 251
 
 #define MOD_DATA_ON_RESPONSE "on_response"
 
@@ -93,6 +102,80 @@ static struct ast_sip_nat_hook *nat_hook;
  * handlers for the stream type.
  */
 static struct ao2_container *sdp_handlers;
+
+struct media_state_payload_merge_state {
+	struct ast_sip_session_media_state *media_state;
+	AST_VECTOR(, struct ast_rtp_codecs_payloads_merge_txn *) payload_merge_txns;
+};
+
+static struct ao2_container *media_state_payload_merges;
+
+static int media_state_payload_merge_state_hash(const void *obj, int flags)
+{
+	const struct media_state_payload_merge_state *state = obj;
+	const struct ast_sip_session_media_state *media_state =
+		(flags & OBJ_KEY) ? obj : state->media_state;
+	uintptr_t value = (uintptr_t) media_state;
+	value ^= value >> 4;
+	value ^= value >> 9;
+	return (unsigned int) value;
+}
+
+static int media_state_payload_merge_state_cmp(void *obj, void *arg, int flags)
+{
+	const struct media_state_payload_merge_state *left = obj;
+	const struct ast_sip_session_media_state *right_media_state =
+		(flags & OBJ_KEY) ? arg : ((const struct media_state_payload_merge_state *) arg)->media_state;
+
+	return left->media_state == right_media_state ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static void media_state_payload_merge_state_dtor(void *obj)
+{
+	struct media_state_payload_merge_state *state = obj;
+
+	while (AST_VECTOR_SIZE(&state->payload_merge_txns)) {
+		struct ast_rtp_codecs_payloads_merge_txn *txn;
+
+		txn = AST_VECTOR_REMOVE_ORDERED(&state->payload_merge_txns,
+			AST_VECTOR_SIZE(&state->payload_merge_txns) - 1);
+		ast_rtp_codecs_payloads_merge_rollback(txn);
+	}
+
+	AST_VECTOR_FREE(&state->payload_merge_txns);
+}
+
+static struct media_state_payload_merge_state *media_state_payload_merge_state_get(
+	struct ast_sip_session_media_state *media_state, int create, size_t initial_capacity)
+{
+	struct media_state_payload_merge_state *state;
+
+	if (!media_state || !media_state_payload_merges) {
+		return NULL;
+	}
+
+	state = ao2_find(media_state_payload_merges, media_state, OBJ_SEARCH_KEY);
+	if (state || !create) {
+		return state;
+	}
+
+	state = ao2_alloc(sizeof(*state), media_state_payload_merge_state_dtor);
+	if (!state) {
+		return NULL;
+	}
+
+	state->media_state = media_state;
+	if (AST_VECTOR_INIT(&state->payload_merge_txns, initial_capacity) < 0) {
+		ao2_ref(state, -1);
+		return NULL;
+	}
+
+	if (!ao2_link(media_state_payload_merges, state)) {
+		ao2_ref(state, -1);
+		return NULL;
+	}
+	return state;
+}
 
 /*!
  * These are the objects in the sdp_handlers container
@@ -241,6 +324,7 @@ static struct ast_sip_session_media_state *internal_sip_session_media_state_allo
 		return NULL;
 	}
 
+
 	return media_state;
 }
 
@@ -287,9 +371,21 @@ void ast_sip_session_media_stats_save(struct ast_sip_session *sip_session, struc
 void ast_sip_session_media_state_reset(struct ast_sip_session_media_state *media_state)
 {
 	int index;
+	RAII_VAR(struct media_state_payload_merge_state *, payload_state, NULL, ao2_cleanup);
 
 	if (!media_state) {
 		return;
+	}
+
+	payload_state = media_state_payload_merge_state_get(media_state, 0, 0);
+	if (payload_state) {
+		while (AST_VECTOR_SIZE(&payload_state->payload_merge_txns)) {
+			struct ast_rtp_codecs_payloads_merge_txn *txn;
+
+			txn = AST_VECTOR_REMOVE_ORDERED(&payload_state->payload_merge_txns,
+				AST_VECTOR_SIZE(&payload_state->payload_merge_txns) - 1);
+			ast_rtp_codecs_payloads_merge_rollback(txn);
+		}
 	}
 
 	AST_VECTOR_RESET(&media_state->sessions, ao2_cleanup);
@@ -301,6 +397,96 @@ void ast_sip_session_media_state_reset(struct ast_sip_session_media_state *media
 
 	ast_stream_topology_free(media_state->topology);
 	media_state->topology = NULL;
+}
+
+int ast_sip_session_media_state_payloads_merge(
+	struct ast_sip_session_media_state *media_state,
+	struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest,
+	struct ast_rtp_instance *instance)
+{
+	RAII_VAR(struct media_state_payload_merge_state *, payload_state, NULL, ao2_cleanup);
+	struct ast_rtp_codecs_payloads_merge_txn *txn;
+	int index;
+
+	payload_state = media_state_payload_merge_state_get(media_state, 1,
+		DEFAULT_NUM_SESSION_MEDIA);
+	if (!payload_state) {
+		return -1;
+	}
+
+	for (index = 0; index < AST_VECTOR_SIZE(&payload_state->payload_merge_txns); ++index) {
+		txn = AST_VECTOR_GET(&payload_state->payload_merge_txns, index);
+		if (ast_rtp_codecs_payloads_merge_matches(txn, dest)) {
+			return ast_rtp_codecs_payloads_merge_update(txn, src);
+		}
+	}
+
+	txn = ast_rtp_codecs_payloads_merge_begin(src, dest, instance);
+	if (!txn) {
+		return -1;
+	}
+	if (AST_VECTOR_APPEND(&payload_state->payload_merge_txns, txn)) {
+		ast_rtp_codecs_payloads_merge_rollback(txn);
+		return -1;
+	}
+
+	return 0;
+}
+
+void ast_sip_session_media_state_payloads_rollback(
+	struct ast_sip_session_media_state *media_state)
+{
+	RAII_VAR(struct media_state_payload_merge_state *, payload_state, NULL, ao2_cleanup);
+
+	payload_state = media_state_payload_merge_state_get(media_state, 0, 0);
+	if (!payload_state) {
+		return;
+	}
+
+	while (AST_VECTOR_SIZE(&payload_state->payload_merge_txns)) {
+		struct ast_rtp_codecs_payloads_merge_txn *txn;
+
+		txn = AST_VECTOR_REMOVE_ORDERED(&payload_state->payload_merge_txns,
+			AST_VECTOR_SIZE(&payload_state->payload_merge_txns) - 1);
+		ast_rtp_codecs_payloads_merge_rollback(txn);
+	}
+}
+
+void ast_sip_session_media_state_payloads_commit_one(
+	struct ast_sip_session_media_state *media_state,
+	struct ast_rtp_codecs *codecs)
+{
+	RAII_VAR(struct media_state_payload_merge_state *, payload_state, NULL, ao2_cleanup);
+	int index;
+
+	payload_state = media_state_payload_merge_state_get(media_state, 0, 0);
+	if (!payload_state) {
+		return;
+	}
+
+	for (index = 0; index < AST_VECTOR_SIZE(&payload_state->payload_merge_txns); ++index) {
+		struct ast_rtp_codecs_payloads_merge_txn *txn;
+
+		txn = AST_VECTOR_GET(&payload_state->payload_merge_txns, index);
+		if (!ast_rtp_codecs_payloads_merge_matches(txn, codecs)) {
+			continue;
+		}
+
+		AST_VECTOR_REMOVE_ORDERED(&payload_state->payload_merge_txns, index);
+		ast_rtp_codecs_payloads_merge_commit(txn);
+		return;
+	}
+}
+
+int ast_sip_session_media_state_payloads_pending(
+	const struct ast_sip_session_media_state *media_state)
+{
+	RAII_VAR(struct media_state_payload_merge_state *, payload_state, NULL, ao2_cleanup);
+
+	payload_state = media_state_payload_merge_state_get(
+		(struct ast_sip_session_media_state *) media_state, 0, 0);
+
+	return payload_state && AST_VECTOR_SIZE(&payload_state->payload_merge_txns);
 }
 
 struct ast_sip_session_media_state *ast_sip_session_media_state_clone(const struct ast_sip_session_media_state *media_state)
@@ -358,6 +544,10 @@ void ast_sip_session_media_state_free(struct ast_sip_session_media_state *media_
 
 	/* This will reset the internal state so we only have to free persistent things */
 	ast_sip_session_media_state_reset(media_state);
+	if (media_state_payload_merges) {
+		ao2_find(media_state_payload_merges, media_state,
+			OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+	}
 
 	AST_VECTOR_FREE(&media_state->sessions);
 	AST_VECTOR_FREE(&media_state->read_callbacks);
@@ -1216,6 +1406,12 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 
 	/* Active and pending flip flop as needed */
 	ast_sip_session_media_stats_save(session, session->active_media_state);
+	/*
+	 * set_caps() commits each stream after synchronizing its RTP payloads and
+	 * channel formats. Any transaction still pending here belongs to a stream
+	 * that did not reach that authoritative commit point.
+	 */
+	ast_sip_session_media_state_payloads_rollback(session->pending_media_state);
 	SWAP(session->active_media_state, session->pending_media_state);
 	ast_sip_session_media_state_reset(session->pending_media_state);
 
@@ -4061,6 +4257,7 @@ static int new_invite(struct new_invite *invite)
 	sdp_info = pjsip_rdata_get_sdp_info(invite->rdata);
 	if (sdp_info && (sdp_info->sdp_err == PJ_SUCCESS) && sdp_info->sdp) {
 		if (handle_incoming_sdp(invite->session, sdp_info->sdp)) {
+			ast_sip_session_media_state_reset(invite->session->pending_media_state);
 			tdata = NULL;
 			if (pjsip_inv_end_session(invite->session->inv_session, 488, NULL, &tdata) == PJ_SUCCESS
 				&& tdata) {
@@ -4077,6 +4274,7 @@ static int new_invite(struct new_invite *invite)
 
 	/* If we were unable to create a local SDP terminate the session early, it won't go anywhere */
 	if (!local) {
+		ast_sip_session_media_state_reset(invite->session->pending_media_state);
 		tdata = NULL;
 		if (pjsip_inv_end_session(invite->session->inv_session, 500, NULL, &tdata) == PJ_SUCCESS
 			&& tdata) {
@@ -5000,6 +5198,24 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		session->terminate_on_invite_timeout = 0;
 	}
 
+	if (tsx->method.id == PJSIP_INVITE_METHOD) {
+		if (tsx->role == PJSIP_ROLE_UAS
+			&& tsx->state == PJSIP_TSX_STATE_COMPLETED
+			&& tsx->status_code >= 300
+			&& ast_sip_session_media_state_payloads_pending(session->pending_media_state)) {
+			/*
+			 * A received offer provisionally updates the live RTP mappings
+			 * before its INVITE transaction is complete.  A successful media
+			 * update commits and removes those transactions.  If the UAS
+			 * transaction instead completes with a final failure response
+			 * while they are still present (for example, 487 after CANCEL),
+			 * the session's pending media state must not leak into the
+			 * established dialog.
+			 */
+			ast_sip_session_media_state_reset(session->pending_media_state);
+		}
+	}
+
 	if (AST_LIST_EMPTY(&session->delayed_requests)) {
 		/* No delayed request pending, so just return */
 		SCOPE_EXIT_RTN("Nothing delayed\n");
@@ -5341,6 +5557,7 @@ static void session_inv_on_rx_offer(pjsip_inv_session *inv, const pjmedia_sdp_se
 		pjsip_inv_set_sdp_answer(inv, answer);
 		SCOPE_EXIT_RTN("%s: Set SDP answer\n", ast_sip_session_get_name(session));
 	}
+	ast_sip_session_media_state_reset(session->pending_media_state);
 	SCOPE_EXIT_RTN("%s: create_local_sdp failed\n", ast_sip_session_get_name(session));
 }
 
@@ -6211,6 +6428,14 @@ static int load_module(void)
 	if (!sdp_handlers) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
+	media_state_payload_merges = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		MEDIA_STATE_PAYLOAD_MERGE_BUCKETS, media_state_payload_merge_state_hash, NULL,
+		media_state_payload_merge_state_cmp);
+	if (!media_state_payload_merges) {
+		ao2_cleanup(sdp_handlers);
+		sdp_handlers = NULL;
+		return AST_MODULE_LOAD_DECLINE;
+	}
 	endpt = ast_sip_get_pjsip_endpoint();
 	pjsip_inv_usage_init(endpt, &inv_callback);
 	pjsip_100rel_init_module(endpt);
@@ -6243,6 +6468,8 @@ static int unload_module(void)
 	ast_sorcery_delete(ast_sip_get_sorcery(), nat_hook);
 	ao2_cleanup(nat_hook);
 	ao2_cleanup(sdp_handlers);
+	ao2_cleanup(media_state_payload_merges);
+	media_state_payload_merges = NULL;
 	return 0;
 }
 
