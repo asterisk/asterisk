@@ -177,9 +177,9 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 	static int notice = 0;
 
 	/* Make sure its name is a public or private key */
-	if ((c = strstr(fname, ".pub")) && !strcmp(c, ".pub")) {
+	if ((c = (char *)strstr(fname, ".pub")) && !strcmp(c, ".pub")) {
 		ktype = AST_KEY_PUBLIC;
-	} else if ((c = strstr(fname, ".key")) && !strcmp(c, ".key")) {
+	} else if ((c = (char *)strstr(fname, ".key")) && !strcmp(c, ".key")) {
 		ktype = AST_KEY_PRIVATE;
 	} else {
 		return NULL;
