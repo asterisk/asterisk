@@ -285,12 +285,10 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-	int res = 0;
-
 	common_config_unload();
 	crypto_unload();
 
-	res |= ast_custom_function_unregister(&stir_shaken_function);
+	ast_custom_function_unregister(&stir_shaken_function);
 
 	return 0;
 }
