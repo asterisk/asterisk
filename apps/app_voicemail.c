@@ -14259,7 +14259,7 @@ static int append_vmu_info_astman(
 		const char* actionid
 		)
 {
-	int new;
+	int new = 0;
 	int old;
 	char *mailbox;
 	int ret;
