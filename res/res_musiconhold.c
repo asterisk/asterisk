@@ -1916,6 +1916,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 	if (mohclass->answeredonly && (ast_channel_state(chan) != AST_STATE_UP)) {
 		ast_verb(3, "The channel '%s' is not answered yet. Ignore the moh request.\n", ast_channel_name(chan));
+		mohclass = mohclass_unref(mohclass, "unreffing local reference to mohclass (channel not answered)");
 		return -1;
 	}
 
