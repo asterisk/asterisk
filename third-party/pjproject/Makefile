@@ -60,8 +60,10 @@ ifeq ($(SPECIAL_TARGETS),)
         CF := $(filter-out -I%,$(CF))
         ifeq ($(PJPROJECT_BUNDLED_OOT),)
         ifeq ($(AST_DEVMODE),yes)
+		ifeq ($(findstring _SANITIZER,$(MENUSELECT_CFLAGS)),)
 			apps := source/pjsip-apps/bin/pjsua-$(TARGET_NAME)
 			TARGETS += $(apps)
+		endif
             CF += -DPJPROJECT_BUNDLED_ASSERTIONS=yes
         endif
         endif
