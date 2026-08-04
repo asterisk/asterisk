@@ -19,7 +19,18 @@ page on the [documentation website](https://docs.asterisk.org) then use the
 tab of this project's GitHub repository.
 **Never use regular GitHub issues to report security vulnerabilities!**
 
-##### Do NOT use the "Start a temporary private fork" security advisory feature!  
+#### Please report only one vulnerability per security advisory!
+
+Reporting multiple vulnerability in one advisory creates the following issues:
+
+* They'll probably need different CVEs.
+* They may have different Common Weakness Enumerator (CWE) values.  While you can list multiple CWEs in a single advisory, you can't indicate which vulnerability has which weakness.
+* They may have different severities.
+* They may affect different Asterisk versions.
+* It makes it harder to associate fix pull requests to a vulnerability.
+* It makes it harder for our automation tasks to to validate fixes and create releases.
+
+#### Do NOT use the "Start a temporary private fork" security advisory feature!  
 
 Private forks created from security advisories are severly limited by GitHub
 and cannot run the workflows necessary for validation and testing.  Once an
