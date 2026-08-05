@@ -1695,7 +1695,7 @@ static struct ast_channel *webchan_request(const char *type,
 		if (instance->control_msg_format == WEBCHAN_CONTROL_MSG_FORMAT_INVALID) {
 			ast_log(LOG_WARNING, "%s: 'f/control message format' dialstring parameter value missing or invalid. "
 				"Defaulting to 'plain-text'\n",
-				ast_channel_name(requestor));
+				requestor_name);
 			instance->control_msg_format = WEBCHAN_CONTROL_MSG_FORMAT_PLAIN;
 		}
 	} else if (global_cfg) {
@@ -1705,7 +1705,7 @@ static struct ast_channel *webchan_request(const char *type,
 	chan = ast_channel_alloc(1, AST_STATE_DOWN, "", "", "", "", "", assignedids,
 		requestor, 0, "WebSocket/%s/%p", args.connection_id, instance);
 	if (!chan) {
-		ast_log(LOG_ERROR, "%s: Unable to alloc channel\n", ast_channel_name(requestor));
+		ast_log(LOG_ERROR, "%s: Unable to alloc channel\n", requestor_name);
 		goto failure;
 	}
 
