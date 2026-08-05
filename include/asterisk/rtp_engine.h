@@ -304,6 +304,8 @@ struct ast_rtp_payload_type {
 	/*! If asterisk_format is set, this is the internal
 	 * asterisk format represented by the payload */
 	struct ast_format *format;
+	/*! Raw SDP format parameters associated with the payload */
+	char *fmtp;
 	/*! Is this an Asterisk value */
 	int asterisk_format;
 	/*! Actual internal RTP specific value of the payload */
@@ -1674,6 +1676,18 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 				  unsigned int sample_rate);
 
 /*!
+ * \brief Record tx payload format parameters from an a=fmtp SDP line
+ *
+ * \param codecs Codecs structure to update
+ * \param payload Numerical payload from the a=fmtp SDP line
+ * \param fmtp Format parameters without the payload number
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_rtp_codecs_payload_set_fmtp(struct ast_rtp_codecs *codecs, int payload, const char *fmtp);
+
+/*!
  * \brief Remove tx payload type mapped information
  *
  * \param codecs The codecs structure to muck with
@@ -1724,6 +1738,20 @@ enum ast_media_type ast_rtp_codecs_get_stream_type(struct ast_rtp_codecs *codecs
  * This looks up the information for payload '0' from the codecs structure.
  */
 struct ast_rtp_payload_type *ast_rtp_codecs_get_payload(struct ast_rtp_codecs *codecs, int payload);
+
+/*!
+ * \brief Retrieve a transmit payload mapping by payload type
+ *
+ * \param codecs Codecs structure to look in
+ * \param payload Numerical payload to look up
+ *
+ * \return Payload information.
+ * \retval NULL if payload does not exist.
+ *
+ * \note The payload returned by this function has its reference count increased.
+ *       Callers are responsible for decrementing the reference count.
+ */
+struct ast_rtp_payload_type *ast_rtp_codecs_get_payload_tx(struct ast_rtp_codecs *codecs, int payload);
 
 /*!
  * \brief Retrieve rx preferred format
@@ -2005,6 +2033,19 @@ int ast_rtp_codecs_payload_set_rx(struct ast_rtp_codecs *codecs, int code, struc
  * \since 22.0.0
  */
 int ast_rtp_codecs_payload_set_rx_sample_rate(struct ast_rtp_codecs *codecs, int code, struct ast_format *format, unsigned int sample_rate);
+
+/*!
+ * \brief Install a payload type as an rx mapping
+ *
+ * \param codecs Codecs structure to manipulate
+ * \param type Payload mapping to install
+ *
+ * \retval 0 Payload mapping was installed
+ * \retval -1 Invalid payload mapping
+ *
+ * \note The codecs structure takes its own reference to type.
+ */
+int ast_rtp_codecs_payload_set_rx_type(struct ast_rtp_codecs *codecs, struct ast_rtp_payload_type *type);
 
 /*!
  * \brief Retrieve a tx mapped payload type based on whether it is an Asterisk format and the code

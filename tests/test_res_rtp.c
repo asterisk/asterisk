@@ -26,6 +26,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
+	<depend>res_format_attr_opus</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -36,6 +37,8 @@
 #include "asterisk/rtp_engine.h"
 #include "asterisk/data_buffer.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/format.h"
+#include "asterisk/opus.h"
 #include <assert.h>
 #include <sched.h>
 
@@ -45,6 +48,109 @@ enum test_type {
 	TEST_TYPE_REMB,		/* Enable REMB */
 	TEST_TYPE_STD_RTCP, /* Let the stack do RTCP */
 };
+
+AST_TEST_DEFINE(payload_mapping_exchange)
+{
+	struct ast_rtp_codecs local = AST_RTP_CODECS_NULL_INIT;
+	struct ast_rtp_codecs peer = AST_RTP_CODECS_NULL_INIT;
+	struct ast_rtp_payload_type *type = NULL;
+	struct ast_rtp_payload_type *local_type = NULL;
+	struct ast_format *opus = NULL;
+	struct ast_str *fmtp = NULL;
+	enum ast_test_result_state result = AST_TEST_PASS;
+	int local_initialized = 0;
+	int peer_initialized = 0;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "payload_mapping_exchange";
+		info->category = "/res/res_rtp/";
+		info->summary = "Direct media payload mapping exchange";
+		info->description = "Tests transmit mapping access and receive installation with attributes";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+#define TEST_CHECK(condition, message) \
+	do { \
+		if (!(condition)) { \
+			ast_test_status_update(test, "%s\n", message); \
+			result = AST_TEST_FAIL; \
+			goto cleanup; \
+		} \
+	} while (0)
+
+	TEST_CHECK(!ast_rtp_codecs_payloads_initialize(&local), "Unable to initialize local codecs");
+	local_initialized = 1;
+	TEST_CHECK(!ast_rtp_codecs_payloads_initialize(&peer), "Unable to initialize peer codecs");
+	peer_initialized = 1;
+
+	TEST_CHECK(!ast_rtp_codecs_payloads_set_rtpmap_type_rate(&peer, NULL, 101,
+		"audio", "telephone-event", 0, 8000), "Unable to set peer DTMF mapping");
+	TEST_CHECK(!ast_rtp_codecs_payload_set_fmtp(&peer, 101, "0-15"),
+		"Unable to set peer DTMF format parameters");
+	type = ast_rtp_codecs_get_payload_tx(&peer, 101);
+	TEST_CHECK(type && !type->asterisk_format && type->rtp_code == AST_RTP_DTMF
+		&& type->sample_rate == 8000 && type->fmtp && !strcmp(type->fmtp, "0-15"),
+		"Transmit accessor returned the wrong DTMF mapping or format parameters");
+	TEST_CHECK(!ast_rtp_codecs_payload_set_rx_type(&local, type), "Unable to install DTMF receive mapping");
+	ao2_cleanup(type);
+	type = NULL;
+	TEST_CHECK(!ast_rtp_codecs_payloads_set_rtpmap_type_rate(&peer, NULL, 102,
+		"audio", "telephone-event", 0, 16000), "Unable to set second peer DTMF mapping");
+	type = ast_rtp_codecs_get_payload_tx(&peer, 102);
+	TEST_CHECK(type && type->sample_rate == 16000, "Second DTMF mapping was not retained");
+	TEST_CHECK(!ast_rtp_codecs_payload_set_rx_type(&local, type), "Unable to install second DTMF mapping");
+	ao2_cleanup(type);
+	type = NULL;
+	local_type = ast_rtp_codecs_get_payload(&local, 101);
+	TEST_CHECK(local_type && local_type->sample_rate == 8000
+		&& local_type->fmtp && !strcmp(local_type->fmtp, "0-15"),
+		"First DTMF receive mapping or format parameters were not retained");
+	ao2_cleanup(local_type);
+	local_type = ast_rtp_codecs_get_payload(&local, 102);
+	TEST_CHECK(local_type && local_type->sample_rate == 16000,
+		"Second DTMF receive mapping was not retained");
+	ao2_cleanup(local_type);
+	local_type = NULL;
+
+	ast_rtp_codecs_payloads_clear(&local, NULL);
+	ast_rtp_codecs_payloads_clear(&peer, NULL);
+	TEST_CHECK(!ast_rtp_codecs_payloads_set_rtpmap_type_rate(&peer, NULL, 111,
+		"audio", "opus", 0, 48000), "Unable to set peer Opus mapping");
+	opus = ast_format_parse_sdp_fmtp(ast_format_opus,
+		"stereo=1;useinbandfec=1;maxaveragebitrate=32000");
+	TEST_CHECK(opus != NULL, "Unable to create attributed Opus format");
+	TEST_CHECK(!ast_rtp_codecs_payload_replace_format(&peer, 111, opus),
+		"Unable to attach attributes to peer Opus mapping");
+	type = ast_rtp_codecs_get_payload_tx(&peer, 111);
+	TEST_CHECK(type && type->format == opus, "Transmit accessor did not retain Opus attributes");
+	TEST_CHECK(!ast_rtp_codecs_payload_set_rx_type(&local, type), "Unable to install Opus receive mapping");
+	local_type = ast_rtp_codecs_get_payload(&local, 111);
+	TEST_CHECK(local_type && local_type->format == opus, "Receive mapping did not retain Opus attributes");
+	fmtp = ast_str_create(128);
+	TEST_CHECK(fmtp != NULL, "Unable to allocate Opus fmtp output");
+	ast_format_generate_sdp_fmtp(local_type->format, 111, &fmtp);
+	TEST_CHECK(strstr(ast_str_buffer(fmtp), "stereo=1")
+		&& strstr(ast_str_buffer(fmtp), "useinbandfec=1")
+		&& strstr(ast_str_buffer(fmtp), "maxaveragebitrate=32000"),
+		"Receive mapping did not preserve Opus fmtp attributes");
+
+cleanup:
+	ast_free(fmtp);
+	ao2_cleanup(local_type);
+	ao2_cleanup(type);
+	ao2_cleanup(opus);
+	if (peer_initialized) {
+		ast_rtp_codecs_payloads_destroy(&peer);
+	}
+	if (local_initialized) {
+		ast_rtp_codecs_payloads_destroy(&local);
+	}
+#undef TEST_CHECK
+	return result;
+}
 
 static void ast_sched_context_destroy_wrapper(struct ast_sched_context *sched)
 {
@@ -692,6 +798,7 @@ AST_TEST_DEFINE(mes)
 
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(payload_mapping_exchange);
 	AST_TEST_UNREGISTER(mes);
 	AST_TEST_UNREGISTER(nack_no_packet_loss);
 	AST_TEST_UNREGISTER(nack_nominal);
@@ -705,6 +812,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	AST_TEST_REGISTER(payload_mapping_exchange);
 	AST_TEST_REGISTER(nack_no_packet_loss);
 	AST_TEST_REGISTER(nack_nominal);
 	AST_TEST_REGISTER(nack_overflow);

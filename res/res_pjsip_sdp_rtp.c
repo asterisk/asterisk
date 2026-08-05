@@ -385,10 +385,9 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 				continue;
 			}
 
+			ast_copy_pj_str(fmt_param, &fmtp.fmt_param, sizeof(fmt_param));
 			if ((format = ast_rtp_codecs_get_payload_format(codecs, num))) {
 				struct ast_format *format_parsed;
-
-				ast_copy_pj_str(fmt_param, &fmtp.fmt_param, sizeof(fmt_param));
 
 				format_parsed = ast_format_parse_sdp_fmtp(format, fmt_param);
 				if (format_parsed) {
@@ -397,6 +396,7 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 				}
 				ao2_ref(format, -1);
 			}
+			ast_rtp_codecs_payload_set_fmtp(codecs, num, fmt_param);
 		}
 	}
 
@@ -743,6 +743,41 @@ static pjmedia_sdp_attr* generate_fmtp_attr(pj_pool_t *pool, struct ast_format *
 		attr = pjmedia_sdp_attr_create(pool, "fmtp", &fmtp1);
 	}
 	return attr;
+}
+
+static struct ast_rtp_payload_type *find_direct_media_payload(
+	const struct ast_sip_session_media *session_media, int asterisk_format,
+	const struct ast_format *format, int code, unsigned int sample_rate)
+{
+	int payload;
+
+	for (payload = 0; payload < AST_RTP_MAX_PT; ++payload) {
+		struct ast_rtp_payload_type *type;
+
+		type = ast_sip_session_media_get_direct_media_payload(session_media, payload);
+		if (!type || type->asterisk_format != asterisk_format) {
+			ao2_cleanup(type);
+			continue;
+		}
+
+		if (!asterisk_format) {
+			if (type->rtp_code == code
+				&& (!sample_rate || type->sample_rate == sample_rate)) {
+				return type;
+			}
+		} else if (format && type->format) {
+			struct ast_format *joint = ast_format_joint(format, type->format);
+
+			if (joint) {
+				ao2_ref(joint, -1);
+				return type;
+			}
+		}
+
+		ao2_ref(type, -1);
+	}
+
+	return NULL;
 }
 
 /*! \brief Function which adds ICE attributes to a media stream */
@@ -1985,6 +2020,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 
 	for (index = 0; index < ast_format_cap_count(caps); ++index) {
 		struct ast_format *format = ast_format_cap_get_format(caps, index);
+		struct ast_format *sdp_format = format;
+		struct ast_rtp_payload_type *direct_payload = NULL;
 
 		if (ast_format_get_type(format) != media_type) {
 			ao2_ref(format, -1);
@@ -2004,7 +2041,20 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		/* If this stream is not a transport we need to use the transport codecs structure for payload management to prevent
 		 * conflicts.
 		 */
-		if (session_media_transport != session_media) {
+		if (direct_media_enabled) {
+			direct_payload = find_direct_media_payload(session_media, 1, format, 0, 0);
+			if (!direct_payload) {
+				ast_debug(1, "No compatible direct media payload for format '%s' on session '%s'\n",
+					ast_format_get_name(format), ast_sip_session_get_name(session));
+				ao2_ref(format, -1);
+				continue;
+			}
+
+			rtp_code = direct_payload->payload;
+			sdp_format = direct_payload->format;
+			ast_rtp_codecs_payload_set_rx_type(
+				ast_rtp_instance_get_codecs(session_media->rtp), direct_payload);
+		} else if (session_media_transport != session_media) {
 			if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media_transport->rtp), 1, format, 0)) == -1) {
 				ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
 				ao2_ref(format, -1);
@@ -2020,9 +2070,9 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			}
 		}
 
-		if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 1, format, 0))) {
+		if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 1, sdp_format, 0))) {
 			int i, added = 0;
-			int newrate = ast_rtp_lookup_sample_rate2(1, format, 0);
+			int newrate = ast_rtp_lookup_sample_rate2(1, sdp_format, 0);
 			if (build_dtmf_sample_rates) {
 				for (i = 0; i < AST_VECTOR_SIZE(&sample_rates); i++) {
 					/* Only add if we haven't already processed this sample rate. For instance
@@ -2040,14 +2090,15 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			media->attr[media->attr_count++] = attr;
 		}
 
-		if ((attr = generate_fmtp_attr(pool, format, rtp_code))) {
+		if ((attr = generate_fmtp_attr(pool, sdp_format, rtp_code))) {
 			media->attr[media->attr_count++] = attr;
 		}
 
-		if (ast_format_get_maximum_ms(format) &&
-			((ast_format_get_maximum_ms(format) < max_packet_size) || !max_packet_size)) {
-			max_packet_size = ast_format_get_maximum_ms(format);
+		if (ast_format_get_maximum_ms(sdp_format) &&
+			((ast_format_get_maximum_ms(sdp_format) < max_packet_size) || !max_packet_size)) {
+			max_packet_size = ast_format_get_maximum_ms(sdp_format);
 		}
+		ao2_cleanup(direct_payload);
 		ao2_ref(format, -1);
 
 		if (media->desc.fmt_count == PJMEDIA_MAX_SDP_FMT) {
@@ -2064,12 +2115,54 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			}
 
 			if (index != AST_RTP_DTMF) {
-				rtp_code = ast_rtp_codecs_payload_code(
-								ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index);
+				struct ast_rtp_payload_type *direct_payload = NULL;
+
+				if (direct_media_enabled) {
+					direct_payload = find_direct_media_payload(session_media, 0, NULL, index, 0);
+					rtp_code = direct_payload ? direct_payload->payload : -1;
+					if (direct_payload) {
+						ast_rtp_codecs_payload_set_rx_type(
+							ast_rtp_instance_get_codecs(session_media->rtp), direct_payload);
+					}
+				} else {
+					rtp_code = ast_rtp_codecs_payload_code(
+						ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index);
+				}
 				if (rtp_code == -1) {
+					ao2_cleanup(direct_payload);
 					continue;
 				} else if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 0, NULL, index))) {
 					media->attr[media->attr_count++] = attr;
+				}
+				ao2_cleanup(direct_payload);
+			} else if (direct_media_enabled) {
+				int payload;
+
+				for (payload = 0; payload < AST_RTP_MAX_PT
+					&& media->desc.fmt_count < PJMEDIA_MAX_SDP_FMT; ++payload) {
+					struct ast_rtp_payload_type *direct_payload =
+						ast_sip_session_media_get_direct_media_payload(session_media, payload);
+					unsigned int sample_rate;
+
+					if (!direct_payload || direct_payload->asterisk_format
+						|| direct_payload->rtp_code != AST_RTP_DTMF) {
+						ao2_cleanup(direct_payload);
+						continue;
+					}
+
+					sample_rate = direct_payload->sample_rate
+						? direct_payload->sample_rate : DEFAULT_DTMF_SAMPLE_RATE_MS;
+					ast_rtp_codecs_payload_set_rx_type(
+						ast_rtp_instance_get_codecs(session_media->rtp), direct_payload);
+					if ((attr = generate_rtpmap_attr2(session, media, pool, direct_payload->payload,
+						0, NULL, AST_RTP_DTMF, sample_rate))) {
+						media->attr[media->attr_count++] = attr;
+						snprintf(tmp, sizeof(tmp), "%d %s", direct_payload->payload,
+							S_OR(direct_payload->fmtp, "0-16"));
+						attr = pjmedia_sdp_attr_create(pool, "fmtp", pj_cstr(&stmp, tmp));
+						media->attr[media->attr_count++] = attr;
+					}
+					ao2_cleanup(direct_payload);
 				}
 			} else if (build_dtmf_sample_rates) {
 				/*
@@ -2078,19 +2171,21 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				 */
 				int i, found_default_offer = 0;
 				for (i = 0; i < AST_VECTOR_SIZE(&sample_rates); i++) {
+					unsigned int sample_rate = AST_VECTOR_GET(&sample_rates, i);
+
 					rtp_code = ast_rtp_codecs_payload_code_sample_rate(
-									ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index, AST_VECTOR_GET(&sample_rates, i));
+						ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index, sample_rate);
 
 					if (rtp_code == -1) {
 						continue;
 					}
 
-					if (AST_VECTOR_GET(&sample_rates, i) == DEFAULT_DTMF_SAMPLE_RATE_MS) {
+					if (sample_rate == DEFAULT_DTMF_SAMPLE_RATE_MS) {
 						/* we found and added a default offer, so no need to include a default one.*/
 						found_default_offer = 1;
 					}
 
-					if ((attr = generate_rtpmap_attr2(session, media, pool, rtp_code, 0, NULL, index, AST_VECTOR_GET(&sample_rates, i)))) {
+					if ((attr = generate_rtpmap_attr2(session, media, pool, rtp_code, 0, NULL, index, sample_rate))) {
 						media->attr[media->attr_count++] = attr;
 						snprintf(tmp, sizeof(tmp), "%d 0-16", (rtp_code));
 						attr = pjmedia_sdp_attr_create(pool, "fmtp", pj_cstr(&stmp, tmp));
@@ -2103,7 +2198,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				 */
 				if (!found_default_offer) {
 					rtp_code = ast_rtp_codecs_payload_code_sample_rate(
-									ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index, DEFAULT_DTMF_SAMPLE_RATE_MS);
+						ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index,
+						DEFAULT_DTMF_SAMPLE_RATE_MS);
 
 					if (rtp_code != -1 && (attr = generate_rtpmap_attr2(session, media, pool, rtp_code, 0, NULL, index, DEFAULT_DTMF_SAMPLE_RATE_MS))) {
 						media->attr[media->attr_count++] = attr;
