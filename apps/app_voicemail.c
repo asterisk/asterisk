@@ -13658,7 +13658,7 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 		} else if (!strncasecmp(arg.attribute, "fullname", 8)) {
 			ast_copy_string(buf, vmu->fullname, len);
 		} else if (!strncasecmp(arg.attribute, "email", 5)) {
-			ast_copy_string(buf, vmu->email, len);
+			ast_copy_string(buf, S_OR(vmu->email, ""), len);
 		} else if (!strncasecmp(arg.attribute, "pager", 5)) {
 			ast_copy_string(buf, vmu->pager, len);
 		} else if (!strncasecmp(arg.attribute, "language", 8)) {
@@ -16130,6 +16130,22 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 			ast_test_status_update(test, "VM_INFO return code was: '%i', but expected '%i'\n", test_ret, test_items[test_counter].vminfo_ret);
 			res = AST_TEST_FAIL;
 		}
+	}
+
+	/* A valid mailbox with no configured email must return an empty string,
+	 * not dereference a NULL vmu->email (issue #2063). The cases above all run
+	 * with vmu->email set, so clear it and re-check. */
+	ast_free(vmu->email);
+	vmu->email = NULL;
+	ast_copy_string(vminfo_args, "00000000@test,email", sizeof(vminfo_args));
+	test_ret = acf_vm_info(chan, vminfo_cmd, vminfo_args, vminfo_buf, sizeof(vminfo_buf));
+	if (strcmp(vminfo_buf, "")) {
+		ast_test_status_update(test, "VM_INFO email for a mailbox with no email was: '%s', but expected empty\n", vminfo_buf);
+		res = AST_TEST_FAIL;
+	}
+	if (test_ret != 0) {
+		ast_test_status_update(test, "VM_INFO email return code was: '%i', but expected '0'\n", test_ret);
+		res = AST_TEST_FAIL;
 	}
 
 	chan = ast_channel_unref(chan);
