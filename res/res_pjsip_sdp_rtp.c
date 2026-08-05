@@ -509,7 +509,16 @@ static struct ast_format_cap *set_incoming_call_offer_cap(
 	 */
 	ast_rtp_codecs_payloads_xover(&codecs, &codecs, NULL);
 
-	ast_rtp_codecs_payloads_copy(&codecs,
+	/*
+	 * This only merges the newly offered payloads into the live RTP instance
+	 * rather than doing a destructive replace, so any format the channel is
+	 * still actively sending in (e.g. while a reINVITE is in flight) remains
+	 * usable right up until set_caps() commits the channel to the new
+	 * negotiated format. A destructive replace here, before the channel's
+	 * own read/write format has caught up, is what let a concurrent bridge
+	 * write briefly land on a payload mapping that no longer had its format.
+	 */
+	ast_rtp_codecs_payloads_merge(&codecs,
 		ast_rtp_instance_get_codecs(session_media->rtp), session_media->rtp);
 
 	ast_rtp_codecs_payloads_destroy(&codecs);
@@ -581,13 +590,17 @@ static int set_caps(struct ast_sip_session *session,
 		 */
 		ast_rtp_codecs_payloads_xover(&codecs, &codecs, NULL);
 	}
+
+	if (session->channel) {
+		ast_channel_lock(session->channel);
+	}
+
 	ast_rtp_codecs_payloads_copy(&codecs, ast_rtp_instance_get_codecs(session_media->rtp),
 		session_media->rtp);
 
 	apply_cap_to_bundled(session_media, session_media_transport, asterisk_stream, joint);
 
 	if (session->channel && ast_sip_session_is_pending_stream_default(session, asterisk_stream)) {
-		ast_channel_lock(session->channel);
 		ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel),
 			AST_MEDIA_TYPE_UNKNOWN);
@@ -641,7 +654,9 @@ static int set_caps(struct ast_sip_session *session,
 		if (ast_channel_is_bridged(session->channel)) {
 			ast_channel_set_unbridged_nolock(session->channel, 1);
 		}
+	}
 
+	if (session->channel) {
 		ast_channel_unlock(session->channel);
 	}
 

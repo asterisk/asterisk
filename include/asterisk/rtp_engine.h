@@ -1594,6 +1594,32 @@ void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp
 void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance);
 
 /*!
+ * \brief Merge payload information from one RTP instance into another
+ * \since 23.5.0
+ * \since 22.11.0
+ * \since 20.21.0
+ *
+ * \param src The source codecs structure
+ * \param dest The destination codecs structure that the values from src will be merged into
+ * \param instance Optionally the instance that the dst codecs structure belongs to
+ *
+ * Example usage:
+ *
+ * \code
+ * ast_rtp_codecs_payloads_merge(&codecs0, &codecs1, NULL);
+ * \endcode
+ *
+ * This copies codecs0 payload mappings into codecs1 without clearing codecs1 first: payloads present in
+ * codecs0 overwrite matching payload-number slots in codecs1, while payloads absent from codecs0 remain
+ * unchanged.
+ *
+ * This updates the codecs1 framing, but does not replace codecs1 preferred format or
+ * preferred DTMF metadata.
+ *
+ */
+void ast_rtp_codecs_payloads_merge(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance);
+
+/*!
  * \brief Crossover copy the tx payload mapping of src to the rx payload mapping of dest.
  * \since 14.0.0
  *
