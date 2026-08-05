@@ -1312,6 +1312,34 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 	ast_rwlock_unlock(&dest->codecs_lock);
 }
 
+void ast_rtp_codecs_payloads_merge(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance)
+{
+	ast_rwlock_wrlock(&dest->codecs_lock);
+
+	/* Deadlock avoidance because of held write lock. */
+	while (ast_rwlock_tryrdlock(&src->codecs_lock)) {
+		ast_rwlock_unlock(&dest->codecs_lock);
+		sched_yield();
+		ast_rwlock_wrlock(&dest->codecs_lock);
+	}
+
+	/*
+	 * Unlike ast_rtp_codecs_payloads_copy(), do not clear destination tx mappings first.
+	 * For each tx payload index present in src, copy it into dest (replacing dest at that
+	 * same index). Any destination tx mappings at indexes not present in src are retained.
+	 *
+	 * This also refreshes rx mappings from src and updates dest framing, but intentionally
+	 * preserves dest preferred format and preferred DTMF settings.
+	 */
+
+	rtp_codecs_payloads_copy_rx(src, dest, instance);
+	rtp_codecs_payloads_copy_tx(src, dest, instance);
+	dest->framing = src->framing;
+
+	ast_rwlock_unlock(&src->codecs_lock);
+	ast_rwlock_unlock(&dest->codecs_lock);
+}
+
 void ast_rtp_codecs_payloads_xover(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance)
 {
 	int idx;
