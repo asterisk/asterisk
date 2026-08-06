@@ -2222,6 +2222,12 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 		ast_sip_add_header(packet, "Referred-By", local_info);
 	}
 
+	/* Add any headers stored on the session by PJSIP_HEADER(add, ...) */
+	ast_sip_session_add_stored_pjsip_headers(session, packet);
+
+	/* Add any inheritable headers stored on the channel by PJSIP_INHERITABLE_HEADER(add, ...) */
+	ast_sip_session_add_inheritable_pjsip_headers(session, packet);
+
 	if (pjsip_xfer_send_request(sub, packet) == PJ_SUCCESS) {
 		return;
 	}
