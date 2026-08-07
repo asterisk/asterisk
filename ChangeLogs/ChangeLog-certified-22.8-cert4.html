@@ -1,0 +1,266 @@
+<html><head><title>ChangeLog for asterisk-certified-22.8-cert4</title></head><body>
+<h2>Change Log for Release asterisk-certified-22.8-cert4</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/releases/ChangeLog-certified-22.8-cert4.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/certified-22.8-cert3...certified-22.8-cert4">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/asterisk-certified-22.8-cert4.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 13</li>
+<li>Commit Authors: 6</li>
+<li>Issues Resolved: 8</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</h4>
+  New module res_pjsip_maintenance adds runtime maintenance
+  mode for PJSIP endpoints. Use "pjsip set maintenance <on|off>
+  <endpoint|all>" to enable or disable, and "pjsip show maintenance"
+  to list affected endpoints. AMI actions PJSIPSetMaintenance and
+  PJSIPShowMaintenance provide programmatic access. No configuration
+  file changes required.</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<h3>Developer Notes:</h3>
+<ul>
+<li>
+<h4>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</h4>
+  ast_sip_session_supplement gains a new optional
+  callback - int (<em>session_create)(struct ast_sip_endpoint </em>endpoint,
+  const char *destination). It is called from the global supplement
+  list (not per-session) at the start of ast_sip_session_create_outgoing()
+  via ast_sip_session_check_supplement_create(). Returning non-zero
+  blocks the outgoing session. Modules that need to gate outbound
+  SIP session creation should register a supplement with this callback
+  set rather than hooking into chan_pjsip directly.</li>
+</ul>
+<h3>Commit Authors:</h3>
+<ul>
+<li>Daniel Donoghue: (1)</li>
+<li>George Joseph: (4)</li>
+<li>Joshua C. Colp: (1)</li>
+<li>Mike Bradeen: (1)</li>
+<li>Naveen Albert: (5)</li>
+<li>Sean Bright: (1)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>1781: [bug]: More discarded-qualifiers errors with gcc 15.2.1</li>
+<li>1783: [bug]: Several unused-but-set-variable warnings with gcc 16</li>
+<li>1786: [bug]: chan_dahdi: A few more discarded-qualifiers errors not caught previously</li>
+<li>1903: [bug]: g++ 16 no longer defines <strong>STDC_VERSION</strong> causing channelstorage_cpp_map_name_id.cc to fail</li>
+<li>1947: [bug]: chan_dahdi fails to build with gcc-16 when openr2 is installed</li>
+<li>2054: [bug]: backtrace.c: Compilation failure due to use of removed type</li>
+<li>2059: [bug]: Occasional call drops during re-INVITE when codec changes</li>
+<li>2061: [bug]: backtrace.c: stdbool.h needed for portability</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>Daniel Donoghue (1):</h4>
+</li>
+<li>
+<p>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</p>
+</li>
+<li>
+<h4>George Joseph (4):</h4>
+</li>
+<li>SECURITY.md: Add warning about reporting multiple issues in one advisory.</li>
+<li>chan_dahdi: Fix set but not used in mfcr2_show_links_of().</li>
+<li>compat.h: Ensure check for <code>__STDC_VERSION__</code> is not attempted for c++.</li>
+<li>
+<p>SECURITY.md: Update with additional instructions.</p>
+</li>
+<li>
+<h4>Joshua C. Colp (1):</h4>
+</li>
+<li>
+<p>pjsip: Eliminate some unique taskprocessors.</p>
+</li>
+<li>
+<h4>Mike Bradeen (1):</h4>
+</li>
+<li>
+<p>res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change</p>
+</li>
+<li>
+<h4>Naveen Albert (5):</h4>
+</li>
+<li>backtrace.c: Include stdbool.h</li>
+<li>backtrace.c: Avoid removed bfd_boolean type.</li>
+<li>build: Fix another GCC discarded-qualifiers const error.</li>
+<li>chan_dahdi: Fix discarded-qualifiers errors.</li>
+<li>
+<p>build: Fix unused-but-set-variable warnings with gcc 16.</p>
+</li>
+<li>
+<h4>Sean Bright (1):</h4>
+</li>
+<li>app_voicemail.c: Fix may-be-uninitialized error</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change</li>
+<li>pjsip: Eliminate some unique taskprocessors.</li>
+<li>backtrace.c: Include stdbool.h</li>
+<li>backtrace.c: Avoid removed bfd_boolean type.</li>
+<li>app_voicemail.c: Fix may-be-uninitialized error</li>
+<li>build: Fix another GCC discarded-qualifiers const error.</li>
+<li>SECURITY.md: Add warning about reporting multiple issues in one advisory.</li>
+<li>chan_dahdi: Fix discarded-qualifiers errors.</li>
+<li>build: Fix unused-but-set-variable warnings with gcc 16.</li>
+<li>chan_dahdi: Fix set but not used in mfcr2_show_links_of().</li>
+<li>compat.h: Ensure check for <code>__STDC_VERSION__</code> is not attempted for c++.</li>
+<li>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</li>
+<li>SECURITY.md: Update with additional instructions.</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-08-05</p>
+<p>A reINVITE that changed the offered codec set (e.g. ulaw+alaw -&gt; alaw
+  only) could lead to call teardown when a bridge write still using the
+  old format occurred during the re-negotiation.</p>
+<p>This change avoids the termination by making the following changes.</p>
+<p>First, Asterisk now holds the lock across both the tx payload update
+  and the channel format update so they commit atomically.</p>
+<p>Second, when processing the sdp on the new incoming offer, merge the
+  new offer with the old until the negotiation is complete.</p>
+<p>Also adds unit tests for the sdp merge</p>
+<p>Fixes: #2059</p>
+<h4>pjsip: Eliminate some unique taskprocessors.</h4>
+<p>Author: Joshua C. Colp
+  Date:   2026-07-15</p>
+<p>When placing outbound calls each call would get its own
+  taskprocessor for things related to the call. In practice this
+  is overkill as few things actually occur. Inbound calls on
+  the other hand already use one of the fixed number of
+  distributor taskprocessors. This also occurred for OPTIONS
+  requests with each AOR having its own taskprocessor.</p>
+<p>This change moves both to using a distributor taskprocessor
+  instead.</p>
+<h4>backtrace.c: Include stdbool.h</h4>
+<p>Author: Naveen Albert
+  Date:   2026-08-04</p>
+<p>stdbool.h is needed now that we use the bool type directly
+  instead of bfd_boolean. See also 1d95b744c06974f0a00c143c6e0fc979af930908.</p>
+<p>Resolves: #2061</p>
+<h4>backtrace.c: Avoid removed bfd_boolean type.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-08-03</p>
+<p>bfd_boolean has been deprecated for some time and has now been
+  removed in gdb, so use bool directly instead.</p>
+<p>See: https://github.com/gnutools/binutils-gdb/commit/1d95b744c06974f0a00c143c6e0fc979af930908</p>
+<p>Resolves: #2054</p>
+<h4>app_voicemail.c: Fix may-be-uninitialized error</h4>
+<p>Author: Sean Bright
+  Date:   2026-08-02</p>
+<p>A pointer to <code>new</code> is passed to <code>inboxcount(...)</code> which increments the
+  pointed-to value.</p>
+<h4>build: Fix another GCC discarded-qualifiers const error.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-02-18</p>
+<p>Follow on commit to 27a39cba7e6832cb30cb64edaf879f447b669628
+  to fix compilation with BETTER_BACKTRACES with gcc 15.2.1.</p>
+<p>Resolves: #1781</p>
+<h4>SECURITY.md: Add warning about reporting multiple issues in one advisory.</h4>
+<p>Author: George Joseph
+  Date:   2026-08-04</p>
+<h4>chan_dahdi: Fix discarded-qualifiers errors.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-02-18</p>
+<p>Fix discarded-qualifiers errors to compile successfully with gcc 15.2.1.</p>
+<p>Associated changes have also been made to libss7; however, for compatibility
+  we cast const char<em> values to char</em>. In the future, these casts could be
+  removed.</p>
+<p>Resolves: #1786</p>
+<h4>build: Fix unused-but-set-variable warnings with gcc 16.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-02-18</p>
+<p>Fix or remove a few variables that were being set but not actually
+  used anywhere, causing warnings with gcc 16.</p>
+<p>Resolves: #1783</p>
+<h4>chan_dahdi: Fix set but not used in mfcr2_show_links_of().</h4>
+<p>Author: George Joseph
+  Date:   2026-05-21</p>
+<p>When openr2 is installed mfcr2_show_links_of() is no longer ifdeffed out
+  which makes gcc-16 complain with 'variable ‘x’ set but not used'.</p>
+<p>Resolves: #1947</p>
+<h4>compat.h: Ensure check for <code>__STDC_VERSION__</code> is not attempted for c++.</h4>
+<p>Author: George Joseph
+  Date:   2026-04-27</p>
+<p><code>__STDC_VERSION__</code> is specific to C but up until gcc 16, the g++ compiler
+  also defined it.  With g++ 16.0 it's no longer defined (which is the correct
+  behavior) so compiling channelstorage_cpp_map_name_id.cc fails.  The
+  check for <code>__STDC_VERSION__</code> in compat.h is now skipped if we're compiling
+  a C++ source file.</p>
+<p>Resolves: #1903</p>
+<h4>res_pjsip_maintenance: Add PJSIP endpoint maintenance mode</h4>
+<p>Author: Daniel Donoghue
+  Date:   2026-03-10</p>
+<p>Introduces res_pjsip_maintenance, a loadable module that allows
+  operators to place individual PJSIP endpoints into maintenance mode
+  at runtime without unregistering or disabling them.</p>
+<p>While an endpoint is in maintenance mode:
+   * New inbound INVITE and SUBSCRIBE dialogs are rejected with
+     503 Service Unavailable and a Retry-After: 300 header.
+   * In-progress dialogs (re-INVITE, UPDATE, BYE, etc.) are
+     unaffected and complete normally.
+   * Outbound originations via Dial() or ARI originate are refused
+     before any SIP session is created.</p>
+<p>State is held in-memory only and is cleared on module unload
+  or Asterisk restart.</p>
+<p>This module was developed with AI assistance (Claude).  All code
+  has been reviewed and tested by the author, who takes full
+  responsibility for the submission.</p>
+<p>CLI interface:
+    pjsip set maintenance <on|off> <endpoint|all>
+    pjsip show maintenance [endpoint]</p>
+<p>AMI interface:
+    Action: PJSIPSetMaintenance
+    Endpoint: <name>|all
+    State: on|off</p>
+<pre><code>Action: PJSIPShowMaintenance
+Endpoint: &lt;name&gt;  (optional; omit to list all)
+
+Emits PJSIPMaintenanceStatus events per result, followed by
+PJSIPMaintenanceStatusComplete. State changes also emit an
+unsolicited PJSIPMaintenanceStatus event.
+</code></pre>
+<p>To support outbound blocking, a new session_create callback is
+  added to ast_sip_session_supplement. Supplements that set this
+  callback are invoked at the start of ast_sip_session_create_outgoing()
+  in res_pjsip_session, before any dialog or invite session resources
+  are allocated. res_pjsip_maintenance registers itself as a session
+  supplement and uses this callback to gate outbound session creation
+  on a per-endpoint basis.</p>
+<p>MODULEINFO:
+    <depend>pjproject</depend>
+    <depend>res_pjsip</depend>
+    <depend>res_pjsip_session</depend></p>
+<p>UserNote: New module res_pjsip_maintenance adds runtime maintenance
+  mode for PJSIP endpoints. Use "pjsip set maintenance <on|off>
+  <endpoint|all>" to enable or disable, and "pjsip show maintenance"
+  to list affected endpoints. AMI actions PJSIPSetMaintenance and
+  PJSIPShowMaintenance provide programmatic access. No configuration
+  file changes required.</p>
+<p>DeveloperNote: ast_sip_session_supplement gains a new optional
+  callback - int (<em>session_create)(struct ast_sip_endpoint </em>endpoint,
+  const char *destination). It is called from the global supplement
+  list (not per-session) at the start of ast_sip_session_create_outgoing()
+  via ast_sip_session_check_supplement_create(). Returning non-zero
+  blocks the outgoing session. Modules that need to gate outbound
+  SIP session creation should register a supplement with this callback
+  set rather than hooking into chan_pjsip directly.</p>
+<h4>SECURITY.md: Update with additional instructions.</h4>
+<p>Author: George Joseph
+  Date:   2026-03-19</p>
+<p>Also added line breaks for people reading this file directly
+  from the code base.</p>
+</body></html>
