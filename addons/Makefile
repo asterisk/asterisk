@@ -31,6 +31,7 @@ H323CFLAGS:=-Iooh323c/src -Iooh323c/src/h323
 ALL_C_MODS:=chan_mobile \
             chan_ooh323 \
             format_mp3 \
+            format_lame \
             res_config_mysql
 
 all: check_mp3 _all
