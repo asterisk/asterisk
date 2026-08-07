@@ -1067,6 +1067,214 @@ end:
 	return CLI_SUCCESS;
 }
 
+#define SEL_POOL 4
+
+struct sel_data {
+	ast_mutex_t lock;
+	ast_cond_t cond;
+	int blocker_running;
+	int blocker_release;
+	int blocker_done;
+	int probe_ran;
+};
+
+static int sel_blocking_task(void *data)
+{
+	struct sel_data *sd = data;
+
+	ast_mutex_lock(&sd->lock);
+	sd->blocker_running = 1;
+	ast_cond_broadcast(&sd->cond);
+	while (!sd->blocker_release) {
+		ast_cond_wait(&sd->cond, &sd->lock);
+	}
+	sd->blocker_done = 1;
+	ast_cond_broadcast(&sd->cond);
+	ast_mutex_unlock(&sd->lock);
+	return 0;
+}
+
+static int sel_probe_task(void *data)
+{
+	struct sel_data *sd = data;
+
+	ast_mutex_lock(&sd->lock);
+	sd->probe_ran = 1;
+	ast_cond_broadcast(&sd->cond);
+	ast_mutex_unlock(&sd->lock);
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Run the scenario once.
+ *
+ * \param test The test being run.
+ * \param probe_first Create the probe serializer before the blocking task runs.
+ * \param label Description of the scenario, used in the test output.
+ * \retval 1 the probe task ran
+ * \retval 0 the probe task did not run within the timeout
+ */
+static int sel_run_case(struct ast_test *test, int probe_first, const char *label)
+{
+	struct ast_taskpool *pool = NULL;
+	struct sel_data *sd = NULL;
+	struct ast_taskpool_options options = {
+		.version = AST_TASKPOOL_OPTIONS_VERSION,
+		.idle_timeout = 0,
+		.auto_increment = 0,
+		.minimum_size = SEL_POOL,
+		.initial_size = SEL_POOL,
+		.max_size = SEL_POOL,
+	};
+	struct ast_taskprocessor *blocker_ser = NULL;
+	struct ast_taskprocessor *probe_ser = NULL;
+	int ran = 0;
+	int running;
+	struct timeval start;
+	struct timespec end;
+
+	sd = ast_calloc(1, sizeof(*sd));
+	if (!sd) {
+		return 0;
+	}
+	ast_mutex_init(&sd->lock);
+	ast_cond_init(&sd->cond, NULL);
+
+	pool = ast_taskpool_create(label, &options);
+	if (!pool) {
+		ast_test_status_update(test, "%s: could not create pool\n", label);
+		goto cleanup;
+	}
+
+	blocker_ser = ast_taskpool_serializer("blocker", pool);
+	if (!blocker_ser) {
+		goto cleanup;
+	}
+
+	if (probe_first) {
+		probe_ser = ast_taskpool_serializer("probe", pool);
+		if (!probe_ser) {
+			goto cleanup;
+		}
+	}
+
+	if (ast_taskprocessor_push(blocker_ser, sel_blocking_task, sd)) {
+		goto cleanup;
+	}
+
+	/* Wait until the blocker is definitely inside its task. */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&sd->lock);
+	while (!sd->blocker_running
+		&& ast_cond_timedwait(&sd->cond, &sd->lock, &end) != ETIMEDOUT) {
+	}
+	running = sd->blocker_running;
+	ast_mutex_unlock(&sd->lock);
+
+	if (!running) {
+		ast_test_status_update(test, "%s: blocking task never started\n", label);
+		goto release;
+	}
+
+	/*
+	 * With probe_first == 0 the probe serializer is created here, while one
+	 * executor is already busy and three are free.
+	 */
+	if (!probe_first) {
+		probe_ser = ast_taskpool_serializer("probe", pool);
+		if (!probe_ser) {
+			goto release;
+		}
+	}
+
+	if (ast_taskprocessor_push(probe_ser, sel_probe_task, sd)) {
+		goto release;
+	}
+
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 3;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&sd->lock);
+	while (!sd->probe_ran
+		&& ast_cond_timedwait(&sd->cond, &sd->lock, &end) != ETIMEDOUT) {
+	}
+	ran = sd->probe_ran;
+	ast_mutex_unlock(&sd->lock);
+
+	ast_test_status_update(test,
+		"%s: one executor busy, %d of %d free -> probe %s\n",
+		label, SEL_POOL - 1, SEL_POOL,
+		ran ? "ran on a free executor" : "did NOT run within 3s");
+
+release:
+	/* Wait for the blocking task to leave so the pool is idle before shutdown */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 3;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&sd->lock);
+	sd->blocker_release = 1;
+	ast_cond_broadcast(&sd->cond);
+	while (!sd->blocker_done
+		&& ast_cond_timedwait(&sd->cond, &sd->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&sd->lock);
+
+cleanup:
+	ast_taskprocessor_unreference(blocker_ser);
+	ast_taskprocessor_unreference(probe_ser);
+	if (pool) {
+		ast_taskpool_shutdown(pool);
+	}
+	if (sd) {
+		ast_mutex_destroy(&sd->lock);
+		ast_cond_destroy(&sd->cond);
+		ast_free(sd);
+	}
+	return ran;
+}
+
+AST_TEST_DEFINE(taskpool_selector_skips_busy_executor)
+{
+	int ran_after;
+	int ran_before;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "selector_skips_busy_executor";
+		info->category = "/main/taskpool/";
+		info->summary = "A task should not be assigned to an executor that is busy";
+		info->description =
+			"Occupies one executor of a four-executor pool with a task that "
+			"blocks until released, then pushes a trivial task on a different "
+			"serializer while three executors are free. Runs the scenario "
+			"twice: once with the second serializer created after the blocking "
+			"task is already running, and once with it created beforehand, so "
+			"the result cannot be attributed to both serializers having been "
+			"created while the pool was idle.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ran_after = sel_run_case(test, 0, "serializer created while an executor is busy");
+	ran_before = sel_run_case(test, 1, "serializer created while the pool is idle");
+
+	if (!ran_after || !ran_before) {
+		ast_test_status_update(test,
+			"a trivial task was queued behind the blocked executor while %d "
+			"executors were free\n", SEL_POOL - 1);
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE(handle_cli_taskpool_push_efficiency, "Push tasks to a taskpool and measure efficiency"),
 	AST_CLI_DEFINE(handle_cli_taskpool_push_serializer_efficiency, "Push tasks to a taskpool in serializers and measure efficiency"),
@@ -1085,6 +1293,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(taskpool_serializer_suspension);
 	AST_TEST_UNREGISTER(taskpool_serializer_multiple_suspension);
 	AST_TEST_UNREGISTER(taskpool_serializer_push_wait_while_suspended_from_other_serializer);
+	AST_TEST_UNREGISTER(taskpool_selector_skips_busy_executor);
 	return 0;
 }
 
@@ -1101,6 +1310,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(taskpool_serializer_suspension);
 	AST_TEST_REGISTER(taskpool_serializer_multiple_suspension);
 	AST_TEST_REGISTER(taskpool_serializer_push_wait_while_suspended_from_other_serializer);
+	AST_TEST_REGISTER(taskpool_selector_skips_busy_executor);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
