@@ -1087,6 +1087,22 @@ long ast_taskprocessor_size(struct ast_taskprocessor *tps)
 	return (tps) ? tps->tps_queue_size : -1;
 }
 
+unsigned int ast_taskprocessor_is_executing(const struct ast_taskprocessor *tps)
+{
+	if (!tps) {
+		return 0;
+	}
+
+	/*
+	 * Read without the object lock. This is called from the taskpool
+	 * selector on every push, and taking the lock there costs more than the
+	 * value is worth: a stale answer only means one push is routed as if the
+	 * taskprocessor had just changed state, which the selector already
+	 * tolerates.
+	 */
+	return tps->executing;
+}
+
 struct ast_taskprocessor_listener *ast_taskprocessor_listener(struct ast_taskprocessor *tps)
 {
 	return tps ? tps->listener : NULL;

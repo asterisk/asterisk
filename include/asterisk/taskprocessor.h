@@ -345,6 +345,15 @@ const char *ast_taskprocessor_name(struct ast_taskprocessor *tps);
 long ast_taskprocessor_size(struct ast_taskprocessor *tps);
 
 /*!
+ * \brief Return whether the taskprocessor is currently executing a task
+ *
+ * \param tps taskprocessor
+ * \retval 0 if the taskprocessor is not executing a task.
+ * \retval non-zero if the taskprocessor is executing a task.
+ */
+unsigned int ast_taskprocessor_is_executing(const struct ast_taskprocessor *tps);
+
+/*!
  * \brief Return the listener associated with the taskprocessor
  */
 struct ast_taskprocessor_listener *ast_taskprocessor_listener(struct ast_taskprocessor *tps);
