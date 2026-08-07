@@ -1887,5 +1887,11 @@ ALTER TABLE ps_endpoints ADD COLUMN rtp_port_end INTEGER;
 
 UPDATE alembic_version SET version_num='e89e30cee53f' WHERE alembic_version.version_num = 'bb6d54e22913';
 
+-- Running upgrade e89e30cee53f -> 2285f2ace275
+
+ALTER TABLE ps_transports ADD COLUMN external_signaling_hostname VARCHAR(40);
+
+UPDATE alembic_version SET version_num='2285f2ace275' WHERE alembic_version.version_num = 'e89e30cee53f';
+
 COMMIT;
 

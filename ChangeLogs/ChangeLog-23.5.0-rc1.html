@@ -1,0 +1,817 @@
+<html><head><title>ChangeLog for asterisk-23.5.0-rc1</title></head><body>
+<h2>Change Log for Release asterisk-23.5.0-rc1</h2>
+<h3>Links:</h3>
+<ul>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-23.5.0-rc1.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/23.4.1...23.5.0-rc1">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-23.5.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
+</ul>
+<h3>Summary:</h3>
+<ul>
+<li>Commits: 38</li>
+<li>Commit Authors: 16</li>
+<li>Issues Resolved: 27</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3>User Notes:</h3>
+<ul>
+<li>
+<h4>bridging: Add support for TOUCH_MIXMONITOR_OPTIONS</h4>
+<p>The TOUCH_MIXMONITOR_OPTIONS channel variable can now be used
+  to configure the options used by the mixmonitor application when it is
+  started via automixmon. If both TOUCH_MIXMONITOR_OPTIONS and
+  TOUCH_MIXMONITOR_BEEP are set, TOUCH_MIXMONITOR_BEEP is ignored with
+  a warning.</p>
+</li>
+<li>
+<h4>Audiohooks: Allow whisper audiohooks to work without an underlying stream</h4>
+<p>There is no longer a requirement to play silence or otherwise have
+  a stream of audio being sent to a hooked channel for whispered frames to be
+  heard.</p>
+</li>
+<li>
+<h4>Bundled pjproject: Make it easier to override options in config_site.h.</h4>
+<p>Bundled pjproject: It's now possible to override some of the pjproject
+  build options contained in ./third-party/pjproject/patches/config_site.h by
+  adding PJPROJECT_CFLAGS to your Asterisk ./configure command line.  For example:
+  <code>./configure ... PJPROJECT_CFLAGS='-DPJ_OPT1=8192 -DPJ_OPT2=512'</code>
+  Any option in config_site.h that's wrapped in a <code>#ifndef</code> block can be overridden
+  and many of the <code>PJSIP</code> options displayed by <code>pjproject show buildopts</code> can be
+  set.  WARNING: Adjusting these options without understanding their effect can
+  cripple your Asterisk instances.  You shouldn't adjust them unless you need
+  to solve a specific issue.
+  Resolves: #2011</p>
+</li>
+<li>
+<h4>manager: Move away from shared linked list for events.</h4>
+<p>The "manager show eventq" CLI command has been
+  removed as there is no longer a single event queue to display.</p>
+</li>
+<li>
+<h4>res_pjsip: Add external_signaling_hostname transport option</h4>
+<p>A new pjsip.conf transport option 'external_signaling_hostname'
+  has been added. When set, this value will be used in SIP Contact and Via
+  headers instead of the automatically determined IP address. This option
+  is mutually exclusive with 'external_signaling_address'.</p>
+</li>
+<li>
+<h4>WebSocket Enhancements: Proxies and Keepalives for ARI and Media Outbound Websockets.</h4>
+<p>Forward/outbound proxies can now be specified for outbound websockets.
+  See the websocket_client.conf.sample file for configuration information.
+  TCP-level or WebSocket PING/PONG keepalives can now be enabled on</p>
+</li>
+</ul>
+<h3>Upgrade Notes:</h3>
+<ul>
+<li>
+<h4>jansson: Upgrade version to jansson 2.15.1</h4>
+  jansson has been upgraded to 2.15.1. For more
+  information visit jansson Github page: https://github.com/akheron/jansson/releases/tag/v2.15.1</li>
+</ul>
+<h3>Developer Notes:</h3>
+<ul>
+<li>
+<h4>WebSocket Enhancements: Proxies and Keepalives for ARI and Media Outbound Websockets.</h4>
+  The addition of the proxy and keepalive configuration parameters
+  pushed the websocket client parameter count over 32. This necessitated changing
+  the size of the ast_ws_client_fields enum from a 32 bit bitfield to a 64-bit
+  bitfield with a corresponding change to the ast_websocket_client structure.</li>
+</ul>
+<h3>Commit Authors:</h3>
+<ul>
+<li>Alexandre Fournier: (1)</li>
+<li>Alexis Chenard: (1)</li>
+<li>Aqeel Abbas: (1)</li>
+<li>Ben Ford: (1)</li>
+<li>George Joseph: (6)</li>
+<li>Jeremy Lainé: (2)</li>
+<li>Joshua C. Colp: (4)</li>
+<li>Mehrdad Seifzadeh: (3)</li>
+<li>Mike Bradeen: (6)</li>
+<li>Naveen Albert: (4)</li>
+<li>Roel van Meer: (1)</li>
+<li>Sean Bright: (3)</li>
+<li>Stanislav Abramenkov: (1)</li>
+<li>Sven Kube: (1)</li>
+<li>Thomas Guebels: (1)</li>
+<li>aabolfazl: (2)</li>
+</ul>
+<h2>Issue and Commit Detail:</h2>
+<h3>Closed Issues:</h3>
+<ul>
+<li>871: [bug]: CHANNEL(PJSIP,local_addr) and CHANNEL(PJSIP,remote_addr) not available on outgoing channels</li>
+<li>1398: [bug]:  AOR matching for inbound registration not working with domain involved and identifying by contact header</li>
+<li>1625: [bug]: <code>ast_openstream</code> should stop at the first compatible file</li>
+<li>1749: [improvement]: Make Asterisk compatible with Microsoft Teams Phone System.</li>
+<li>1779: [bug]: MixMonitor with flag D produces garbage in a 16KHz bridge</li>
+<li>1849: [improvement]: chan_local: Update references to chan_local for Local channels</li>
+<li>1881: [improvement]:  Add HTTP proxy support for outbound WebSocket connections in websocket_client.conf (chan_websocket / ARI ExternalMedia)</li>
+<li>1882: [new-feature]: Ensure errors and warnings get through logger when reloading</li>
+<li>1933: [improvement]: Outbound Websockets: Add keepalive mechanisms</li>
+<li>1946: [bug]: Deadlock between RTP instance and ICE session</li>
+<li>1965: [bug]: Memory leak when receiving malformed 200 OK in response to re-INVITE</li>
+<li>1966: [improvement]: Allow whisper audiohooks to work without an underlying audio stream</li>
+<li>1979: [bug]: res_http_websocket: outbound client handshake read has no timeout — a non-responsive server hangs the calling thread forever while holding the channel lock, stalling the whole process</li>
+<li>1981: [improvement]: Support recording multichannel raw files with automixmon</li>
+<li>2006: [bug]: WebSocket Channel, odd frame is dropped after <code>STOP_MEDIA_BUFFERING</code></li>
+<li>2011: [bug]: PJSIP TCP transport stops processing after upgrade to Asterisk 22.10.1 / bundled PJPROJECT 2.17 with ioqueue_epol free_list assertion</li>
+<li>2020: [bug]: Possible leak of inbound websocket session</li>
+<li>2021: [bug]: Segfault in res_pjsip_refer when doing an ARI controlled transfer with Refer-Sub: false.</li>
+<li>2024: [improvement]:Re-add pjsua application to third party build</li>
+<li>2026: [improvement]: res_pjsip: dtmf_mode documentation is incomplete</li>
+<li>2033: [improvement]: jansson: Upgrade version to jansson 2.15.1</li>
+<li>2038: [bug]: Using chan_websocket prevents using "dangerous" functions in the dialplan</li>
+<li>2051: [bug]: res_musiconhold: answeredonly leaks a mohclass reference on unanswered channels</li>
+<li>2054: [bug]: backtrace.c: Compilation failure due to use of removed type</li>
+<li>2056: [bug]: pjsua fails to build if the address sanitizer is used.</li>
+<li>2059: [bug]: Occasional call drops during re-INVITE when codec changes</li>
+<li>2061: [bug]: backtrace.c: stdbool.h needed for portability</li>
+</ul>
+<h3>Commits By Author:</h3>
+<ul>
+<li>
+<h4>Alexandre Fournier (1):</h4>
+</li>
+<li>
+<p>format_cap: guard against NULL src in *_from_cap helpers</p>
+</li>
+<li>
+<h4>Alexis Chenard (1):</h4>
+</li>
+<li>
+<p>res_pjsip: Add external_signaling_hostname transport option</p>
+</li>
+<li>
+<h4>Aqeel Abbas (1):</h4>
+</li>
+<li>
+<p>func_strings: Fix syntax error in STRBETWEEN documentation example</p>
+</li>
+<li>
+<h4>Ben Ford (1):</h4>
+</li>
+<li>
+<p>Logger: Don't discard WARNING or ERROR messages.</p>
+</li>
+<li>
+<h4>George Joseph (6):</h4>
+</li>
+<li>SECURITY.md: Add warning about reporting multiple issues in one advisory.</li>
+<li>res_pjsip_refer: Fix issues with Refer-Sub:false and ARI.</li>
+<li>Bundled pjproject: Make it easier to override options in config_site.h.</li>
+<li>chan_websocket: Use leftover data if no frames are available when the timer fires.</li>
+<li>res_http_websocket: Add timeout to client handshakes.</li>
+<li>
+<p>WebSocket Enhancements: Proxies and Keepalives for ARI and Media Outbound Websockets.</p>
+</li>
+<li>
+<h4>Jeremy Lainé (2):</h4>
+</li>
+<li>tcptls: Don't inhibit escalations for outbound client connections.</li>
+<li>
+<p>file.c: Ensure opening a stream opens at most one file</p>
+</li>
+<li>
+<h4>Joshua C. Colp (4):</h4>
+</li>
+<li>pjsip: Eliminate some unique taskprocessors.</li>
+<li>test_performance: Add performance experimentation test module.</li>
+<li>manager: Move away from shared linked list for events.</li>
+<li>
+<p>extension_state: Add new extension state API.</p>
+</li>
+<li>
+<h4>Mehrdad Seifzadeh (3):</h4>
+</li>
+<li>chan_pjsip: Store transport info for outgoing channels</li>
+<li>res_pjsip_registrar: Resolve AOR for identified endpoints</li>
+<li>
+<p>res_pjsip_session: Bound delayed BYE behind UAC INVITE</p>
+</li>
+<li>
+<h4>Mike Bradeen (6):</h4>
+</li>
+<li>res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change</li>
+<li>pjproject: disable building pjsua when a sanitizer is used</li>
+<li>res_rtp_asterisk: Avoid two lock inversion deadlocks with pj project</li>
+<li>build: re-add pjsua test application</li>
+<li>Audiohooks: Allow whisper audiohooks to work without an underlying stream</li>
+<li>
+<p>app_mixmonitor: Fix duplex recording for non 8K codecs</p>
+</li>
+<li>
+<h4>Naveen Albert (4):</h4>
+</li>
+<li>backtrace.c: Include stdbool.h</li>
+<li>backtrace.c: Avoid removed bfd_boolean type.</li>
+<li>res_pjsip: Document 'none' option for 'dtmf_mode'.</li>
+<li>
+<p>chan_local: Update chan_local references for Local channels.</p>
+</li>
+<li>
+<h4>Roel van Meer (1):</h4>
+</li>
+<li>
+<p>bridging: Add support for TOUCH_MIXMONITOR_OPTIONS</p>
+</li>
+<li>
+<h4>Sean Bright (3):</h4>
+</li>
+<li>app_voicemail.c: Fix may-be-uninitialized error</li>
+<li>extensions.ael.sample: Restore removed macros</li>
+<li>
+<p>configs: Comment out <code>values</code> setting to avoid parse error</p>
+</li>
+<li>
+<h4>Stanislav Abramenkov (1):</h4>
+</li>
+<li>
+<p>jansson: Upgrade version to jansson 2.15.1</p>
+</li>
+<li>
+<h4>Sven Kube (1):</h4>
+</li>
+<li>
+<p>chan_websocket: Fix NULL requestor dereference in webchan_request.</p>
+</li>
+<li>
+<h4>Thomas Guebels (1):</h4>
+</li>
+<li>
+<p>res_http_websocket: Unref session when it fails to establish.</p>
+</li>
+<li>
+<h4>aabolfazl (2):</h4>
+</li>
+<li>res_musiconhold: Fix mohclass reference leak on answeredonly early return.</li>
+<li>func_strings: Fix misspelling of "occurred" in FIELDNUM documentation.</li>
+</ul>
+<h3>Commit List:</h3>
+<ul>
+<li>res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change</li>
+<li>chan_websocket: Fix NULL requestor dereference in webchan_request.</li>
+<li>backtrace.c: Include stdbool.h</li>
+<li>res_musiconhold: Fix mohclass reference leak on answeredonly early return.</li>
+<li>backtrace.c: Avoid removed bfd_boolean type.</li>
+<li>app_voicemail.c: Fix may-be-uninitialized error</li>
+<li>pjproject: disable building pjsua when a sanitizer is used</li>
+<li>SECURITY.md: Add warning about reporting multiple issues in one advisory.</li>
+<li>chan_pjsip: Store transport info for outgoing channels</li>
+<li>func_strings: Fix misspelling of "occurred" in FIELDNUM documentation.</li>
+<li>tcptls: Don't inhibit escalations for outbound client connections.</li>
+<li>res_rtp_asterisk: Avoid two lock inversion deadlocks with pj project</li>
+<li>jansson: Upgrade version to jansson 2.15.1</li>
+<li>file.c: Ensure opening a stream opens at most one file</li>
+<li>pjsip: Eliminate some unique taskprocessors.</li>
+<li>bridging: Add support for TOUCH_MIXMONITOR_OPTIONS</li>
+<li>res_pjsip_refer: Fix issues with Refer-Sub:false and ARI.</li>
+<li>build: re-add pjsua test application</li>
+<li>res_pjsip: Document 'none' option for 'dtmf_mode'.</li>
+<li>Audiohooks: Allow whisper audiohooks to work without an underlying stream</li>
+<li>Logger: Don't discard WARNING or ERROR messages.</li>
+<li>func_strings: Fix syntax error in STRBETWEEN documentation example</li>
+<li>res_pjsip_registrar: Resolve AOR for identified endpoints</li>
+<li>res_http_websocket: Unref session when it fails to establish.</li>
+<li>Bundled pjproject: Make it easier to override options in config_site.h.</li>
+<li>test_performance: Add performance experimentation test module.</li>
+<li>manager: Move away from shared linked list for events.</li>
+<li>chan_websocket: Use leftover data if no frames are available when the timer fires.</li>
+<li>res_pjsip_session: Bound delayed BYE behind UAC INVITE</li>
+<li>extensions.ael.sample: Restore removed macros</li>
+<li>format_cap: guard against NULL src in *_from_cap helpers</li>
+<li>configs: Comment out <code>values</code> setting to avoid parse error</li>
+<li>app_mixmonitor: Fix duplex recording for non 8K codecs</li>
+<li>res_http_websocket: Add timeout to client handshakes.</li>
+<li>extension_state: Add new extension state API.</li>
+<li>res_pjsip: Add external_signaling_hostname transport option</li>
+<li>WebSocket Enhancements: Proxies and Keepalives for ARI and Media Outbound Websockets.</li>
+<li>chan_local: Update chan_local references for Local channels.</li>
+</ul>
+<h3>Commit Details:</h3>
+<h4>res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-08-05</p>
+<p>A reINVITE that changed the offered codec set (e.g. ulaw+alaw -&gt; alaw
+  only) could lead to call teardown when a bridge write still using the
+  old format occurred during the re-negotiation.</p>
+<p>This change avoids the termination by making the following changes.</p>
+<p>First, Asterisk now holds the lock across both the tx payload update
+  and the channel format update so they commit atomically.</p>
+<p>Second, when processing the sdp on the new incoming offer, merge the
+  new offer with the old until the negotiation is complete.</p>
+<p>Also adds unit tests for the sdp merge</p>
+<p>Fixes: #2059</p>
+<h4>chan_websocket: Fix NULL requestor dereference in webchan_request.</h4>
+<p>Author: Sven Kube
+  Date:   2026-08-05</p>
+<p>Two log statements in webchan_request() passed <code>requestor</code> straight to
+  ast_channel_name(), which dereferences the channel with no NULL check.
+  <code>requestor</code> is NULL whenever no originator channel is supplied: ARI POST
+  /channels/externalMedia always passes NULL, and POST /channels/create
+  passes NULL when <code>originator</code> is omitted.</p>
+<h4>backtrace.c: Include stdbool.h</h4>
+<p>Author: Naveen Albert
+  Date:   2026-08-04</p>
+<p>stdbool.h is needed now that we use the bool type directly
+  instead of bfd_boolean. See also 1d95b744c06974f0a00c143c6e0fc979af930908.</p>
+<p>Resolves: #2061</p>
+<h4>res_musiconhold: Fix mohclass reference leak on answeredonly early return.</h4>
+<p>Author: aabolfazl
+  Date:   2026-08-02</p>
+<p>local_ast_moh_start() returns -1 from the answeredonly check without
+  releasing the mohclass reference it holds, unlike every other exit path
+  in the function. Nothing else ever releases that reference, so
+  moh_class_destructor() never runs for the object. With realtime music
+  on hold and cachertclasses disabled, each suppressed request leaks the
+  class object, its monitor thread, the external application process and
+  two file descriptors for the lifetime of Asterisk. For static classes
+  the stale references prevent the class from ever being destroyed after
+  it is replaced by a reload.</p>
+<p>Release the reference before returning, matching the other exit paths.</p>
+<p>Fixes: #2051</p>
+<h4>backtrace.c: Avoid removed bfd_boolean type.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-08-03</p>
+<p>bfd_boolean has been deprecated for some time and has now been
+  removed in gdb, so use bool directly instead.</p>
+<p>See: https://github.com/gnutools/binutils-gdb/commit/1d95b744c06974f0a00c143c6e0fc979af930908</p>
+<p>Resolves: #2054</p>
+<h4>app_voicemail.c: Fix may-be-uninitialized error</h4>
+<p>Author: Sean Bright
+  Date:   2026-08-02</p>
+<p>A pointer to <code>new</code> is passed to <code>inboxcount(...)</code> which increments the
+  pointed-to value.</p>
+<h4>pjproject: disable building pjsua when a sanitizer is used</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-08-03</p>
+<p>Disable building the pjsua test application when any of the
+  SANITIZER flags are set.</p>
+<p>Fixes: #2056</p>
+<h4>SECURITY.md: Add warning about reporting multiple issues in one advisory.</h4>
+<p>Author: George Joseph
+  Date:   2026-08-04</p>
+<h4>chan_pjsip: Store transport info for outgoing channels</h4>
+<p>Author: Mehrdad Seifzadeh
+  Date:   2026-06-05</p>
+<p>Outgoing PJSIP channels did not have transport information stored in
+  their session datastore when CHANNEL(pjsip,local_addr) or
+  CHANNEL(pjsip,remote_addr) was read. As a result, the address fields
+  were empty on B-leg channels even though other dialog fields such as
+  call-id and URIs were available.</p>
+<p>Store the selected local transport address and destination address for
+  outgoing UAC session requests once the request is transmitted and the
+  transport information is known.</p>
+<p>Fixes: #871</p>
+<h4>func_strings: Fix misspelling of "occurred" in FIELDNUM documentation.</h4>
+<p>Author: aabolfazl
+  Date:   2026-07-29</p>
+<p>The FIELDNUM description misspelled "occurred" as "occured". This text
+  is user-visible: it is rendered on docs.asterisk.org and printed by
+  "core show function FIELDNUM".</p>
+<h4>tcptls: Don't inhibit escalations for outbound client connections.</h4>
+<p>Author: Jeremy Lainé
+  Date:   2026-07-23</p>
+<p>handle_tcptls_connection() marks the current thread as inhibiting
+  privilege escalations and as an external user interface so that
+  dialplan functions considered 'dangerous' (STAT, SHELL, ...) cannot be
+  executed on behalf of an external protocol.</p>
+<p>This is correct for inbound (server) connections, each of which runs on
+  its own dedicated worker thread. However, the outbound (client) path
+  calls handle_tcptls_connection() synchronously on the caller's own
+  thread. When that caller is a channel/PBX thread, the thread-local
+  flags are set and never cleared, permanently tainting the dialplan
+  thread.</p>
+<p>Examples:</p>
+<ul>
+<li>Calling Dial() for an outbound WebSocket and resuming dialplan
+    execution with the "g" flag.</li>
+<li>Running ExternalIVR() then continuing dialplan executing.</li>
+</ul>
+<p>Outbound connections are initiated by Asterisk itself and are not
+  external user interfaces, so the flags should not be set for them. Gate
+  the flag-setting on tcptls_session-&gt;client so it applies only to inbound
+  connections.</p>
+<p>Resolves: #2038</p>
+<h4>res_rtp_asterisk: Avoid two lock inversion deadlocks with pj project</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-06-26</p>
+<p>Fixes two related instance, group lock inversion deadlocks.</p>
+<p>When writing the RTP stream via rtp_sendto, the RTP instance was only unlocked
+  before being passed to pj project when the instance was un-bundled (ie video
+  was not bundled onto the audio stream's ICE transport.)</p>
+<p>The first change unlocks the instance whether bundled or unbundled to avoid the
+  deadlock, then re-checks the bundled status upon return to know wether or not the
+  transport should be used.</p>
+<p>For the second change, when an incoming RTCP NACK record was recieved, the parent
+  (transport) and child (instance) locks were both held before the call to rtp_sendto,
+  which is only able to release the child lock. Now in the un-bundled case the parent
+  and child will be unlocked and re-locked in the correct order via a new helper
+  function before and after the call to send_to.</p>
+<p>Fixes: #1946</p>
+<h4>jansson: Upgrade version to jansson 2.15.1</h4>
+<p>Author: Stanislav Abramenkov
+  Date:   2026-07-21</p>
+<p>UpgradeNote: jansson has been upgraded to 2.15.1. For more
+  information visit jansson Github page: https://github.com/akheron/jansson/releases/tag/v2.15.1</p>
+<p>Resolves: #2033</p>
+<h4>file.c: Ensure opening a stream opens at most one file</h4>
+<p>Author: Jeremy Lainé
+  Date:   2025-12-03</p>
+<p>The functions used to stream files eventually end up calling into
+  <code>filehelper(.., ACTION_OPEN)</code> which takes care of iterating over
+  supported extensions and opening the first existing file.</p>
+<p>To do this, <code>filehelper</code> uses two nested loops:</p>
+<ul>
+<li>An outer loop over the supported file formats.</li>
+<li>An inner loop over the possible extensions for that format.</li>
+</ul>
+<p>We need to break out of both loops as soon as a file was successfully
+  opened. Otherwise if a file exists in multiple formats (e.g <code>foo.wav</code>
+  and <code>foo.alaw</code>) both files will be opened successively.</p>
+<p>Resolves: #1625</p>
+<h4>pjsip: Eliminate some unique taskprocessors.</h4>
+<p>Author: Joshua C. Colp
+  Date:   2026-07-15</p>
+<p>When placing outbound calls each call would get its own
+  taskprocessor for things related to the call. In practice this
+  is overkill as few things actually occur. Inbound calls on
+  the other hand already use one of the fixed number of
+  distributor taskprocessors. This also occurred for OPTIONS
+  requests with each AOR having its own taskprocessor.</p>
+<p>This change moves both to using a distributor taskprocessor
+  instead.</p>
+<h4>bridging: Add support for TOUCH_MIXMONITOR_OPTIONS</h4>
+<p>Author: Roel van Meer
+  Date:   2026-06-29</p>
+<p>This channel variable can be used to override the default automixmon
+  options (which are 'b' or 'bB(<n>)'). If both TOUCH_MIXMONITOR_OPTIONS
+  and TOUCH_MIXMONITOR_BEEP are set, TOUCH_MIXMONITOR_BEEP is ignored with
+  a warning.
+  It is the responsibility of the user to configure valid options in
+  TOUCH_MIXMONITOR_OPTIONS.</p>
+<p>Fixes: #1981</p>
+<p>UserNote: The TOUCH_MIXMONITOR_OPTIONS channel variable can now be used
+  to configure the options used by the mixmonitor application when it is
+  started via automixmon. If both TOUCH_MIXMONITOR_OPTIONS and
+  TOUCH_MIXMONITOR_BEEP are set, TOUCH_MIXMONITOR_BEEP is ignored with
+  a warning.</p>
+<h4>res_pjsip_refer: Fix issues with Refer-Sub:false and ARI.</h4>
+<p>Author: George Joseph
+  Date:   2026-07-01</p>
+<p>When an attended transfer is controlled by ARI using
+  PJSIP_TRANSFER_HANDLING()=ari-only, and a REFER request is received with
+  a Refer-Sub: false header to suppress the automatic progress
+  subscription, a segfault occurs in
+  res_pjsip_refer:refer_incoming_ari_request().</p>
+<p>However, even if the segfault were prevented, there's another issue...
+  Suppressing the subscription and NOTIFYs to the referer also prevents
+  the ARI app from getting any progress events for the transfer which it's
+  controlling.</p>
+<p>So...</p>
+<ul>
+<li>The segfault has been fixed.</li>
+<li>Suppressing the subscription no longer suppress the ARI events from being
+  sent to the controlling ARI app.</li>
+<li>A good amount of tracing has also been added.</li>
+</ul>
+<p>Resolves: #2021</p>
+<h4>build: re-add pjsua test application</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-07-14</p>
+<p>pjsua and it's python bindings were removed as part of PR
+  1854. Testing for RTT requires the pjsua application be
+  re-added to the third pary build process.  This applies to
+  the pjsua application ONLY and not the associated python
+  bindings.</p>
+<p>Resolves: #2024</p>
+<h4>res_pjsip: Document 'none' option for 'dtmf_mode'.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-07-14</p>
+<p>The 'none' value can be used to disable DSP processing for DTMF
+  on PJSIP channels and is sometimes necessary for this reason,
+  and already exists in the code, but is not documented. Add it to
+  the documentation enum.</p>
+<p>Resolves: #2026</p>
+<h4>Audiohooks: Allow whisper audiohooks to work without an underlying stream</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-06-02</p>
+<p>Audiohook whispers work by mixing audio with the current stream of frames being
+  written to the hooked channel. Prior to this change if there were no audio
+  frames being written to the channel outside of the audiohook, then any whisper
+  audio has nothing to mix with and so is not heard on the hooked channel.</p>
+<p>This change removes that requirement by creating a framehook driven timer on the
+  channel that creates silent frames the whispered frames can be mixed into.</p>
+<p>The framehook is automatically added with the first attached whisper audiohook
+  and is removed when the last one is detached.  If there are no attached streams
+  being written to the channel, the timer is used to generate a default one. If
+  a stream is attached; the timer is ignored until the stream stops. This stop
+  and start is automatically triggered by the presence of a written stream and does
+  not require any external action.</p>
+<p>Resolves: #1966</p>
+<p>UserNote: There is no longer a requirement to play silence or otherwise have
+  a stream of audio being sent to a hooked channel for whispered frames to be
+  heard.</p>
+<h4>Logger: Don't discard WARNING or ERROR messages.</h4>
+<p>Author: Ben Ford
+  Date:   2026-06-01</p>
+<p>When the logger reaches it's threshold for messages, don't discard the
+  WARNING or ERROR messages up to a certain amount. If THAT threshold
+  reaches its maximum, start discarding the oldest non-WARNING/ERROR
+  messages until we only have WARNING and ERROR messages left. Everything
+  will be discarded after that until we have room again for more.</p>
+<p>Also added a test that limits the queue sizes and logs many messages to
+  see the queues hitting their maximums and discarding the appropriate
+  messages.</p>
+<p>Fixes: #1882</p>
+<h4>func_strings: Fix syntax error in STRBETWEEN documentation example</h4>
+<p>Author: Aqeel Abbas
+  Date:   2026-07-12</p>
+<p>The STRBETWEEN function documentation example was missing a closing
+  brace in the SendDTMF call. Corrected the syntax to ensure the
+  dialplan example is functional.</p>
+<h4>res_pjsip_registrar: Resolve AOR for identified endpoints</h4>
+<p>Author: Mehrdad Seifzadeh
+  Date:   2026-06-10</p>
+<p>When an inbound REGISTER is matched to an endpoint using an
+  identification method such as IP, header, or request URI, the endpoint can
+  be identified and authenticated successfully while registrar AOR
+  resolution still fails.</p>
+<p>find_registrar_aor() only resolved AOR names for username and
+  auth_username identify methods. A header-only endpoint therefore left
+  aor_name unset and failed registration with "AOR '' not found" even when
+  the REGISTER To URI matched one of the endpoint's configured AORs.</p>
+<p>Resolve the REGISTER AOR from the To URI for endpoint identification
+  methods that do not directly provide an AOR name, while still
+  constraining the match to the already-identified endpoint's configured AOR
+  list.</p>
+<p>Fixes: #1398</p>
+<h4>res_http_websocket: Unref session when it fails to establish.</h4>
+<p>Author: Thomas Guebels
+  Date:   2026-07-09</p>
+<p>Two error paths in res_http_websocket could leak an ast_websocket session by
+  failing to drop a reference after the session had been allocated.</p>
+<p>The first occurs when session ID generation fails. While this is largely
+  theoretical, as it would require an out-of-memory condition, the session
+  reference should still be released correctly.</p>
+<p>The second occurs when the ast_websocket_pre_callback session_attempted callback
+  returns an error. This path is reachable through ari_websockets, which
+  implements this callback and can legitimately fail under certain conditions.</p>
+<p>Fixes: #2020</p>
+<h4>Bundled pjproject: Make it easier to override options in config_site.h.</h4>
+<p>Author: George Joseph
+  Date:   2026-07-02</p>
+<p>Bundled pjproject uses ./third-party/pjproject/patches/config_site.h to set
+  many pjproject build options like PJ_IOQUEUE_MAX_HANDLES, PJSIP_MAX_URL_SIZE,
+  etc. Editing that file however, causes the git tree to become dirty which
+  is inconvenient.  So...</p>
+<ul>
+<li>
+<p>Updated the Asterisk configure scripts to pass the PJPROJECT_CFLAGS variable
+  down to the pjproject configure scripts.  See the UserNote below for details.</p>
+</li>
+<li>
+<p>Updated ./third-party/pjproject/patches/config_site.h to allow the following
+  options to be overridden:
+  PJ_MAX_HOSTNAME, PJSIP_MAX_URL_SIZE, PJ_IOQUEUE_MAX_HANDLES.
+  Other options in config_site.h are not overridable because they can have a
+  bad effect on the overall operation of pjproject.  This may be revisited in
+  the future.  Options not already set in config_site.h can still be set.</p>
+</li>
+<li>
+<p>Fixed an issue where if the Linux <code>epoll</code> facility is used (which it is by
+  default) the default PJ_IOQUEUE_MAX_HANDLES and PJSIP_MAX_TRANSPORTS were
+  being left at 1024 instead of being icnreased to 5000.</p>
+</li>
+<li>
+<p>The <code>pjproject show buildopts</code> CLI command previously only showed options from
+  the top level <code>PJ</code> pjproject layer but now also shows many from the <code>PJSIP</code>
+  layer.  Many of these, such as PJSIP_MAX_TRANSPORTS, can be set using
+  PJPROJECT_CFLAGS provided they're not already unconditionally set in
+  config_site.h.</p>
+</li>
+<li>
+<p>The <code>pjsip dump endpt</code> CLI command previously required that the pjproject
+  log level be already set to at least 3 or no output would be produced.  The
+  command now does that automatically then sets it back to whatever it was.
+  This isn't strictly related to this PR but was just nagging me.</p>
+</li>
+</ul>
+<p>UserNote: Bundled pjproject: It's now possible to override some of the pjproject
+  build options contained in ./third-party/pjproject/patches/config_site.h by
+  adding PJPROJECT_CFLAGS to your Asterisk ./configure command line.  For example:
+  <code>./configure ... PJPROJECT_CFLAGS='-DPJ_OPT1=8192 -DPJ_OPT2=512'</code>
+  Any option in config_site.h that's wrapped in a <code>#ifndef</code> block can be overridden
+  and many of the <code>PJSIP</code> options displayed by <code>pjproject show buildopts</code> can be
+  set.  WARNING: Adjusting these options without understanding their effect can
+  cripple your Asterisk instances.  You shouldn't adjust them unless you need
+  to solve a specific issue.</p>
+<p>Resolves: #2011</p>
+<h4>test_performance: Add performance experimentation test module.</h4>
+<p>Author: Joshua C. Colp
+  Date:   2026-06-20</p>
+<p>This is a module which is only built when TEST_FRAMEWORK is enabled
+  and provides CLI commands for testing performance of certain things
+  on the system they are invoked on. The first CLI commands added
+  cover the most common container usage: storage of objects with a
+  lookup based on a string key. These commands take various arguments
+  and allow you to see how they perform. There is also an "all" command
+  named "performance test container_key_lookup_all" that will execute
+  all of these container tests and pass through the given arguments,
+  which makes it easy to run all of the tests for given usage.</p>
+<p>To facilitate a vector bsearch test a new AST_VECTOR_BSEARCH macro
+  has been added that allows more efficient searching of sorted vectors.</p>
+<h4>manager: Move away from shared linked list for events.</h4>
+<p>Author: Joshua C. Colp
+  Date:   2026-05-15</p>
+<p>This change moves manager away from a shared linked list
+  for events to a per-session vector of pending events. This
+  allows early filtering of events which eliminates the need
+  to wake up threads for events that they have no interest in.</p>
+<p>TCP based connections have also been moved to an alert pipe
+  based wakeup mechanism to reduce locking and simplify usage.</p>
+<p>UserNote: The "manager show eventq" CLI command has been
+  removed as there is no longer a single event queue to display.</p>
+<h4>chan_websocket: Use leftover data if no frames are available when the timer fires.</h4>
+<p>Author: George Joseph
+  Date:   2026-06-29</p>
+<p>When the 20ms channel timer fires but there are no frames available in
+  the queue, we now check for leftover data in the buffer and if there is
+  any, we create a frame with it and send it to the core. This resolves an
+  issue with the leftover data being delayed if a STOP_MEDIA_BUFFERING
+  command is delayed. Some existing comments were also clarified to
+  account for the new behavior.</p>
+<p>Resolves: #2006</p>
+<h4>res_pjsip_session: Bound delayed BYE behind UAC INVITE</h4>
+<p>Author: Mehrdad Seifzadeh
+  Date:   2026-06-06</p>
+<p>When a confirmed session is being terminated while an outgoing in-dialog
+  INVITE transaction is still outstanding, the BYE is delayed until the
+  outstanding transaction terminates.</p>
+<p>If that INVITE has already received a provisional response and the final
+  response is malformed and rejected before transaction processing, the
+  transaction can remain outstanding and the delayed BYE can keep the
+  session, media state, RTP instance, and PJPROJECT pools referenced after
+  the channels are gone.</p>
+<p>When a BYE is delayed behind an outstanding UAC INVITE, set a PJPROJECT
+  transaction timeout on that INVITE so the delayed cleanup path has a
+  bounded wait. If PJPROJECT terminates the dialog as a result of the
+  timeout, discard the delayed BYE instead of sending a duplicate BYE.</p>
+<p>Fixes: #1965</p>
+<h4>extensions.ael.sample: Restore removed macros</h4>
+<p>Author: Sean Bright
+  Date:   2026-06-24</p>
+<p>Commit e8f548c1 removed AEL <code>macro</code> definition and calls from the
+  sample configuration file, but those do not use the deprecated/removed
+  <code>Macro</code> app - they use <code>Gosub</code> under the hood.</p>
+<h4>format_cap: guard against NULL src in *_from_cap helpers</h4>
+<p>Author: Alexandre Fournier
+  Date:   2026-06-23</p>
+<p>ast_format_cap_append_from_cap() and ast_format_cap_replace_from_cap()
+  dereference 'src' (src-&gt;preference_order) without checking it for NULL.</p>
+<p>A dummy channel allocated with ast_dummy_channel_alloc() never sets a
+  native-format capability, so ast_channel_nativeformats() returns NULL on
+  such channels. When CHANNEL(audionativeformat) / CHANNEL(videonativeformat)
+  is evaluated against a dummy channel (e.g. via ARI channelvars during a
+  Stasis VarSet event raised while app_voicemail builds the notification
+  email on a dummy channel), func_channel_read() passes that NULL straight
+  into ast_format_cap_append_from_cap(), causing a NULL dereference at
+  offset 0x28 and a SIGSEGV.</p>
+<p>Guard both helpers against a NULL source. A NULL source simply means
+  "no formats to copy", so appending/replacing nothing is the correct
+  no-op behaviour. This also protects all other callers.</p>
+<p>Fixes https://github.com/asterisk/asterisk/issues/1992</p>
+<p>AI disclosure: this was generated using Claude Opus 4.8, tested to fix the issue. Not sure if it is the <em>right</em> way to do it.</p>
+<h4>configs: Comment out <code>values</code> setting to avoid parse error</h4>
+<p>Author: Sean Bright
+  Date:   2026-06-23</p>
+<p>Fixes the following after a <code>make samples</code>:</p>
+<p><code>config.c:2281 process_text_line: parse error: No category context for line 64 of ...</code></p>
+<h4>app_mixmonitor: Fix duplex recording for non 8K codecs</h4>
+<p>Author: Mike Bradeen
+  Date:   2026-06-10</p>
+<p>The native sampling of duplex recording is set to match the raw 8K
+  output format. If one or more of the streams being recorded is above
+  8K, the frame size coming into the mixmonitor is too large and needs
+  to be translated to 8K before being mixed into the stereo frame to
+  avoid garbled and mistimed audio</p>
+<p>Fixes: #1779</p>
+<h4>res_http_websocket: Add timeout to client handshakes.</h4>
+<p>Author: George Joseph
+  Date:   2026-06-09</p>
+<p>The websocket client proxy and server handshakes use ast_iostream_gets which
+  are blocking calls.  If the outgoing connection succeeds at the TCP or TLS
+  layer but the proxy (if configured) or the websocket server fails to respond
+  to the CONNECT or GET requests, the process can hang indefinitely and escalate
+  to a deadlock.  To address this, the handshakes are now guarded with calls to
+  ast_iostream_set_timeout_sequence() with the timeout set to the client's
+  (connection_timeout * 2) milliseconds.</p>
+<p>In order to use ast_iostream_set_timeout_sequence(), the iostream has to be
+  set to non-blocking with ast_iostream_nonblock() but there was no way to
+  reset the stream back to blocking mode so a new API ast_iostream_blocking()
+  was added for it.</p>
+<p>Tracing was also enabled in the websocket_client_handshake function for
+  future troubleshooting.</p>
+<p>Resolves: #1979</p>
+<h4>extension_state: Add new extension state API.</h4>
+<p>Author: Joshua C. Colp
+  Date:   2026-02-10</p>
+<p>Extension state to this point has been an API implemented
+  inside the PBX core resulting in its state being intermingled
+  with that of the dialplan. This increased the complexity of
+  the PBX core and made it difficult to enact improvements.</p>
+<p>This change adds a new separate extension state API
+  which receives updates from the PBX core as configuration
+  changes but maintains its own separate state. The API is
+  also written to fully take advantage of modern APIs in a
+  more selective manner by subscribing each extension state to
+  only the devices it is interested in, ultimately reducing
+  resource consumption during updates. Presence state updates
+  being infrequently done use a single shared subscription that
+  goes through the extension states to find and update ones
+  that the update is applicable to.</p>
+<p>Legacy API support is provided by reimplementing the API
+  as wrappers over the new extension state API. This improves
+  the legacy API by making it multithreaded, with each callback
+  being individually subscribed.</p>
+<p>Autohints support is maintained but has been separated out
+  into a self contained new implementation.</p>
+<p>Synchronous subscription support has also been added to
+  Stasis to remove the overhead of asynchronous publishing when
+  the handling of published messages is small and fast.</p>
+<h4>res_pjsip: Add external_signaling_hostname transport option</h4>
+<p>Author: Alexis Chenard
+  Date:   2026-06-01</p>
+<p>Adds a new transport option 'external_signaling_hostname' which allows
+  a hostname or FQDN to be used in SIP Contact and Via headers instead of
+  the automatically determined IP address. This is useful when a remote
+  SIP endpoint requires a fully qualified domain name in these headers.</p>
+<p>The option is mutually exclusive with 'external_signaling_address' and
+  an error is raised at transport load time if both are set simultaneously.</p>
+<p>Resolves: #1749</p>
+<p>UserNote: A new pjsip.conf transport option 'external_signaling_hostname'
+  has been added. When set, this value will be used in SIP Contact and Via
+  headers instead of the automatically determined IP address. This option
+  is mutually exclusive with 'external_signaling_address'.</p>
+<h4>WebSocket Enhancements: Proxies and Keepalives for ARI and Media Outbound Websockets.</h4>
+<p>Author: George Joseph
+  Date:   2026-05-12</p>
+<p>See the notes below for high-level descriptions of the new features.</p>
+<ul>
+<li>Proxies</li>
+</ul>
+<p>Outbound/forward HTTP proxies are now supported and configurable in
+  websocket_client.conf. You can specify a host:port plus optional proxy_username
+  and proxy_password. Because WebSockets aren't consistently supported among
+  proxies (specifically passing through UPGRADEs), the CONNECT method is always
+  used to establish a TCP tunnel through the proxy. This is required if a TLS
+  session is to be established with the WebSocket server anyway.  It's important
+  to understand that that negotiation with the proxy is ALWAYS unsecured. Once
+  the proxy establishes the tunnel, the TLS session will be negotiated directly
+  with the remote WebSocket server via the tunnel.</p>
+<ul>
+<li>Keepalives</li>
+</ul>
+<p>Both TCP-level and WebSocket PING/PONG keepalives can be configured and are
+  available with either the curl or tcptls client implementations. The TCP
+  keepalives are handled entirely by the operating system and require no
+  resources from Asterisk but by their very nature, they can't traverse proxies.
+  WebSocket PING/PONGs are implemented in the Asterisk websocket code and require
+  a scheduler thread to keep track of them so they're a bit more complicated but
+  they do traverse proxies.  Which one is used is completely up to the admin.
+  You could use both.</p>
+<ul>
+<li>Other Changes</li>
+</ul>
+<p>A few changes were needed to res/ari/ari_websockets and
+  res/res_aeap/transport_websocket to add explicit calls to ast_websocket_close.
+  They had been assuming that the websocket session destructor would close the
+  websocket when it unreffed it but the keepalive process now holds a reference
+  so the destructor wouldn't actually run without the call to ast_websocket_close
+  to stop the keepalives.</p>
+<p>A few new methods were added to tcptls.c to allow switching an existing
+  connection from unsecured to TLS.  These were required because the initial
+  connection and handshake with a proxy is always unsecured but then needs
+  to be switched to TLS if required for the remote WebSocket server.</p>
+<p>There was a bug in sorcery.h where the ast_sorcery_register_uint macro
+  was referencing _stringify (which doesn't exist) instead of _sorcery_stringify.</p>
+<p>Resolves: #1881
+  Resolves: #1933</p>
+<p>UserNote: Forward/outbound proxies can now be specified for outbound websockets.
+  See the websocket_client.conf.sample file for configuration information.</p>
+<p>UserNote: TCP-level or WebSocket PING/PONG keepalives can now be enabled on
+  outbound websockets.  They can help detect network failures even when a
+  persistent connection is idle. See the websocket_client.conf.sample
+  file for configuration information.</p>
+<p>DeveloperNote: The addition of the proxy and keepalive configuration parameters
+  pushed the websocket client parameter count over 32. This necessitated changing
+  the size of the ast_ws_client_fields enum from a 32 bit bitfield to a 64-bit
+  bitfield with a corresponding change to the ast_websocket_client structure.</p>
+<h4>chan_local: Update chan_local references for Local channels.</h4>
+<p>Author: Naveen Albert
+  Date:   2026-04-01</p>
+<p>chan_local no longer exists since Local channels are built into the
+  core (core_local), but there are still comments which reference it,
+  including in the configs. Update these to avoid confusion.</p>
+<p>Resolves: #1849</p>
+</body></html>
