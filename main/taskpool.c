@@ -79,6 +79,20 @@ struct ast_taskpool {
 /*! \brief The threshold for a taskprocessor at which we consider the pool needing to grow (50% of high water threshold) */
 #define TASKPOOL_GROW_THRESHOLD (AST_TASKPROCESSOR_HIGH_WATER_LEVEL * 5) / 10
 
+/*!
+ * \internal
+ * \brief Effective load of a pool taskprocessor
+ *
+ * The queue size alone does not account for the task currently being executed,
+ * so a taskprocessor inside a long running task reports the same load as an
+ * idle one.
+ */
+static long taskpool_taskprocessor_load(struct taskpool_taskprocessor *tp)
+{
+	return ast_taskprocessor_size(tp->taskprocessor)
+		+ ast_taskprocessor_is_executing(tp->taskprocessor);
+}
+
 /*! \brief Scheduler used for dynamic pool shrinking */
 static struct ast_sched_context *sched;
 
@@ -277,7 +291,7 @@ static int taskpool_dynamic_pool_shrink(const void *data)
 	*taskprocessor = AST_VECTOR_GET(&taskprocessors->taskprocessors, taskprocessor_num);
 
 	/* Check to see if this has reached the growth threshold */
-	*growth_threshold_reached = (ast_taskprocessor_size((*taskprocessor)->taskprocessor) >= pool->options.growth_threshold) ? 1 : 0;
+	*growth_threshold_reached = (taskpool_taskprocessor_load(*taskprocessor) >= pool->options.growth_threshold) ? 1 : 0;
 }
 
 /*!
@@ -288,6 +302,7 @@ static void taskpool_least_full_selector(struct ast_taskpool *pool, struct taskp
 	struct taskpool_taskprocessor **taskprocessor, unsigned int *growth_threshold_reached)
 {
 	struct taskpool_taskprocessor *least_full = NULL;
+	long least_full_load = 0;
 	unsigned int i;
 
 	if (!AST_VECTOR_SIZE(&taskprocessors->taskprocessors)) {
@@ -300,21 +315,23 @@ static void taskpool_least_full_selector(struct ast_taskpool *pool, struct taskp
 
 	for (i = 0; i < AST_VECTOR_SIZE(&taskprocessors->taskprocessors); i++) {
 		struct taskpool_taskprocessor *tp = AST_VECTOR_GET(&taskprocessors->taskprocessors, i);
+		long load = taskpool_taskprocessor_load(tp);
 
-		/* If this taskprocessor has no outstanding tasks, it is the best choice */
-		if (!ast_taskprocessor_size(tp->taskprocessor)) {
+		/* If this taskprocessor has nothing queued and nothing in flight, it is the best choice */
+		if (!load) {
 			*taskprocessor = tp;
 			return;
 		}
 
 		/* If any of the taskprocessors have reached the growth threshold then we should grow the pool */
-		if (ast_taskprocessor_size(tp->taskprocessor) >= pool->options.growth_threshold) {
+		if (load >= pool->options.growth_threshold) {
 			*growth_threshold_reached = 1;
 		}
 
-		/* The taskprocessor with the fewest tasks should be used */
-		if (!least_full || ast_taskprocessor_size(tp->taskprocessor) < ast_taskprocessor_size(least_full->taskprocessor)) {
+		/* The taskprocessor with the lowest load should be used */
+		if (!least_full || load < least_full_load) {
 			least_full = tp;
+			least_full_load = load;
 		}
 	}
 
