@@ -4128,6 +4128,12 @@ static int parse_args(char *s, int *max, const char *argv[])
 
 	cur = s;
 	while(*s) {
+		if (x >= MAX_ARGS - 1) {
+			ast_log(LOG_WARNING, "Too many arguments, truncating\n");
+			x = MAX_ARGS - 1;
+			break;
+		}
+
 		switch(*s) {
 		case '"':
 			/* If it's escaped, put a literal quote */
@@ -4164,10 +4170,6 @@ static int parse_args(char *s, int *max, const char *argv[])
 		default:
 normal:
 			if (whitespace) {
-				if (x >= MAX_ARGS -1) {
-					ast_log(LOG_WARNING, "Too many arguments, truncating\n");
-					break;
-				}
 				/* Coming off of whitespace, start the next argument */
 				argv[x++] = cur;
 				whitespace=0;
