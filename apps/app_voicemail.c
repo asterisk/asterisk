@@ -13711,7 +13711,7 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 		} else if (!strncasecmp(arg.attribute, "fullname", 8)) {
 			ast_copy_string(buf, vmu->fullname, len);
 		} else if (!strncasecmp(arg.attribute, "email", 5)) {
-			ast_copy_string(buf, vmu->email, len);
+			ast_copy_string(buf, S_OR(vmu->email, ""), len);
 		} else if (!strncasecmp(arg.attribute, "pager", 5)) {
 			ast_copy_string(buf, vmu->pager, len);
 		} else if (!strncasecmp(arg.attribute, "language", 8)) {
@@ -16254,8 +16254,23 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 		}
 	}
 
+	ast_free(vmu->email);
+	vmu->email = NULL;
+
+	ast_copy_string(vminfo_args, "00000000@test,email", sizeof(vminfo_args));
+	test_ret = acf_vm_info(chan, vminfo_cmd, vminfo_args, vminfo_buf, sizeof(vminfo_buf));
+	if (!ast_strlen_zero(vminfo_buf)) {
+		ast_test_status_update(test, "VM_INFO response for a mailbox without an email address was: '%s', but expected: ''\n", vminfo_buf);
+		res = AST_TEST_FAIL;
+	}
+	if (test_ret != 0) {
+		ast_test_status_update(test, "VM_INFO return code for a mailbox without an email address was: '%i', but expected '0'\n", test_ret);
+		res = AST_TEST_FAIL;
+	}
+
 	chan = ast_channel_unref(chan);
 	free_user(vmu);
+	force_reload_config(); /* Restore original config */
 	return res;
 }
 #endif /* defined(TEST_FRAMEWORK) */
