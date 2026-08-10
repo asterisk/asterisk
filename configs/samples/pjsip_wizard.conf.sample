@@ -72,12 +72,12 @@
 ;  SYNOPSIS: Provides configuration wizard for common scenarios.
 ;sends_auth=    ; Will create an outbound auth object for the endpoint and
                 ; registration.
-                ; If yes, outbound/username must be specified.
-                ; (default = "no")
+                ; If yes, outbound_auth/username must be specified.
+                ; (default: "no")
 
 ;accepts_auth=  ; Will create an inbound auth object for the endpoint.
-                ; If yes, inbound/username must be specified.
-                ; (default = "no")
+                ; If yes, inbound_auth/username must be specified.
+                ; (default: "no")
 
 ;sends_registrations=    ; Will create an outbound registration object and an
                          ; identify match for each host in remote_hosts (which
@@ -102,7 +102,7 @@
                  ; If specified, a static contact for each host will be created
                  ; in the aor.  If accepts_registrations is no, an identify
                  ; object is also created with a match line for each remote host.
-                 ; If an aor/contact or match/identify is explicitly supplied,
+                 ; If an aor/contact or identify/match is explicitly supplied,
                  ; remote_hosts will not be used to automatically create contacts
                  ; or matches respectively.
                  ; (default: "")
@@ -116,7 +116,7 @@
                  ; (default: the pjsip default)
 
 ;server_uri_pattern= ; The pattern used to construct the registration
-                     ; server_uri. The replaceable parameter ${REMOTE_HOST} isa
+                     ; server_uri. The replaceable parameter ${REMOTE_HOST} is
                      ; available for use.
                      ; (default: "sip:${REMOTE_HOST}")
 
@@ -143,14 +143,14 @@
 
 ;hint_exten          ; If specified, a PJSIP/<wizard_id> hint will be created
                      ; for this extension in 'hint_context'.
-                     ; context.
                      ; (default: none)
 
 ;hint_application    ; If specified, an extension will be placed in 'hint_context'
                      ; at priority 1 that calls this application.  Could be any
                      ; valid dialplan expression like
                      ; "Gosub(stdexten,${EXTEN},1(${HINT}))"
-                     ; (default: "Dial(${HINT})")
+                     ; If not specified, no priority 1 extension is created.
+                     ; (default: none)
 
 ;endpoint/<param>      ; Any parameters to be passed directly to and validated
 ;aor/<param>           ; by their respective objects.
