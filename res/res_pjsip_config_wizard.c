@@ -137,7 +137,7 @@
 					<description><para>A comma-separated list of remote hosts in the form of
 					<replaceable>host</replaceable>[:<replaceable>port</replaceable>].
 					If set, an aor static contact and an identify match will be created for each
-					entry in the list.  If send_registrations is also set, a registration will
+					entry in the list.  If sends_registrations is also set, a registration will
 					also be created for each.</para></description>
 				</configOption>
 				<configOption name="outbound_proxy">
@@ -157,11 +157,11 @@
 				<configOption name="sends_registrations" default="no">
 					<synopsis>Send outbound registrations to remote hosts.</synopsis>
 					<description><para>remote_hosts is required and a registration object will
-					be created for each host in the remote _hosts string.  If authentication is required,
+					be created for each host in the remote_hosts string.  If authentication is required,
 					sends_auth and an outbound_auth/username must also be supplied.</para></description>
 				</configOption>
 				<configOption name="sends_line_with_registrations" default="no">
-					<synopsis>Sets "line" and "endpoint parameters on registrations.</synopsis>
+					<synopsis>Sets "line" and "endpoint" parameters on registrations.</synopsis>
 					<description><para>Setting this to true will cause the wizard to skip the
 					creation of an identify object to match incoming requests to the endpoint and
 					instead add the line and endpoint parameters to the outbound registration object.
@@ -170,7 +170,7 @@
 				<configOption name="accepts_registrations" default="no">
 					<synopsis>Accept inbound registration from remote hosts.</synopsis>
 					<description><para>An AOR with dynamic contacts will be created.  If
-					the number of contacts nneds to be limited, set aor/max_contacts.</para></description>
+					the number of contacts needs to be limited, set aor/max_contacts.</para></description>
 				</configOption>
 				<configOption name="has_phoneprov" default="no">
 					<synopsis>Create a phoneprov object for this endpoint.</synopsis>
@@ -1183,7 +1183,7 @@ static void object_type_registered_observer(const char *name,
 		if (ast_sorcery_object_type_apply_wizard(sorcery, object_type,
 			"memory", "pjsip_wizard", AST_SORCERY_WIZARD_APPLY_READONLY | AST_SORCERY_WIZARD_APPLY_ALLOW_DUPLICATE,
 			&wizard, &wizard_data) != AST_SORCERY_APPLY_SUCCESS) {
-			ast_log(LOG_ERROR, "Unable to apply sangoma wizard to object type '%s'\n", object_type);
+			ast_log(LOG_ERROR, "Unable to apply pjsip_wizard to object type '%s'\n", object_type);
 			return;
 		}
 
@@ -1245,7 +1245,7 @@ static char *handle_export_primitives(struct ast_cli_entry *e, int cmd, struct a
 	case CLI_INIT:
 		e->command = "pjsip export config_wizard primitives [to]";
 		e->usage =
-			"Usage: pjsip export config_wizard primitives [ to <filename ]\n"
+			"Usage: pjsip export config_wizard primitives [ to <filename> ]\n"
 			"       Export the config_wizard objects as pjsip primitives to\n"
 			"       the console or to <filename>\n";
 		return NULL;
