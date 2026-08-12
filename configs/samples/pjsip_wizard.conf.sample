@@ -67,6 +67,64 @@
 ;endpoint/context = default
 
 
+;============EXAMPLE WIZARD CONFIGURATION FOR AN IP AUTHENTICATED ITSP======
+
+; This ITSP doesn't use registration.  It authenticates by IP address and
+; delivers inbound calls from any of several regional POPs, while outbound
+; calls go to a separate termination gateway that does require digest
+; authentication.  Inbound and outbound need one wizard each because a
+; single wizard has only one remote_hosts list, so they share a template.
+
+; Settings common to both trunks.  A template is never turned into objects
+; itself, so "type = wizard" here is safe.
+
+;[myitsp-common](!)
+;type = wizard
+;transport = ipv4
+;endpoint/allow = !all,ulaw,alaw
+;endpoint/context = from-myitsp
+
+; Inbound only.  This config would create an endpoint, an aor with a static
+; contact for each remote host, and an identify with a match for each remote
+; host, so a call from any of the POPs matches this endpoint.  No auth and no
+; registration objects are created.  remote_hosts is required here because
+; accepts_registrations is "no".
+
+;[myitsp-in](myitsp-common)
+;remote_hosts = pop1.myitsp.com,pop2.myitsp.com,203.0.113.10
+
+; Outbound only, to the ITSP's termination gateway.  An identify is created
+; for that host too, so responses and in-dialog requests match the endpoint.
+; Place calls with Dial(PJSIP/${EXTEN}@myitsp-out).
+
+;[myitsp-out](myitsp-common)
+;sends_auth = yes
+;remote_hosts = term.myitsp.com
+;outbound_auth/username = testname
+;outbound_auth/password = test password
+
+
+;============EXAMPLE WIZARD CONFIGURATION FOR A TLS TRUNK===================
+
+; The wizard can't create transport objects, so a TLS transport has to be
+; defined in pjsip.conf and named here.  See the [transport-tls] example in
+; pjsip.conf.sample.  The transport is used for the endpoint and for the
+; registrations.  media_encryption belongs to the endpoint, so it is passed
+; through with an endpoint/ prefix.
+
+;[mytrunk-tls]
+;type = wizard
+;sends_auth = yes
+;sends_registrations = yes
+;transport = transport-tls
+;remote_hosts = sip.myitsp.com:5061
+;outbound_auth/username = testname
+;outbound_auth/password = test password
+;endpoint/allow = !all,ulaw,alaw
+;endpoint/context = default
+;endpoint/media_encryption = sdes
+
+
 ;========================WIZARD SECTION OPTIONS===============================
 ;[wizard]
 ;  SYNOPSIS: Provides configuration wizard for common scenarios.
