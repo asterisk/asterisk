@@ -669,6 +669,20 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                            uac - Default to the caller initially refreshing when possible
 ;                            uas - Default to the callee initially refreshing when possible
 ;
+; Additionally, there are 2 global-only parameters available that are intended to address
+; buggy behavior in a backwards compatible way:
+;
+; * session-ignore-se-increase:
+;   By default (when this parameter is missing or set to 'no'), Asterisk will accept and
+;   use a session refresh interval greater than what it offers, in violation of RFC 4028
+;   Section 9. Setting this option to 'yes' will cause Asterisk to ignore a session
+;   refresh interval greater than what is offered and log a warning message.
+;
+; * session-include-in-provisional:
+;   By default (when this parameter is missing or set to 'yes'), Asterisk will include
+;   the Session-Expires header in provisional (1xx) responses. Setting this option to
+;   'no' will prevent that from occurring.
+;
 ; Note that, due to recommendations in RFC 4028, Asterisk will always honor the other
 ; endpoint's preference for who will handle refreshes. Asterisk will never override the
 ; preferences of the other endpoint. Doing so could result in Asterisk and the endpoint
