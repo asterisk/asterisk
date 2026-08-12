@@ -880,6 +880,8 @@ static enum st_mode global_st_mode;           /*!< Mode of operation for Session
 static enum st_refresher_param global_st_refresher; /*!< Session-Timer refresher                        */
 static int global_min_se;                     /*!< Lowest threshold for session refresh interval  */
 static int global_max_se;                     /*!< Highest threshold for session refresh interval */
+static int global_st_ignore_expiration_increase; /*!< Don't update timer if UAS increases it (in violation of RFC 4028 Section 9) */
+static int global_st_include_in_provisional;     /*!< Whether to include the Session-Expires header outside of 2xx responses */
 
 static int global_store_sip_cause;    /*!< Whether the MASTER_CHANNEL(HASH(SIP_CAUSE,[chan_name])) var should be set */
 
@@ -12328,7 +12330,8 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	add_supported(p, resp);
 
 	/* If this is an invite, add Session-Timers related headers if the feature is active for this session */
-	if (p->method == SIP_INVITE && p->stimer && p->stimer->st_active == TRUE) {
+	if (p->method == SIP_INVITE && p->stimer && p->stimer->st_active == TRUE
+	   && (global_st_include_in_provisional || msg[0] == '2')) {
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval,
 			p->stimer->st_ref == SESSION_TIMER_REFRESHER_US ? "uas" : "uac");
@@ -22069,6 +22072,10 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Session Refresher:      %s\n", strefresherparam2str(global_st_refresher));
 	ast_cli(a->fd, "  Session Expires:        %d secs\n", global_max_se);
 	ast_cli(a->fd, "  Session Min-SE:         %d secs\n", global_min_se);
+	ast_cli(a->fd, "  Session Timers Ignore Expiration Increase:\n");
+	ast_cli(a->fd, "                          %s\n", AST_CLI_YESNO(global_st_ignore_expiration_increase));
+	ast_cli(a->fd, "  Session Timers Include In Provisional:\n");
+	ast_cli(a->fd, "                          %s\n", AST_CLI_YESNO(global_st_include_in_provisional));
  	ast_cli(a->fd, "  Timer T1:               %d\n", global_t1);
 	ast_cli(a->fd, "  Timer T1 minimum:       %d\n", global_t1min);
  	ast_cli(a->fd, "  Timer B:                %d\n", global_timer_b);
@@ -24391,8 +24398,25 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				} else {
 					ast_log(LOG_WARNING, "Unknown refresher on %s\n", p->callid);
 				}
+				/* The UAS isn't supposed to increase the value of the Session-Expires
+				   header (per RFC 4028 Section 9), but we honor it if it does, unless we
+				   are configured otherwise. */
 				if (tmp_st_interval) {
-					p->stimer->st_interval = tmp_st_interval;
+					if (!global_st_ignore_expiration_increase
+					   || !p->stimer->st_interval
+					   || tmp_st_interval <= p->stimer->st_interval) {
+						p->stimer->st_interval = tmp_st_interval;
+					} else {
+						ast_log(LOG_WARNING,
+							"%s wants us to increase our refresh interval on Call-ID %s "
+							"from %d seconds to %d seconds but RFC 4028 doesn't allow "
+							"that so we're ignoring it. You can alter this behavior with "
+							"the 'session-ignore-se-increase' global parameter in "
+							"sip.conf.",
+							p->relatedpeer ? p->relatedpeer->name : "The remote side",
+							p->callid,
+							p->stimer->st_interval, tmp_st_interval);
+					}
 				}
 				p->stimer->st_active = TRUE;
 				p->stimer->st_active_peer_ua = TRUE;
@@ -32753,6 +32777,8 @@ static int reload_config(enum channelreloadreason reason)
 	global_st_refresher = SESSION_TIMER_REFRESHER_PARAM_UAS;
 	global_min_se  = DEFAULT_MIN_SE;
 	global_max_se  = DEFAULT_MAX_SE;
+	global_st_ignore_expiration_increase = 0;
+	global_st_include_in_provisional = 1;
 
 	/* Peer poking settings */
 	global_qualify_gap = DEFAULT_QUALIFY_GAP;
@@ -33317,6 +33343,10 @@ static int reload_config(enum channelreloadreason reason)
 			} else {
 				global_st_refresher = i;
 			}
+		} else if (!strcasecmp(v->name, "session-ignore-se-increase")) {
+			global_st_ignore_expiration_increase = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "session-include-in-provisional")) {
+			global_st_include_in_provisional = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "storesipcause")) {
 			global_store_sip_cause = ast_true(v->value);
 			if (global_store_sip_cause) {
