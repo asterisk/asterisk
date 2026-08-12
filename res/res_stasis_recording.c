@@ -34,6 +34,7 @@
 #include "asterisk/file.h"
 #include "asterisk/module.h"
 #include "asterisk/paths.h"
+#include "asterisk/bridge.h"
 #include "asterisk/stasis_app_impl.h"
 #include "asterisk/stasis_app_recording.h"
 #include "asterisk/stasis_channels.h"
@@ -297,12 +298,24 @@ static int record_file(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	struct stasis_app_recording *recording = data;
+	struct ast_bridge *bridge;
 	char *acceptdtmf;
 	int res;
 
 	ast_assert(recording != NULL);
 
-	if (stasis_app_get_bridge(control)) {
+	/*
+	 * Recording is not allowed while the channel is in a "real" bridge,
+	 * but ARI places an originated channel into an internal, invisible
+	 * holding bridge (the dial bridge) while dialing. That bridge is not
+	 * a bridge the application created - it is flagged invisible - so
+	 * recording must still be permitted there. Otherwise, channels.record
+	 * fails with "Cannot record channel while in bridge" even though the
+	 * application never joined the channel to a bridge of its own.
+	 * See GH issue #2044.
+	 */
+	bridge = stasis_app_get_bridge(control);
+	if (bridge && !ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
 		ast_log(LOG_ERROR, "Cannot record channel while in bridge\n");
 		recording_fail(control, recording, "Cannot record channel while in bridge");
 		return -1;
