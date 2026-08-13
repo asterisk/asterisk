@@ -510,7 +510,7 @@ static int websocket_handled_pong_or_close(struct ast_websocket *session, char *
 		/*
 		 * If it's from our own PING, reset the missed count.
 		 */
-		if (session->client->missed_pong_count
+		if (session->client && session->client->missed_pong_count
 			&& payload_len == WS_PING_PAYLOAD_LEN
 			&& strncmp(payload, WS_PING_PAYLOAD, payload_len) == 0) {
 			int mpc = session->client->missed_pong_count;
@@ -518,10 +518,8 @@ static int websocket_handled_pong_or_close(struct ast_websocket *session, char *
 			session->client->missed_pong_count = 0;
 			SCOPE_EXIT_RTN_VALUE(1, "%s: Received PONG from our own PING. Missed count was: %d.  Cleared.\n",
 				WS_SESSION_REMOTE(session), mpc);
-		} else {
-			SCOPE_EXIT_RTN_VALUE(0, "%s: Received PONG.  Passing up to client.\n", WS_SESSION_REMOTE(session));
-
 		}
+		SCOPE_EXIT_RTN_VALUE(0, "%s: Received PONG.  Passing up to client.\n", WS_SESSION_REMOTE(session));
 	}
 
 	if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
