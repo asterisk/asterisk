@@ -1073,6 +1073,7 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 {
 	int i;
 	struct ast_stream_topology *topology;
+	struct ast_channel *channel;
 	unsigned int changed = 0; /* 0 = unchanged, 1 = new source, 2 = new topology */
 	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
@@ -1158,8 +1159,11 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		session_media->changed = 0;
 	}
 
-	/* Apply the pending media state to the channel and make it active */
-	ast_channel_lock(session->channel);
+	/* Apply the pending media state to the channel and make it active.
+	 * Pin the channel pointer since a masquerade may change session->channel.
+	 */
+	channel = session->channel;
+	ast_channel_lock(channel);
 
 	/* Now update the stream handler for any declined/removed streams */
 	for (i = 0; i < local->media_count; ++i) {
@@ -1187,7 +1191,7 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 	/* Update the topology on the channel to match the accepted one */
 	topology = ast_stream_topology_clone(session->pending_media_state->topology);
 	if (topology) {
-		ast_channel_set_stream_topology(session->channel, topology);
+		ast_channel_set_stream_topology(channel, topology);
 		/* If this is a remotely done renegotiation that has changed the stream topology notify what is
 		 * currently handling this channel. Note that fax uses its own process, so if we are transitioning
 		 * between audio and fax or vice versa we don't notify.
@@ -1203,7 +1207,7 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 
 	/* Remove all current file descriptors from the channel */
 	for (i = 0; i < AST_VECTOR_SIZE(&session->active_media_state->read_callbacks); ++i) {
-		ast_channel_internal_fd_clear(session->channel, i + AST_EXTENDED_FDS);
+		ast_channel_internal_fd_clear(channel, i + AST_EXTENDED_FDS);
 	}
 
 	/* Add all the file descriptors from the pending media state */
@@ -1211,7 +1215,7 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		struct ast_sip_session_media_read_callback_state *callback_state;
 
 		callback_state = AST_VECTOR_GET_ADDR(&session->pending_media_state->read_callbacks, i);
-		ast_channel_internal_fd_set(session->channel, i + AST_EXTENDED_FDS, callback_state->fd);
+		ast_channel_internal_fd_set(channel, i + AST_EXTENDED_FDS, callback_state->fd);
 	}
 
 	/* Active and pending flip flop as needed */
@@ -1219,7 +1223,7 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 	SWAP(session->active_media_state, session->pending_media_state);
 	ast_sip_session_media_state_reset(session->pending_media_state);
 
-	ast_channel_unlock(session->channel);
+	ast_channel_unlock(channel);
 
 	if (changed == 1) {
 		struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_STREAM_TOPOLOGY_SOURCE_CHANGED };
@@ -1723,6 +1727,7 @@ static void set_from_header(struct ast_sip_session *session)
 	pjsip_sip_uri *dlg_contact_uri;
 	int restricted;
 	const char *pjsip_from_domain;
+	struct ast_channel *channel;
 
 	if (!session->channel || session->saved_from_hdr) {
 		return;
@@ -1730,10 +1735,11 @@ static void set_from_header(struct ast_sip_session *session)
 
 	/* We need to save off connected_id for RPID/PAI generation */
 	ast_party_id_init(&connected_id);
-	ast_channel_lock(session->channel);
-	effective_id = ast_channel_connected_effective_id(session->channel);
+	channel = session->channel;
+	ast_channel_lock(channel);
+	effective_id = ast_channel_connected_effective_id(channel);
 	ast_party_id_copy(&connected_id, &effective_id);
-	ast_channel_unlock(session->channel);
+	ast_channel_unlock(channel);
 
 	restricted =
 		((ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED);
@@ -1769,14 +1775,15 @@ static void set_from_header(struct ast_sip_session *session)
 	/*
 	 * Channel variable for compatibility with chan_sip SIPFROMDOMAIN
 	 */
-	ast_channel_lock(session->channel);
-	pjsip_from_domain = pbx_builtin_getvar_helper(session->channel, "SIPFROMDOMAIN");
+	channel = session->channel;
+	ast_channel_lock(channel);
+	pjsip_from_domain = pbx_builtin_getvar_helper(channel, "SIPFROMDOMAIN");
 	if (!ast_strlen_zero(pjsip_from_domain)) {
 		ast_debug(3, "%s: From header domain reset by channel variable SIPFROMDOMAIN (%s)\n",
 			ast_sip_session_get_name(session), pjsip_from_domain);
 		pj_strdup2(dlg_pool, &dlg_info_uri->host, pjsip_from_domain);
 	}
-	ast_channel_unlock(session->channel);
+	ast_channel_unlock(channel);
 
 	/* We need to save off the non-anonymized From for RPID/PAI generation (for domain) */
 	session->saved_from_hdr = pjsip_hdr_clone(dlg_pool, dlg_info);
