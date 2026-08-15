@@ -40,3 +40,5 @@ tests/CI/output
 .develvars
 .devcontainer/
 .claude/
+.cache/
+compile_commands.json
