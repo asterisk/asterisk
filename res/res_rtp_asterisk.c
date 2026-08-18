@@ -559,6 +559,7 @@ struct ast_rtcp {
 	double rtt;			/*!< Last reported rtt */
 	double reported_jitter;	/*!< The contents of their last jitter entry in the RR in seconds */
 	unsigned int reported_lost;	/*!< Reported lost packets in their RR */
+	unsigned int last_reported_lost; /*!< Reported cumulative lost packets in the previous RR */
 
 	double reported_maxjitter; /*!< Maximum reported interarrival jitter */
 	double reported_minjitter; /*!< Minimum reported interarrival jitter */
@@ -6398,7 +6399,20 @@ static void update_lost_stats(struct ast_rtp *rtp, unsigned int lost_packets)
 	double reported_lost;
 
 	rtp->rtcp->reported_lost = lost_packets;
-	reported_lost = (double)rtp->rtcp->reported_lost;
+
+	/*
+	 * lost_packets contains the cumulative number of lost packets as reported in
+	 * the peer's RTCP RR/SR report block (RFC 3550). Calculate the number of lost
+	 * packets in the current interval based on the difference from the previous
+	 * count.
+	 */
+	reported_lost = (double)lost_packets - (double)rtp->rtcp->last_reported_lost;
+	rtp->rtcp->last_reported_lost = lost_packets;
+
+	if (reported_lost < 0) {
+		reported_lost = 0;
+	}
+
 	if (rtp->rtcp->reported_lost_count == 0) {
 		rtp->rtcp->reported_minlost = reported_lost;
 	}
