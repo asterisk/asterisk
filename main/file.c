@@ -600,15 +600,18 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 				if ((ast_format_cmp(ast_channel_writeformat(chan), f->format) == AST_FORMAT_CMP_NOT_EQUAL) &&
 				     !(((ast_format_get_type(f->format) == AST_MEDIA_TYPE_AUDIO) && fmt) ||
 					  ((ast_format_get_type(f->format) == AST_MEDIA_TYPE_VIDEO) && fmt))) {
+					ast_debug(3, "File %s format is not compatible with the channel\n", fn);
 					ast_free(fn);
 					continue;	/* not a supported format */
 				}
 				if ( (bfile = fopen(fn, "r")) == NULL) {
+					ast_log(LOG_WARNING, "Failed to open file %s due to: %s\n", fn, strerror(errno));
 					ast_free(fn);
 					continue;	/* cannot open file */
 				}
 				s = get_filestream(f, bfile);
 				if (!s) {
+					ast_log(LOG_WARNING, "Failed to open file %s due to: file stream creation failure\n", fn);
 					fclose(bfile);
 					ast_free(fn);	/* cannot allocate descriptor */
 					continue;
@@ -1344,8 +1347,8 @@ int ast_streamfile(struct ast_channel *chan, const char *filename,
 		if (!fs) {
 			struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 			ast_channel_lock(chan);
-			ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n",
-					filename, ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf), strerror(errno));
+			ast_log(LOG_WARNING, "Unable to open %s (format %s)\n",
+					filename, ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf));
 			ast_channel_unlock(chan);
 			return -1;
 		}
