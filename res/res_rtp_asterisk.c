@@ -6505,7 +6505,7 @@ static void update_reported_mes_stats(struct ast_rtp *rtp)
 {
 	double mes = calc_media_experience_score(rtp->owner,
 		rtp->rtcp->normdevrtt,
-		rtp->rtcp->reported_jitter,
+		rtp->rtcp->reported_normdev_jitter,
 		rtp->rtcp->reported_stdev_jitter,
 		rtp->rtcp->reported_normdev_lost);
 
@@ -6526,7 +6526,7 @@ static void update_reported_mes_stats(struct ast_rtp *rtp)
 	ast_debug_rtcp(2, "%s: rtt: %.9f j: %.9f sjh: %.9f lost: %.9f mes: %4.1f\n",
 		ast_rtp_instance_get_channel_id(rtp->owner),
 		rtp->rtcp->normdevrtt,
-				rtp->rtcp->reported_jitter,
+				rtp->rtcp->reported_normdev_jitter,
 				rtp->rtcp->reported_stdev_jitter,
 				rtp->rtcp->reported_normdev_lost, mes);
 }
@@ -6540,7 +6540,7 @@ static void update_local_mes_stats(struct ast_rtp *rtp)
 {
 	rtp->rxmes = calc_media_experience_score(rtp->owner,
 		rtp->rtcp->normdevrtt,
-		rtp->rxjitter,
+		rtp->rtcp->normdev_rxjitter,
 		rtp->rtcp->stdev_rxjitter,
 		rtp->rtcp->normdev_rxlost);
 
@@ -6560,7 +6560,7 @@ static void update_local_mes_stats(struct ast_rtp *rtp)
 	ast_debug_rtcp(2, "   %s: rtt: %.9f j: %.9f sjh: %.9f lost: %.9f mes: %4.1f\n",
 		ast_rtp_instance_get_channel_id(rtp->owner),
 		rtp->rtcp->normdevrtt,
-				rtp->rxjitter,
+				rtp->rtcp->normdev_rxjitter,
 				rtp->rtcp->stdev_rxjitter,
 				rtp->rtcp->normdev_rxlost, rtp->rxmes);
 }
