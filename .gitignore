@@ -40,3 +40,8 @@ tests/CI/output
 .develvars
 .devcontainer/
 .claude/
+.clangd
+.clang-format
+.clang-tidy
+compile_commands.json
+.cache/
