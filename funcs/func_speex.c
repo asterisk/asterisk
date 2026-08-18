@@ -220,13 +220,14 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 
 	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &speex_datastore, NULL))) {
-		ast_channel_unlock(chan);
 
 		if (!(datastore = ast_datastore_alloc(&speex_datastore, NULL))) {
+			ast_channel_unlock(chan);
 			return 0;
 		}
 
 		if (!(si = ast_calloc(1, sizeof(*si)))) {
+			ast_channel_unlock(chan);
 			ast_datastore_free(datastore);
 			return 0;
 		}
@@ -235,8 +236,8 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 		si->audiohook.manipulate_callback = speex_callback;
 		si->lastrate = 8000;
 		is_new = 1;
+
 	} else {
-		ast_channel_unlock(chan);
 		si = datastore->data;
 	}
 
@@ -248,6 +249,13 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 
 	if (!*sdi) {
 		if (!(*sdi = ast_calloc(1, sizeof(**sdi)))) {
+			if (is_new) {
+				datastore->data = si;
+				ast_channel_unlock(chan);
+				ast_datastore_free(datastore);
+			} else {
+				ast_channel_unlock(chan);
+			}
 			return 0;
 		}
 		/* Right now, the audiohooks API will _only_ provide us 8 kHz slinear
@@ -292,24 +300,26 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 
 	if (!si->rx && !si->tx) {
 		if (is_new) {
+			datastore->data = si;
 			is_new = 0;
-		} else {
-			ast_channel_lock(chan);
-			ast_channel_datastore_remove(chan, datastore);
 			ast_channel_unlock(chan);
+		} else {
+			ast_channel_datastore_remove(chan, datastore);
 			ast_audiohook_remove(chan, &si->audiohook);
+			ast_channel_unlock(chan);
 			ast_audiohook_detach(&si->audiohook);
 		}
-
 		ast_datastore_free(datastore);
+		return 0;
 	}
 
 	if (is_new) {
 		datastore->data = si;
-		ast_channel_lock(chan);
 		ast_channel_datastore_add(chan, datastore);
 		ast_channel_unlock(chan);
 		ast_audiohook_attach(chan, &si->audiohook);
+	} else {
+		ast_channel_unlock(chan);
 	}
 
 	return 0;
@@ -331,7 +341,6 @@ static int speex_read(struct ast_channel *chan, const char *cmd, char *data, cha
 		ast_channel_unlock(chan);
 		return -1;
 	}
-	ast_channel_unlock(chan);
 
 	si = datastore->data;
 
@@ -340,6 +349,7 @@ static int speex_read(struct ast_channel *chan, const char *cmd, char *data, cha
 	else if (!strcasecmp(data, "rx"))
 		sdi = si->rx;
 	else {
+		ast_channel_unlock(chan);
 		ast_log(LOG_ERROR, "%s(%s) must either \"tx\" or \"rx\"\n", cmd, data);
 		return -1;
 	}
@@ -349,6 +359,7 @@ static int speex_read(struct ast_channel *chan, const char *cmd, char *data, cha
 	else
 		snprintf(buf, len, "%d", sdi ? sdi->denoise : 0);
 
+	ast_channel_unlock(chan);
 	return 0;
 }
 
