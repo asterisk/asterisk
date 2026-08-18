@@ -6326,6 +6326,10 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 	timeval2ntp(now, &msw, &lsw);
 
 	lsr_a = ((msw & 0x0000ffff) << 16) | ((lsw & 0xffff0000) >> 16);
+	if (lsr_a - dlsr < lsr) {
+		return 1;
+	}
+
 	rtt = lsr_a - lsr - dlsr;
 	rtt_msw = (rtt & 0xffff0000) >> 16;
 	rtt_lsw = (rtt & 0x0000ffff);
@@ -6345,11 +6349,8 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 	 */
 	rtt_tv.tv_usec = (rtt_lsw * 15625) >> 10;
 	rtp->rtcp->rtt = (double)rtt_tv.tv_sec + ((double)rtt_tv.tv_usec / 1000000);
-	if (lsr_a - dlsr < lsr) {
-		return 1;
-	}
-
 	rtp->rtcp->accumulated_transit += rtp->rtcp->rtt;
+
 	if (rtp->rtcp->rtt_count == 0 || rtp->rtcp->minrtt > rtp->rtcp->rtt) {
 		rtp->rtcp->minrtt = rtp->rtcp->rtt;
 	}
