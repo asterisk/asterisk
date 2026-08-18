@@ -6452,9 +6452,16 @@ static double calc_media_experience_score(struct ast_rtp_instance *instance,
 	 * jitter scaled according to its standard deviation. The scaling is done in order
 	 * to increase jitter's weight since a higher deviation can result in poorer overall
 	 * quality.
+	 *
+	 * normdevrtt is the mean round trip time in seconds. The G.107's delay-impairment
+	 * model is based on one-way so we need to cut it in half before converting to
+	 * milliseconds.
+	 *
+	 * normdev_rxjitter and stdev_rxjitter are also in seconds and are converted to
+	 * milliseconds to match.
 	 */
-	double effective_latency = (normdevrtt * 1000)
-		+ ((normdev_rxjitter * 2) * (stdev_rxjitter / 3))
+	double effective_latency = ((normdevrtt / 2) * 1000)
+		+ ((normdev_rxjitter * 1000 * 2) * (stdev_rxjitter * 1000 / 3))
 		+ 10;
 
 	/*
