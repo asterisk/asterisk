@@ -136,7 +136,16 @@ static int json_writer(struct cdrel_config *config, struct cdrel_values *values)
 {
 	int ix = 0;
 	int res = 0;
-	struct ast_str *str = ast_str_thread_get(&custom_buf, 1024);
+	/*
+	 * Since JSON records include the field names, the actual record size can be quite
+	 * lengthy and since the thread-local backed ast_str used by the DSV writer can't be
+	 * extended, we need to use a regular, extendable ast_str.
+	 */
+	RAII_VAR(struct ast_str *, str, ast_str_create(1024), ast_free);
+
+	if (!str) {
+		return -1;
+	}
 
 	ast_str_set(&str, -1, "%s", "{");
 
