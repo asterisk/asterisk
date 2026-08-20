@@ -672,7 +672,7 @@ int geoloc_config_load(void)
 
 	ast_sorcery_apply_config(geoloc_sorcery, "location");
 	result = ast_sorcery_apply_default(geoloc_sorcery, "location", "config", "geolocation.conf,criteria=type=location");
-	if (result != AST_SORCERY_APPLY_SUCCESS) {
+	if (result == AST_SORCERY_APPLY_FAIL) {
 		ast_log(LOG_ERROR, "Failed to apply defaults for geoloc location object with sorcery\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
