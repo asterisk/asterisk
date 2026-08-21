@@ -611,13 +611,12 @@ int geoloc_config_unload(void)
 {
 	ast_cli_unregister_multiple(geoloc_location_cli_commands, ARRAY_LEN(geoloc_location_cli_commands));
 
-	ast_sorcery_object_unregister(geoloc_sorcery, "profile");
-	ast_sorcery_object_unregister(geoloc_sorcery, "location");
-
 	if (geoloc_sorcery) {
+		ast_sorcery_object_unregister(geoloc_sorcery, "profile");
+		ast_sorcery_object_unregister(geoloc_sorcery, "location");
 		ast_sorcery_unref(geoloc_sorcery);
+		geoloc_sorcery = NULL;
 	}
-	geoloc_sorcery = NULL;
 
 	return 0;
 }
