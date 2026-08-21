@@ -43,6 +43,9 @@ core_metrics_enabled = yes        ; Enable/disable core metrics. Core metrics
                                   ; version of Asterisk, uptime, last reload
                                   ; time, and the overall time it takes to
                                   ; scrape metrics. Default is "yes"
+channels_detail_metrics_enabled = yes
+                                  ; Enable/disable channels_detail. channels_detail
+                                  ; include channels state and channels duration. Default is "yes"
 uri = metrics                     ; The HTTP route to expose metrics on.
                                   ; Default is "metrics".
 

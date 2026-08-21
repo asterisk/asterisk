@@ -26,9 +26,11 @@
  */
 
 #include "asterisk.h"
+#include "asterisk/astobj2.h"
 #include "asterisk/res_prometheus.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/pbx.h"
+#include "asterisk/utils.h"
 #include "prometheus_internal.h"
 
 #define CHANNELS_STATE_HELP "Individual channel states. 0=down; 1=reserved; 2=offhook; 3=dialing; 4=ring; 5=ringing; 6=up; 7=busy; 8=dialing_offhook; 9=prering."
@@ -129,6 +131,8 @@ static struct prometheus_metric global_channel_metrics[] = {
  */
 static void channels_scrape_cb(struct ast_str **response)
 {
+	RAII_VAR(struct prometheus_general_config *, config, prometheus_general_config_get(), ao2_cleanup);
+
 	struct ao2_container *channel_cache;
 	struct ao2_container *channels;
 	struct ao2_iterator it_chans;
@@ -175,6 +179,12 @@ static void channels_scrape_cb(struct ast_str **response)
 		ao2_ref(channels, -1);
 		return;
 	}
+
+	if (!config || config->channels_detail_metrics_enabled == 0) {
+		ao2_ref(channels, -1);
+		return;
+	}
+	
 
 	/* Channel dependent values */
 	channel_metrics = ast_calloc(ARRAY_LEN(channel_metric_defs) * num_channels, sizeof(*channel_metrics));

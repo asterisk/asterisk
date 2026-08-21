@@ -70,6 +70,8 @@ struct prometheus_general_config {
 	unsigned int enabled;
 	/*! \brief Whether or not core metrics are enabled */
 	unsigned int core_metrics_enabled;
+	/*! \brief Whether or not channel detail metrics are enabled */
+	unsigned int channels_detail_metrics_enabled;
 	AST_DECLARE_STRING_FIELDS(
 		/*! \brief The HTTP URI we register ourselves to */
 		AST_STRING_FIELD(uri);

@@ -991,6 +991,7 @@ static int load_module(void)
 	}
 	aco_option_register(&cfg_info, "enabled", ACO_EXACT, global_options, "no", OPT_BOOL_T, 1, FLDSET(struct prometheus_general_config, enabled));
 	aco_option_register(&cfg_info, "core_metrics_enabled", ACO_EXACT, global_options, "yes", OPT_BOOL_T, 1, FLDSET(struct prometheus_general_config, core_metrics_enabled));
+	aco_option_register(&cfg_info, "channels_detail_metrics_enabled", ACO_EXACT, global_options, "yes", OPT_BOOL_T, 1, FLDSET(struct prometheus_general_config, channels_detail_metrics_enabled));
 	aco_option_register(&cfg_info, "uri", ACO_EXACT, global_options, "", OPT_STRINGFIELD_T, 1, STRFLDSET(struct prometheus_general_config, uri));
 	aco_option_register(&cfg_info, "auth_username", ACO_EXACT, global_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct prometheus_general_config, auth_username));
 	aco_option_register(&cfg_info, "auth_password", ACO_EXACT, global_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct prometheus_general_config, auth_password));
