@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "product": "Ding PBX Console",
+  "source": {
+    "artifact": "source-design.zip",
+    "sha256": "9A4284745A745C18A18B0A23D2A2F5851A79F9B6EFCBC5EE30EDCD69CEA2863F",
+    "sanitization": ["private conversation vocabulary removed", "runtime CDN references removed", "product branding replaced"]
+  },
+  "auditBaseline": {
+    "bindings": { "total": 265, "primary": 233, "reusableControl": 32 },
+    "distinctExpressions": 168,
+    "controlDeclarations": 479,
+    "controlIds": 467,
+    "openStateFamilies": 17,
+    "onboardingSteps": 5,
+    "tourSteps": 5,
+    "confirmationGames": 8,
+    "provisioningLogEntries": 10,
+    "canvas": { "nodes": 6, "edges": 5 }
+  },
+  "rails": [
+    { "id": "pbx", "label": "PBX", "destinations": ["dashboard", "live-channels", "endpoints", "trunks", "trunk-authentication", "dialplan-canvas", "ivr-menus", "queues-agents"] },
+    { "id": "media", "label": "Media", "destinations": ["voicemail", "conferences", "music-on-hold", "codecs-rtp"] },
+    { "id": "data", "label": "Data", "destinations": ["call-records", "manager-rest"] },
+    { "id": "system", "label": "System", "destinations": ["modules", "logger", "security", "cli-builder"] },
+    { "id": "automation", "label": "Automation", "destinations": ["memory-console", "sync-attestation", "skills-registry", "status-hub", "wording-guard", "operations", "secret-intake"] },
+    { "id": "app", "label": "App", "destinations": ["deploy-servers", "confirmation-credits", "notifications", "history", "customise", "appearance", "about"] }
+  ]
+}

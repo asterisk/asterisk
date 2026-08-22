@@ -1,0 +1,13 @@
+appId: org.dingdingprojects.dingpbxconsole
+productName: Ding PBX Console
+directories:
+  output: release
+files:
+  - dist/**/*
+  - dist-electron/**/*
+win:
+  target: squirrel
+forceCodeSigning: false
+signAndEditExecutable: false
+squirrelWindows:
+  artifactName: Ding-PBX-Console-${version}-${arch}.${ext}
