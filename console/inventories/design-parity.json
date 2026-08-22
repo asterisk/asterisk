@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "sourceArchive": {
+    "sha256": "9A4284745A745C18A18B0A23D2A2F5851A79F9B6EFCBC5EE30EDCD69CEA2863F",
+    "verification": "independent-authoritative-audit"
+  },
+  "auditBaseline": {
+    "destinationCount": 32,
+    "railCounts": {"pbx":8,"media":4,"data":2,"system":4,"agent":7,"app":7},
+    "declarativeBindings": {
+      "total": 265,
+      "click": 212,
+      "change": 10,
+      "input": 10,
+      "contextmenu": 9,
+      "dragstart": 4,
+      "dragover": 4,
+      "drop": 4,
+      "dragend": 4,
+      "mousedown": 5,
+      "mouseenter": 1,
+      "mouseleave": 1,
+      "mouseup": 1
+    },
+    "distinctExpressionCount": 168,
+    "controlCount": 479,
+    "transientStateFamilyCount": 17
+  },
+  "evidenceTemplates": {
+    "referenceRoute": "console/design-reference/index.html?destination={id}&state=default&theme=dark&width=1440&height=1000&scale=1",
+    "builtRoute": "ding-pbx://destination/{id}?state=default&theme=dark&width=1440&height=1000&scale=1",
+    "referenceCapture": "console/release/captures/parity/{id}-reference.png",
+    "builtCapture": "console/release/captures/parity/{id}-built.png",
+    "sideBySide": "console/release/captures/parity/{id}-comparison.png",
+    "visualDiff": "console/release/evidence/parity/{id}-diff.json",
+    "materialAudit": "console/release/evidence/parity/{id}-material.json"
+  },
+  "destinations": [
+    {"rail":"pbx","id":"dash","status":"unverified"},{"rail":"pbx","id":"live","status":"unverified"},{"rail":"pbx","id":"endpoints","status":"unverified"},{"rail":"pbx","id":"trunks","status":"unverified"},{"rail":"pbx","id":"trunkauth","status":"unverified"},{"rail":"pbx","id":"canvas","status":"unverified"},{"rail":"pbx","id":"ivr","status":"unverified"},{"rail":"pbx","id":"queues","status":"unverified"},
+    {"rail":"media","id":"voicemail","status":"unverified"},{"rail":"media","id":"confbridge","status":"unverified"},{"rail":"media","id":"moh","status":"unverified"},{"rail":"media","id":"codecs","status":"unverified"},
+    {"rail":"data","id":"cdr","status":"unverified"},{"rail":"data","id":"ami","status":"unverified"},
+    {"rail":"system","id":"modules","status":"unverified"},{"rail":"system","id":"logger","status":"unverified"},{"rail":"system","id":"security","status":"unverified"},{"rail":"system","id":"cli","status":"unverified"},
+    {"rail":"agent","id":"memory","status":"unverified"},{"rail":"agent","id":"sync","status":"unverified"},{"rail":"agent","id":"skills","status":"unverified"},{"rail":"agent","id":"hub","status":"unverified"},{"rail":"agent","id":"vocab","status":"unverified"},{"rail":"agent","id":"ops","status":"unverified"},{"rail":"agent","id":"secrets","status":"unverified"},
+    {"rail":"app","id":"servers","status":"unverified"},{"rail":"app","id":"arcade","status":"unverified"},{"rail":"app","id":"notifications","status":"unverified"},{"rail":"app","id":"history","status":"unverified"},{"rail":"app","id":"customise","status":"unverified"},{"rail":"app","id":"appearance","status":"unverified"},{"rail":"app","id":"about","status":"unverified"}
+  ],
+  "transientStateFamilies": [
+    "appearOpen","ceremonyOpen","ctxOpen","infoOpen","lockOpen","onboardOpen","paletteOpen","regexOpen","renameOpen","subOpen","sureOpen","tabColourOpen","tabFilterOpen","toastOpen","tourOpen","unlockOpen","wizardOpen"
+  ]
+}
