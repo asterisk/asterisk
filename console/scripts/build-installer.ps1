@@ -12,6 +12,33 @@ $output = Join-Path $repoRoot 'console\dist\squirrel-windows\squirrel-windows'
 
 function Phase([string]$Message) { Write-Host ("[{0:HH:mm:ss}] {1}" -f [DateTime]::Now, $Message) }
 
+function Get-Sha256([string]$Path) {
+    $stream = [System.IO.File]::OpenRead($Path)
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try { return ([System.BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
+    finally { $algorithm.Dispose(); $stream.Dispose() }
+}
+
+function Test-UnsignedPortableExecutable([string]$Path) {
+    $stream = [System.IO.File]::OpenRead($Path)
+    $reader = [System.IO.BinaryReader]::new($stream)
+    try {
+        if ($reader.ReadUInt16() -ne 0x5A4D) { throw "$Path is not a PE file" }
+        $stream.Position = 0x3C
+        $peOffset = $reader.ReadInt32()
+        $stream.Position = $peOffset
+        if ($reader.ReadUInt32() -ne 0x00004550) { throw "$Path has an invalid PE signature" }
+        $optionalHeader = $peOffset + 24
+        $stream.Position = $optionalHeader
+        $magic = $reader.ReadUInt16()
+        $dataDirectory = if ($magic -eq 0x10B) { $optionalHeader + 96 } elseif ($magic -eq 0x20B) { $optionalHeader + 112 } else { throw "$Path has an unsupported PE optional-header format" }
+        $stream.Position = $dataDirectory + (4 * 8)
+        $certificateOffset = $reader.ReadUInt32()
+        $certificateSize = $reader.ReadUInt32()
+        return $certificateOffset -eq 0 -and $certificateSize -eq 0
+    } finally { $reader.Dispose(); $stream.Dispose() }
+}
+
 try {
     Phase 'Bootstrapping all packaging dependencies.'
     $bootstrapArgs = @()
@@ -41,12 +68,11 @@ try {
     foreach ($package in $full) {
         if ($releaseText -notmatch [regex]::Escape($package.Name)) { throw "RELEASES does not reference $($package.Name)" }
     }
-    $signature = Get-AuthenticodeSignature -FilePath $setup[0].FullName
-    if ($signature.Status -ne 'NotSigned') { throw "code-signing policy violation: Setup.exe status is $($signature.Status)" }
+    if (-not (Test-UnsignedPortableExecutable $setup[0].FullName)) { throw 'code-signing policy violation: Setup.exe contains an Authenticode certificate table' }
 
     Phase 'Installer verification complete. Artifacts are intentionally unsigned.'
     Get-ChildItem -LiteralPath $output -File | Sort-Object Name | ForEach-Object {
-        $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+        $hash = Get-Sha256 $_.FullName
         Write-Host ("{0}  {1} bytes  sha256:{2}" -f $_.FullName, $_.Length, $hash)
     }
     Phase ("Installer build complete in {0:c}." -f ([DateTimeOffset]::UtcNow - $started))

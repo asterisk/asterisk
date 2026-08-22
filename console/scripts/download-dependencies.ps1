@@ -10,6 +10,17 @@ function Write-Phase([string]$Message) {
     Write-Host ("[{0:HH:mm:ss}] {1}" -f [DateTime]::Now, $Message)
 }
 
+function Get-Sha256([string]$Path) {
+    $stream = [System.IO.File]::OpenRead($Path)
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $algorithm.Dispose()
+        $stream.Dispose()
+    }
+}
+
 function Fail([string]$Dependency, [string]$Constraint, [string]$Source, [string]$Reason) {
     Write-Error "Dependency '$Dependency' ($Constraint) could not be obtained from '$Source': $Reason"
     exit 1
@@ -55,7 +66,7 @@ try {
         Write-Phase "Obtaining Node.js $($node.version) from the canonical Node.js release service."
         $download = $true
         if (Test-Path -LiteralPath $archive -PathType Leaf) {
-            $cachedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+            $cachedHash = Get-Sha256 $archive
             $download = $cachedHash -ne $node.sha256
             if ($download) { Remove-Item -LiteralPath $archive -Force }
         }
@@ -63,7 +74,7 @@ try {
             try { Invoke-WebRequest -UseBasicParsing -Uri $node.source -OutFile $archive }
             catch { Fail 'Node.js' "version $($node.version)" $node.source $_.Exception.Message }
         }
-        $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+        $actualHash = Get-Sha256 $archive
         if ($actualHash -ne $node.sha256) {
             Fail 'Node.js' "SHA-256 $($node.sha256)" $node.source "received SHA-256 $actualHash"
         }
