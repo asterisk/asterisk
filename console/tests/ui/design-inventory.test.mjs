@@ -58,9 +58,10 @@ test('public source contains no runtime CDN or private source branding', async (
 });
 
 test('preload exposes a typed, bounded control-plane boundary', async () => {
-  const preload = await read('app/electron/preload.ts');
+  const preload = await read('app/electron/preload.cjs');
   const main = await read('app/electron/main.ts');
   assert.match(preload, /contextBridge\.exposeInMainWorld\('dingDesktop', api\)/);
+  assert.match(preload, /ipcRenderer\.invoke\('control-plane:request', request\)/);
   assert.match(main, /discoverWslDistributions/);
   assert.match(main, /discoverLocalDocker\('ding-pbx-console'\)/);
   assert.match(main, /TARGET_NOT_DISCOVERED/);

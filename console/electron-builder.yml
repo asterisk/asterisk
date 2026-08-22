@@ -5,6 +5,7 @@ directories:
 files:
   - dist/**/*
   - dist-electron/**/*
+  - app/electron/preload.cjs
 win:
   target: squirrel
   icon: assets/icon.png

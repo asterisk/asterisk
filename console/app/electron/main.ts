@@ -48,7 +48,7 @@ function createWindow() {
     show: false,
     title: 'Ding PBX Console',
     webPreferences: {
-      preload: join(import.meta.dirname, 'preload.js'),
+      preload: join(import.meta.dirname, '../../../app/electron/preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
