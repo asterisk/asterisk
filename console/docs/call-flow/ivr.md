@@ -19,4 +19,3 @@ Exercise every digit, invalid input, timeout, repeat ceiling, direct dialing, la
 ## Suggested articles
 
 [Recordings](../team-calling/recordings.md), [Announcements](../team-calling/announcements.md), and [Call Flow](call-flow.md).
-

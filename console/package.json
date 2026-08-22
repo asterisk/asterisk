@@ -1,26 +1,33 @@
 {
   "name": "ding-pbx-console",
   "version": "0.1.0",
+  "description": "A desktop control plane for guided Asterisk administration.",
+  "author": "Ding-Ding-Projects",
   "private": true,
   "type": "module",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/app/electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "start": "electron .",
-    "test:ui": "node --test tests/ui/*.test.mjs"
+    "test:ui": "node --test tests/ui/*.test.mjs",
+    "test:control-plane": "node --test tests/control-plane/*.test.ts",
+    "test:site": "node site/tests/site.test.mjs",
+    "package:squirrel": "npm run build && electron-builder --win squirrel --config electron-builder.yml"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "electron": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "vite": "latest"
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "typescript": "latest"
+    "@types/node": "26.2.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "6.1.0",
+    "electron": "43.4.1",
+    "electron-builder": "26.15.3",
+    "electron-builder-squirrel-windows": "26.15.3",
+    "typescript": "7.0.2",
+    "vite": "8.2.2"
   }
 }

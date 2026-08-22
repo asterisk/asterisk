@@ -19,4 +19,3 @@ Verify correlation across linked legs, timezone boundaries, zero-duration calls,
 ## Suggested articles
 
 [Live Calls](live-calls.md), [Reports](reports.md), and [Recordings](../team-calling/recordings.md).
-

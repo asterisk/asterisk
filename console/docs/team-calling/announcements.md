@@ -19,4 +19,3 @@ Exercise valid and malformed audio, language variants, usage references, replace
 ## Suggested articles
 
 [Recordings](recordings.md), [Interactive Voice Response](../call-flow/ivr.md), and [Queues](queues.md).
-

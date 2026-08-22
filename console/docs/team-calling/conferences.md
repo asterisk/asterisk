@@ -19,4 +19,3 @@ Exercise moderator and participant joins, capacity, mute, removal, prompt failur
 ## Suggested articles
 
 [Recordings](recordings.md), [Announcements](announcements.md), and [Security](security.md).
-

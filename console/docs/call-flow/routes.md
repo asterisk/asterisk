@@ -19,4 +19,3 @@ Test exact, prefix, range, fallback, priority, conflict, cycle, and no-match fix
 ## Suggested articles
 
 [Trunks](../connectivity/trunks.md), [Call Flow](call-flow.md), and [Time Conditions](time-conditions.md).
-

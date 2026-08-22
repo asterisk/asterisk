@@ -19,4 +19,3 @@ Test presets, custom upload, byte/type mismatch, size bounds, fit/background, pe
 ## Suggested articles
 
 [Accessibility](accessibility.md), [Settings](settings.md), and [Documentation](../overview/documentation.md).
-

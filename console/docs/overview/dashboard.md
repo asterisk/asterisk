@@ -19,4 +19,3 @@ Verify keyboard card navigation, narrow and high-scale layouts, timestamps, stal
 ## Suggested articles
 
 [System Health](system-health.md), [Live Calls](live-calls.md), and [Status](status.md).
-

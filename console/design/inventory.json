@@ -19,11 +19,11 @@
     "canvas": { "nodes": 6, "edges": 5 }
   },
   "rails": [
-    { "id": "pbx", "label": "PBX", "destinations": ["dashboard", "live-channels", "endpoints", "trunks", "trunk-authentication", "dialplan-canvas", "ivr-menus", "queues-agents"] },
-    { "id": "media", "label": "Media", "destinations": ["voicemail", "conferences", "music-on-hold", "codecs-rtp"] },
-    { "id": "data", "label": "Data", "destinations": ["call-records", "manager-rest"] },
-    { "id": "system", "label": "System", "destinations": ["modules", "logger", "security", "cli-builder"] },
-    { "id": "automation", "label": "Automation", "destinations": ["memory-console", "sync-attestation", "skills-registry", "status-hub", "wording-guard", "operations", "secret-intake"] },
-    { "id": "app", "label": "App", "destinations": ["deploy-servers", "confirmation-credits", "notifications", "history", "customise", "appearance", "about"] }
+    { "id": "pbx", "label": "PBX", "destinations": ["dash", "live", "endpoints", "trunks", "trunkauth", "canvas", "ivr", "queues"] },
+    { "id": "media", "label": "Media", "destinations": ["voicemail", "confbridge", "moh", "codecs"] },
+    { "id": "data", "label": "Data", "destinations": ["cdr", "ami"] },
+    { "id": "system", "label": "System", "destinations": ["modules", "logger", "security", "cli"] },
+    { "id": "agent", "label": "Agent", "destinations": ["memory", "sync", "skills", "hub", "vocab", "ops", "secrets"] },
+    { "id": "app", "label": "App", "destinations": ["servers", "arcade", "notifications", "history", "customise", "appearance", "about"] }
   ]
 }

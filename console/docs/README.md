@@ -18,4 +18,3 @@ The documentation map contains 32 destinations in six categories. Every article 
 The website stores visitor choices only in browser storage. It makes no analytics request, loads no runtime CDN asset, and does not contact Asterisk or Ollama. Uploaded logo and vocabulary files are validated and previewed locally; exports omit uploaded vocabulary, ticket descriptions, and lock credentials. Clearing browser data resets all site-local state.
 
 The installer control remains unavailable until a verified, immutable release manifest provides an exact release asset URL. The Open Graph image path is reserved for a future committed product capture; metadata must not be treated as proof that the image has shipped.
-

@@ -4,4 +4,3 @@ Connectivity links providers, endpoints, and internal numbers without hiding aut
 
 - [Trunks](trunks.md)
 - [Extensions](extensions.md)
-

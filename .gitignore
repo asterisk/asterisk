@@ -45,3 +45,10 @@ tests/CI/output
 .clang-tidy
 compile_commands.json
 .cache/
+
+# Ding PBX Console generated dependencies and build outputs
+/console/node_modules/
+/console/dist/
+/console/dist-electron/
+/console/site/dist/
+/console/tsconfig.tsbuildinfo

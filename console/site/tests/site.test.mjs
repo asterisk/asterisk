@@ -29,6 +29,12 @@ test('contains exactly 32 destination definitions in six declared groups', () =>
   assert.equal((block.match(/\{id:/g) || []).length, 32);
   const counts = [...block.matchAll(/group:'([^']+)'/g)].reduce((map, match) => map.set(match[1], (map.get(match[1]) || 0) + 1), new Map());
   assert.deepEqual([...counts.values()], [8,4,2,4,7,7]);
+  assert.deepEqual([...block.matchAll(/\{id:'([^']+)'/g)].map(match => match[1]), [
+    'dash','live','endpoints','trunks','trunkauth','canvas','ivr','queues',
+    'voicemail','confbridge','moh','codecs','cdr','ami','modules','logger','security','cli',
+    'memory','sync','skills','hub','vocab','ops','secrets',
+    'servers','arcade','notifications','history','customise','appearance','about',
+  ]);
 });
 test('provides 32 complete categorized articles with valid local links', async () => {
   const docsRoot=resolve(root,'..','docs'), categories=['overview','people-devices','connectivity','call-flow','team-calling','manage'];
@@ -58,7 +64,8 @@ test('documents local-only validation and redacted export boundaries', () => {
 test('build composes deterministic local output without fetches', async () => {
   execFileSync(process.execPath, [join(root, 'build.mjs')], { cwd: repo, stdio: 'pipe' });
   const manifest = JSON.parse(await readFile(join(root, 'dist', 'build-manifest.json'), 'utf8'));
-  assert.equal(manifest.networkFetches, 0); assert.equal(manifest.outputFiles.length, 42);
+  assert.equal(manifest.networkFetches, 0); assert.equal(manifest.outputFiles.length, 43);
+  assert.ok(manifest.outputFiles.some(file => file.path === 'social-preview.png'));
   assert.ok((await stat(join(root, 'dist', 'docs', 'README.html'))).isFile());
   const built = await readFile(join(root, 'dist', 'index.html'), 'utf8');
   assert.doesNotMatch(built, /\.\.\/docs\//); assert.match(built, /href="docs\/README\.html"/);

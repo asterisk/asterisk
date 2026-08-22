@@ -19,4 +19,3 @@ Exercise registration, failure, recovery, failover order, codec negotiation, bou
 ## Suggested articles
 
 [Routes](../call-flow/routes.md), [System Health](../overview/system-health.md), and [Security](../team-calling/security.md).
-

@@ -8,7 +8,7 @@ $bootstrap = Join-Path $repoRoot 'download-dependencies.bat'
 $node = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'dependency-manifest.json') | ConvertFrom-Json | Select-Object -ExpandProperty dependencies | Where-Object id -eq 'node-win-x64'
 $nodeRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) ("DingPBX\toolchains\{0}" -f $node.archiveRoot)
 $npm = Join-Path $nodeRoot 'npm.cmd'
-$output = Join-Path $repoRoot 'console\dist\squirrel-windows'
+$output = Join-Path $repoRoot 'console\dist\squirrel-windows\squirrel-windows'
 
 function Phase([string]$Message) { Write-Host ("[{0:HH:mm:ss}] {1}" -f [DateTime]::Now, $Message) }
 

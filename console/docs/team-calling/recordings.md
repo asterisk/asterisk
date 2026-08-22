@@ -19,4 +19,3 @@ Test valid and malformed formats, limits, atomic storage, consent requirements, 
 ## Suggested articles
 
 [Announcements](announcements.md), [Voicemail](../people-devices/voicemail.md), and [Call Detail Records](../overview/cdr.md).
-

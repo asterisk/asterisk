@@ -19,4 +19,3 @@ Exercise detected and manual devices, template validation, reachability transiti
 ## Suggested articles
 
 [Users](users.md), [Extensions](../connectivity/extensions.md), and [System Health](../overview/system-health.md).
-

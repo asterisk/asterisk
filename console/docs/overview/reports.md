@@ -19,4 +19,3 @@ Validate aggregation against known fixtures, timezone and daylight-saving bounda
 ## Suggested articles
 
 [Call Detail Records](cdr.md), [Queues](../team-calling/queues.md), and [Trunks](../connectivity/trunks.md).
-

@@ -9,4 +9,3 @@ Manage destinations cover continuity, delivery, local tools, presentation, acces
 - [Appearance](appearance.md)
 - [Accessibility](accessibility.md)
 - [Settings](settings.md)
-

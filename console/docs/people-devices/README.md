@@ -6,4 +6,3 @@ These destinations manage who can use the phone system, which endpoints represen
 - [Devices](devices.md)
 - [Contacts](contacts.md)
 - [Voicemail](voicemail.md)
-

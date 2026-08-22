@@ -107,7 +107,7 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path release-staging,evidence | Out-Null
-          Copy-Item console/dist/squirrel-windows/* -Destination release-staging -Force
+          Copy-Item console/dist/squirrel-windows/squirrel-windows/* -Destination release-staging -Force
           Get-ChildItem release-staging -File | Sort-Object Name | ForEach-Object {
             "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant(), $_.Name
           } | Set-Content -Encoding ascii release-staging/SHA256SUMS.txt

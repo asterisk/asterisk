@@ -19,4 +19,3 @@ Exercise no-update, available, downloading, ready, restart, later, offline, inva
 ## Suggested articles
 
 [Status](../overview/status.md), [Backups](backups.md), and [Security](../team-calling/security.md).
-

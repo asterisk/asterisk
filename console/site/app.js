@@ -2,43 +2,43 @@
   'use strict';
 
   const DESTINATIONS = [
-    {id:'dashboard',name:'Dashboard',icon:'⌂',group:'Overview',description:'System summary, alerts, recent activity, and guided next actions.'},
-    {id:'live-calls',name:'Live Calls',icon:'◉',group:'Overview',description:'Documented real-time call state, channels, bridges, and privacy boundaries.'},
-    {id:'system-health',name:'System Health',icon:'♥',group:'Overview',description:'Service, resource, endpoint, and storage health with evidence timestamps.'},
-    {id:'status',name:'Status',icon:'◆',group:'Overview',description:'Release, service, documentation, and verification state without guessed success.'},
-    {id:'reports',name:'Reports',icon:'▥',group:'Overview',description:'Usage and outcome summaries with accessible tables and honest empty states.'},
-    {id:'cdr',name:'Call Detail Records',icon:'≡',group:'Overview',description:'Searchable call records, filters, privacy controls, and redacted export guidance.'},
-    {id:'logs',name:'Logs',icon:'▤',group:'Overview',description:'Search, filtering, severity, retention, and diagnostic export guidance.'},
-    {id:'documentation',name:'Documentation',icon:'?',group:'Overview',description:'Complete offline-friendly articles for every destination and shared feature.'},
+    {id:'dash',name:'Dashboard',icon:'⌂',group:'PBX',article:'overview/dashboard',description:'System summary, alerts, recent activity, and guided next actions.'},
+    {id:'live',name:'Live channels',icon:'◉',group:'PBX',article:'overview/live-calls',description:'Documented real-time call state, channels, bridges, and privacy boundaries.'},
+    {id:'endpoints',name:'PJSIP endpoints',icon:'▣',group:'PBX',article:'people-devices/devices',description:'Phones and applications registered with the PBX.'},
+    {id:'trunks',name:'Trunks & registrations',icon:'⇄',group:'PBX',article:'connectivity/trunks',description:'Provider connections, transports, registrations, and failover.'},
+    {id:'trunkauth',name:'Trunk authentication',icon:'◇',group:'PBX',article:'team-calling/security',description:'Authentication policy for incoming partner requests.'},
+    {id:'canvas',name:'Dialplan canvas',icon:'⌁',group:'PBX',article:'call-flow/call-flow',description:'Visual call-path composition with validation and reversible publishing.'},
+    {id:'ivr',name:'IVR menus',icon:'⌘',group:'PBX',article:'call-flow/ivr',description:'Menus, prompts, timeouts, invalid choices, accessibility, and testing.'},
+    {id:'queues',name:'Queues & agents',icon:'☷',group:'PBX',article:'team-calling/queues',description:'Agents, distribution strategies, wait states, announcements, and reporting.'},
 
-    {id:'users',name:'Users',icon:'♙',group:'People & devices',description:'Identity, extension, permission, presence, and lifecycle guidance.'},
-    {id:'devices',name:'Devices',icon:'▣',group:'People & devices',description:'Phones, endpoints, provisioning, credentials, and reachability.'},
-    {id:'contacts',name:'Contacts',icon:'☷',group:'People & devices',description:'Shared and personal directories, imports, deduplication, and bulk actions.'},
-    {id:'voicemail',name:'Voicemail',icon:'▻',group:'People & devices',description:'Mailboxes, greetings, delivery, retention, access, and recovery.'},
+    {id:'voicemail',name:'Voicemail boxes',icon:'▻',group:'Media',article:'people-devices/voicemail',description:'Mailboxes, greetings, delivery, retention, access, and recovery.'},
+    {id:'confbridge',name:'ConfBridge rooms',icon:'◌',group:'Media',article:'team-calling/conferences',description:'Rooms, moderators, access, prompts, recording, and capacity.'},
+    {id:'moh',name:'Music on hold',icon:'♬',group:'Media',article:'team-calling/announcements',description:'Local media classes, ordering, volume, and fallback behavior.'},
+    {id:'codecs',name:'Codecs & RTP',icon:'≋',group:'Media',article:'connectivity/extensions',description:'Codec preferences, media transport, port policy, and compatibility.'},
 
-    {id:'trunks',name:'Trunks',icon:'⇄',group:'Connectivity',description:'Provider connections, transports, codecs, authentication, and failover.'},
-    {id:'extensions',name:'Extensions',icon:'✣',group:'Connectivity',description:'Numbering, endpoint bindings, dialing permissions, and conflict checks.'},
+    {id:'cdr',name:'Call records',icon:'≡',group:'Data',article:'overview/cdr',description:'Searchable call records, filters, privacy controls, and redacted export guidance.'},
+    {id:'ami',name:'Manager & REST interfaces',icon:'⌁',group:'Data',article:'manage/automation',description:'AMI, ARI, and HTTP capabilities with bounded access guidance.'},
 
-    {id:'routes',name:'Routes',icon:'↪',group:'Call flow',description:'Inbound and outbound routing, patterns, priorities, and safe simulation.'},
-    {id:'ivr',name:'Interactive Voice Response',icon:'⌘',group:'Call flow',description:'Menus, prompts, timeouts, invalid choices, accessibility, and testing.'},
-    {id:'call-flow',name:'Call Flow',icon:'⌁',group:'Call flow',description:'Visual call-path composition with validation and reversible publishing.'},
-    {id:'time-conditions',name:'Time Conditions',icon:'◷',group:'Call flow',description:'Calendars, timezone behavior, exceptions, precedence, and previews.'},
+    {id:'modules',name:'Modules',icon:'⬡',group:'System',article:'overview/system-health',description:'Loaded runtime modules, dependencies, and use counts.'},
+    {id:'logger',name:'Logging',icon:'▤',group:'System',article:'overview/logs',description:'Search, filtering, severity, retention, and diagnostic export guidance.'},
+    {id:'security',name:'Security',icon:'◇',group:'System',article:'team-calling/security',description:'Transport protection, credentials, access rules, auditing, and recovery.'},
+    {id:'cli',name:'CLI builder',icon:'⌨',group:'System',article:'overview/status',description:'Guided allowlisted diagnostic command construction.'},
 
-    {id:'queues',name:'Queues',icon:'☷',group:'Team calling',description:'Agents, distribution strategies, wait states, announcements, and reporting.'},
-    {id:'ring-groups',name:'Ring Groups',icon:'◎',group:'Team calling',description:'Parallel and sequential ringing, fallbacks, membership, and simulation.'},
-    {id:'conferences',name:'Conferences',icon:'◌',group:'Team calling',description:'Rooms, moderators, access, prompts, recording, and capacity.'},
-    {id:'paging',name:'Paging',icon:'◖',group:'Team calling',description:'Paging groups, duplex modes, priority, device support, and safeguards.'},
-    {id:'announcements',name:'Announcements',icon:'♬',group:'Team calling',description:'Reusable audio announcements, language, volume, and fallback behavior.'},
-    {id:'recordings',name:'Recordings',icon:'●',group:'Team calling',description:'Prompts and call recordings, consent, retention, storage, and export.'},
-    {id:'security',name:'Security',icon:'◇',group:'Team calling',description:'Transport protection, credentials, access rules, auditing, and recovery.'},
+    {id:'memory',name:'Memory console',icon:'▣',group:'Agent',article:'manage/backups',description:'Local records, append-only history, and recovery boundaries.'},
+    {id:'sync',name:'Sync & attestation',icon:'↻',group:'Agent',article:'manage/updates',description:'Local synchronization history and factual verification state.'},
+    {id:'skills',name:'Skills registry',icon:'✣',group:'Agent',article:'manage/automation',description:'Installed local capability packages and their evidence.'},
+    {id:'hub',name:'Status hub sessions',icon:'◆',group:'Agent',article:'overview/status',description:'Active work sessions and factual current states.'},
+    {id:'vocab',name:'Vocabulary settings',icon:'▰',group:'Agent',article:'manage/settings',description:'Private local wording configuration without bundled personal mappings.'},
+    {id:'ops',name:'Operations & releases',icon:'▲',group:'Agent',article:'overview/reports',description:'Version, artifact, duration, and release evidence.'},
+    {id:'secrets',name:'Secret intake',icon:'◆',group:'Agent',article:'team-calling/security',description:'One-time local intake guidance; values are never displayed.'},
 
-    {id:'backups',name:'Backups',icon:'⇣',group:'Manage',description:'Versioned backup scope, encryption boundaries, scheduling, and restore drills.'},
-    {id:'updates',name:'Updates',icon:'↻',group:'Manage',description:'Unsigned update feeds, package hashes, release notes, and user-controlled restart.'},
-    {id:'automation',name:'Automation & Converter',icon:'⚙',group:'Manage',description:'Schedules, API sources, local conversion adapters, queues, and history.'},
-    {id:'local-ai',name:'Local AI',icon:'✦',group:'Manage',description:'Ollama model store, fit evidence, local chat, pulls, profiles, and rollback.'},
-    {id:'appearance',name:'Appearance',icon:'◐',group:'Manage',description:'Theme, density, typography, accent, logo, element editors, and reset.'},
-    {id:'accessibility',name:'Accessibility',icon:'♿',group:'Manage',description:'Keyboard, focus, names, contrast, motion, scaling, and screen-reader guidance.'},
-    {id:'settings',name:'Settings',icon:'⚙',group:'Manage',description:'Language, voice, scheduling, privacy, personalization, search, and history.'}
+    {id:'servers',name:'Deploy a server',icon:'▣',group:'App',article:'manage/automation',description:'Guided WSL, local container, and approved remote Linux provisioning.'},
+    {id:'arcade',name:'Confirmation credits',icon:'◈',group:'App',article:'manage/accessibility',description:'Optional local activities that reduce repetitive confirmation steps.'},
+    {id:'notifications',name:'Notification centre',icon:'●',group:'App',article:'overview/status',description:'Reviewable local notifications, filtering, dismissal, and export.'},
+    {id:'history',name:'History',icon:'↶',group:'App',article:'manage/backups',description:'Append-only local configuration revisions, comparison, and restore.'},
+    {id:'customise',name:'Customise everything',icon:'✦',group:'App',article:'manage/appearance',description:'Element-level appearance, layout, behavior, and local reset.'},
+    {id:'appearance',name:'Appearance',icon:'◐',group:'App',article:'manage/appearance',description:'Theme, density, typography, accent, logo, and element editors.'},
+    {id:'about',name:'About',icon:'ⓘ',group:'App',article:'overview/documentation',description:'Version, integration boundaries, project status, and documentation.'}
   ];
 
   const CONVERTERS = [
@@ -53,7 +53,7 @@
   ];
 
   const DEFAULTS = {
-    dock:'left', activeTab:'dashboard', pinned:['dashboard'], closed:[], language:'en', englishFunny:5,
+    dock:'left', activeTab:'dash', pinned:['dash'], closed:[], language:'en', englishFunny:5,
     cantoneseFunny:5, dialogEmoji:true, theme:'dark', accent:'#9f86ff', density:'comfortable',
     fontScale:100, displayName:'Ding PBX Console', attention:{focus:false,low:false,time:false,one:false,momentum:false},
     nextAction:'', notifications:[], tickets:[], schedule:{enabled:false,days:[]}, locks:[]
@@ -72,8 +72,7 @@
   function merge(base, saved){ return {...structuredClone(base), ...saved, attention:{...base.attention,...(saved.attention||{})}, schedule:{...base.schedule,...(saved.schedule||{})}}; }
   function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   function escapeHtml(value){ return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-  function articlePath(item){ return `../docs/${slugGroup(item.group)}/${item.id}.md`; }
-  function slugGroup(group){ return {'Overview':'overview','People & devices':'people-devices','Connectivity':'connectivity','Call flow':'call-flow','Team calling':'team-calling','Manage':'manage'}[group]; }
+  function articlePath(item){ return `../docs/${item.article}.md`; }
 
   function init(){
     applyState(); renderTabs(); renderDestinations(); renderConverters(); renderAttention(); renderTickets(); renderNotifications(); renderPalette(''); enhanceDropdowns(); bindEvents(); updateTimeAwareness(); setInterval(updateTimeAwareness, 60000);
@@ -145,7 +144,7 @@
   }
   function activateDestination(id){
     state.activeTab=id; state.closed=state.closed.filter(x=>x!==id); saveState(); renderTabs();
-    const target=$(`destination-${id}`) || (id==='dashboard'?$('destination-home'):null); if(target){ target.scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'start'}); target.focus({preventScroll:true}); target.classList.add('highlight'); setTimeout(()=>target.classList.remove('highlight'),1500); }
+    const target=$(`destination-${id}`) || (id==='dash'?$('destination-home'):null); if(target){ target.scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'start'}); target.focus({preventScroll:true}); target.classList.add('highlight'); setTimeout(()=>target.classList.remove('highlight'),1500); }
     $('rail').classList.remove('open');
   }
   function onTabKeydown(event){

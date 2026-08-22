@@ -19,4 +19,3 @@ Test pointer and keyboard creation, graph/outline equivalence, cycle detection, 
 ## Suggested articles
 
 [Routes](routes.md), [Interactive Voice Response](ivr.md), and [Queues](../team-calling/queues.md).
-

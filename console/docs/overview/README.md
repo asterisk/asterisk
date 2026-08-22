@@ -10,4 +10,3 @@ Overview destinations explain current system state without inventing evidence. T
 - [Call Detail Records](cdr.md)
 - [Logs](logs.md)
 - [Documentation](documentation.md)
-

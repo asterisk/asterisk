@@ -19,4 +19,3 @@ Test parallel and sequence order, timeout, busy and unavailable members, confirm
 ## Suggested articles
 
 [Queues](queues.md), [Extensions](../connectivity/extensions.md), and [Call Flow](../call-flow/call-flow.md).
-

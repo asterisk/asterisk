@@ -19,4 +19,3 @@ Exercise new, bridged, held, transferred, and ended transitions; reconnect and o
 ## Suggested articles
 
 [Call Detail Records](cdr.md), [Dashboard](dashboard.md), and [Security](../team-calling/security.md).
-

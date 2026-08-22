@@ -19,4 +19,3 @@ Test large streams, rotation, malformed input, bounded regular expressions, filt
 ## Suggested articles
 
 [System Health](system-health.md), [Status](status.md), and [Security](../team-calling/security.md).
-

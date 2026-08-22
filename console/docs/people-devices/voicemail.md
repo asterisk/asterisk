@@ -19,4 +19,3 @@ Exercise new, saved, deleted, restored, full, and unavailable states; greeting v
 ## Suggested articles
 
 [Users](users.md), [Recordings](../team-calling/recordings.md), and [Announcements](../team-calling/announcements.md).
-

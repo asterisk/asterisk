@@ -5,10 +5,10 @@ import { readFile } from 'node:fs/promises';
 const root = new URL('../../', import.meta.url);
 const read = path => readFile(new URL(path, root), 'utf8');
 const expectedDestinations = [
-  'dashboard','live-channels','endpoints','trunks','trunk-authentication','dialplan-canvas','ivr-menus','queues-agents',
-  'voicemail','conferences','music-on-hold','codecs-rtp','call-records','manager-rest','modules','logger','security','cli-builder',
-  'memory-console','sync-attestation','skills-registry','status-hub','wording-guard','operations','secret-intake',
-  'deploy-servers','confirmation-credits','notifications','history','customise','appearance','about',
+  'dash','live','endpoints','trunks','trunkauth','canvas','ivr','queues',
+  'voicemail','confbridge','moh','codecs','cdr','ami','modules','logger','security','cli',
+  'memory','sync','skills','hub','vocab','ops','secrets',
+  'servers','arcade','notifications','history','customise','appearance','about',
 ];
 
 function validateInventory(inventory) {
@@ -57,11 +57,13 @@ test('public source contains no runtime CDN or private source branding', async (
   }
 });
 
-test('preload exposes a typed, unprivileged control-plane boundary', async () => {
+test('preload exposes a typed, bounded control-plane boundary', async () => {
   const preload = await read('app/electron/preload.ts');
   const main = await read('app/electron/main.ts');
   assert.match(preload, /contextBridge\.exposeInMainWorld\('dingDesktop', api\)/);
-  assert.match(main, /CONTROL_PLANE_NOT_CONNECTED/);
+  assert.match(main, /discoverWslDistributions/);
+  assert.match(main, /discoverLocalDocker\('ding-pbx-console'\)/);
+  assert.match(main, /TARGET_NOT_DISCOVERED/);
   assert.equal(main.includes('exec('), false);
   assert.equal(main.includes('spawn('), false);
 });

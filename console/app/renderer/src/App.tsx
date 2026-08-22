@@ -4,7 +4,7 @@ import { destinations, rails, rowsByDestination, type Destination, type RailId }
 type Overlay = 'none'|'palette'|'regex'|'wizard'|'onboarding'|'appearance'|'lock'|'confirm'|'notifications'|'master-search';
 type Notice = { id:number; title:string; body:string; kind:'info'|'success'|'warning' };
 
-const defaultTabs = ['dashboard','endpoints','dialplan-canvas','deploy-servers'];
+const defaultTabs = ['dash','endpoints','canvas'];
 const onboarding = [
   ['Welcome','Ding PBX Console turns PBX configuration into guided, reviewable controls.'],
   ['Choose a goal','Start with an existing server or prepare a new installation.'],
@@ -65,7 +65,9 @@ function ContextMenu({x,y,target,onClose,onAction}:{x:number;y:number;target:str
 }
 
 function DestinationContent({screen,onNotice,onWizard,onConfirm}:{screen:Destination;onNotice:(n:Omit<Notice,'id'>)=>void;onWizard:()=>void;onConfirm:()=>void}) {
+  const [targetState,setTargetState]=useState('Discovery has not run.');
   const rows=rowsByDestination[screen.id]??[[screen.label,'Local simulation','Not connected','—','Preview']];
+  if(screen.id==='servers') return <div className="data-card"><div className="table-toolbar"><span><b>Local target discovery</b><small>Reads WSL distributions and project-owned local containers through the bounded desktop control plane.</small></span><button className="primary" onClick={async()=>{setTargetState('Discovering…');const response=await window.dingDesktop?.controlPlane.request({requestId:crypto.randomUUID(),action:'server.list'});setTargetState(response?.ok?JSON.stringify(response.data,null,2):response?.message??'Desktop control plane is unavailable.')}}>Discover local targets</button></div><pre className="target-discovery" aria-live="polite">{targetState}</pre></div>;
   if(screen.kind==='dashboard') return <div className="dashboard-grid">{[['Active channels','4'],['Registered endpoints','11 / 12'],['Queues waiting','2'],['Service state','Simulation']].map(([a,b])=><article className="metric" key={a}><span>{a}</span><strong>{b}</strong><small>Simulated until control-plane connection</small></article>)}</div>;
   if(screen.kind==='canvas') return <div className="canvas" aria-label="Dialplan canvas simulation">{['Incoming call','Business hours','Play greeting','Queue support','Voicemail','Hang up'].map((n,i)=><button key={n} style={{left:60+(i%3)*230,top:45+Math.floor(i/3)*160}} onClick={onWizard}><b>{i+1}</b>{n}</button>)}</div>;
   if(screen.kind==='builder') return <div className="builder"><div className="builder-path"><select aria-label="Command family"><option>core show</option><option>pjsip show</option><option>queue show</option></select><select aria-label="Command target"><option>channels</option><option>endpoints</option><option>registrations</option></select><button className="primary" onClick={onConfirm}>Review command</button></div><pre>$ asterisk -rx "core show channels"{`\n`}Control plane not connected. This command has not run.</pre></div>;
@@ -74,8 +76,8 @@ function DestinationContent({screen,onNotice,onWizard,onConfirm}:{screen:Destina
 }
 
 export function App() {
-  const [rail,setRail]=useStored<RailId>('ding.rail','pbx'); const [screenId,setScreenId]=useStored('ding.screen','dashboard');
-  const [tabs,setTabs]=useStored<string[]>('ding.tabs',defaultTabs); const [pinned,setPinned]=useStored<string[]>('ding.pinned',['dashboard']);
+  const [rail,setRail]=useStored<RailId>('ding.rail','pbx'); const [screenId,setScreenId]=useStored('ding.screen','dash');
+  const [tabs,setTabs]=useStored<string[]>('ding.tabs',defaultTabs); const [pinned,setPinned]=useStored<string[]>('ding.pinned',['dash']);
   const [overlay,setOverlay]=useState<Overlay>('onboarding'); const [query,setQuery]=useState(''); const [regex,setRegex]=useState(false); const [flags,setFlags]=useState('i');
   const [tabQuery,setTabQuery]=useState(''); const [groupQuery,setGroupQuery]=useState(''); const [menu,setMenu]=useState<{x:number;y:number;target:string}|null>(null);
   const [step,setStep]=useState(0); const [wizardStep,setWizardStep]=useState(0); const [theme,setTheme]=useStored<'dark'|'light'|'contrast'>('ding.theme','dark');
@@ -89,7 +91,7 @@ export function App() {
   const closeOverlay=()=>setOverlay('none');
   useEffect(()=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.density=density;document.documentElement.style.setProperty('--accent',accent)},[theme,density,accent]);
   useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='f'){e.preventDefault();setOverlay('palette')}if(e.key==='Escape'){setMenu(null);setOverlay('none')}};addEventListener('keydown',key);return()=>removeEventListener('keydown',key)},[]);
-  const contextAction=(action:string)=>{if(action.startsWith('Open'))open(screenId);if(action.startsWith('Pin'))setPinned(pinned.includes(screenId)?pinned.filter(x=>x!==screenId):[...pinned,screenId]);if(action.startsWith('Edit'))setOverlay('appearance');if(action.startsWith('Lock')){setLockTarget(screenId);setOverlay('lock')}if(action.startsWith('Close')){setTabs(tabs.filter(x=>x!==screenId));open(tabs.find(x=>x!==screenId)??'dashboard')}if(action.startsWith('Move'))notify({title:'Tab moved',body:'The tab was assigned to the Operations group.',kind:'success'})};
+  const contextAction=(action:string)=>{if(action.startsWith('Open'))open(screenId);if(action.startsWith('Pin'))setPinned(pinned.includes(screenId)?pinned.filter(x=>x!==screenId):[...pinned,screenId]);if(action.startsWith('Edit'))setOverlay('appearance');if(action.startsWith('Lock')){setLockTarget(screenId);setOverlay('lock')}if(action.startsWith('Close')){setTabs(tabs.filter(x=>x!==screenId));open(tabs.find(x=>x!==screenId)??'dash')}if(action.startsWith('Move'))notify({title:'Tab moved',body:'The tab was assigned to the Operations group.',kind:'success'})};
 
   return <div className="app-shell" onContextMenu={e=>{e.preventDefault();setMenu({x:e.clientX,y:e.clientY,target:screen.label})}}>
     <header className="titlebar"><div className="brand"><span className="logo">D</span><b>Ding PBX Console</b><span className="status-dot">● Simulation</span></div><div className="drag-region"/><button onClick={()=>setOverlay('palette')} aria-label="Open command palette">⌕</button><button onClick={()=>setOverlay('notifications')} aria-label={`Open notifications, ${notices.length} items`}>●<span className="badge">{notices.length}</span></button><button onClick={()=>window.dingDesktop?.window.minimize()} aria-label="Minimize">—</button><button onClick={()=>window.dingDesktop?.window.toggleMaximize()} aria-label="Maximize">□</button><button className="close" onClick={()=>window.dingDesktop?.window.close()} aria-label="Close">×</button></header>

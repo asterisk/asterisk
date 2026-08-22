@@ -8,7 +8,9 @@
     "outDir": "../../dist-electron",
     "strict": true,
     "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "types": ["node"]
   },
-  "include": ["main.ts", "preload.ts", "../../shared/**/*.ts"]
+  "include": ["main.ts", "preload.ts", "../../shared/**/*.ts", "../../control-plane/**/*.ts"]
 }

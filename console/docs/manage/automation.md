@@ -19,4 +19,3 @@ Test time boundaries, precedence, offline fallback, every category search, adapt
 ## Suggested articles
 
 [Settings](settings.md), [Backups](backups.md), and [Local AI](local-ai.md).
-

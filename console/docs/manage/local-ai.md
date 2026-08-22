@@ -19,4 +19,3 @@ Test exhaustive pagination, offline cache, fit evidence, bounded pull progress, 
 ## Suggested articles
 
 [Automation and Converter](automation.md), [System Health](../overview/system-health.md), and [Settings](settings.md).
-

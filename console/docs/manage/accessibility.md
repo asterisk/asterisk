@@ -19,4 +19,3 @@ Run keyboard-only journeys, screen-reader name/state checks, focus-order review,
 ## Suggested articles
 
 [Appearance](appearance.md), [Settings](settings.md), and [Documentation](../overview/documentation.md).
-

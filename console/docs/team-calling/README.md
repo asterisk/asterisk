@@ -9,4 +9,3 @@ Team-calling destinations coordinate groups, shared audio, and policy-sensitive 
 - [Announcements](announcements.md)
 - [Recordings](recordings.md)
 - [Security](security.md)
-

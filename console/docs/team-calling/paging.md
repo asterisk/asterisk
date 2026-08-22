@@ -19,4 +19,3 @@ Test one-way and duplex-capable groups, partial delivery, device busy, timeout, 
 ## Suggested articles
 
 [Devices](../people-devices/devices.md), [Announcements](announcements.md), and [Security](security.md).
-

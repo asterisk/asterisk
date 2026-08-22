@@ -19,4 +19,3 @@ Test full and scoped backup, storage preflight, cancellation, corruption, retent
 ## Suggested articles
 
 [Settings](settings.md), [Security](../team-calling/security.md), and [System Health](../overview/system-health.md).
-

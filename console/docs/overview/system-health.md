@@ -19,4 +19,3 @@ Test healthy, warning, failed, stale, unknown, permission-refused, and offline s
 ## Suggested articles
 
 [Status](status.md), [Logs](logs.md), and [Backups](../manage/backups.md).
-

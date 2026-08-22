@@ -19,4 +19,3 @@ Test available and conflicting numbers, reserved patterns, assignment changes, r
 ## Suggested articles
 
 [Users](../people-devices/users.md), [Devices](../people-devices/devices.md), and [Routes](../call-flow/routes.md).
-

@@ -19,4 +19,3 @@ Exercise all status states and transitions, timestamp drift, filter persistence,
 ## Suggested articles
 
 [System Health](system-health.md), [Updates](../manage/updates.md), and [Logs](logs.md).
-

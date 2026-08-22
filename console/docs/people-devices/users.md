@@ -19,4 +19,3 @@ Test create, edit, deactivate, restore, search, bulk actions, role enforcement, 
 ## Suggested articles
 
 [Extensions](../connectivity/extensions.md), [Devices](devices.md), and [Voicemail](voicemail.md).
-

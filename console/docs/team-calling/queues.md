@@ -19,4 +19,3 @@ Exercise every strategy, join and leave, capacity, timeout, priority, wrap-up, m
 ## Suggested articles
 
 [Ring Groups](ring-groups.md), [Announcements](announcements.md), and [Reports](../overview/reports.md).
-

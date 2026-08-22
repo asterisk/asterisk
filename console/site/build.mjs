@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +7,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 const docs = resolve(root, '..', 'docs');
 const output = join(root, 'dist');
 const assets = ['index.html', 'styles.css', 'app.js'];
+const socialPreview = resolve(root, '..', '..', 'social-preview.png');
 
 if (process.argv.includes('--clean')) {
   await rm(output, { recursive: true, force: true });
@@ -24,6 +25,7 @@ for (const asset of assets) {
   }
   await writeFile(join(output, asset), content);
 }
+await copyFile(socialPreview, join(output, 'social-preview.png'));
 
 function escapeHtml(value) {
   return value.replace(/[&<>'"]/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[character]);
