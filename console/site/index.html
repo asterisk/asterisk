@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-density="comfortable">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="Ding PBX Console documentation, release status, settings, and download links.">
+  <meta property="og:title" content="Ding PBX Console">
+  <meta property="og:description" content="Documentation, release status, settings, and links for Ding PBX Console.">
+  <meta property="og:url" content="https://ding-ding-projects.github.io/asterisk/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Ding PBX Console">
+  <meta property="og:image" content="https://ding-ding-projects.github.io/asterisk/social-preview.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Ding PBX Console interface preview">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#7257d9">
+  <title>Ding PBX Console</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="icon-button rail-toggle" id="rail-toggle" aria-label="Toggle navigation">☰</button>
+      <div class="brand">
+        <div class="brand-mark" id="brand-mark" aria-hidden="true">D</div>
+        <div><strong id="display-name">Ding PBX Console</strong><span>Documentation &amp; status</span></div>
+      </div>
+      <div class="top-actions">
+        <button class="tonal-button" id="palette-open">Search commands <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></button>
+        <button class="icon-button" id="notification-open" aria-label="Open notification history">🔔<span id="notification-count" class="badge">0</span></button>
+      </div>
+    </header>
+
+    <aside class="rail" id="rail" aria-label="Primary navigation">
+      <div class="search-composite">
+        <label class="sr-only" for="tab-search">Search current tabs</label>
+        <input id="tab-search" type="search" placeholder="Search tabs" autocomplete="off">
+        <button class="regex-trigger" data-regex-for="tab-search" aria-label="Build a regular expression for tab search">.*</button>
+      </div>
+      <div class="rail-tools">
+        <button id="pin-current" class="text-button">Pin current</button>
+        <button id="tab-manager-open" class="text-button">Manage tabs</button>
+      </div>
+      <nav id="tab-list" class="tab-list" role="tablist" aria-orientation="vertical"></nav>
+      <div class="rail-footer">
+        <label for="dock-select">Dock</label>
+        <div class="select-composite">
+          <select id="dock-select" aria-label="Tab strip dock">
+            <option value="left">Left</option><option value="right">Right</option>
+            <option value="top">Top</option><option value="bottom">Bottom</option>
+          </select>
+          <button class="regex-trigger" data-regex-for="dock-menu-search" aria-label="Search dock choices with regular expression">.*</button>
+        </div>
+      </div>
+    </aside>
+
+    <main id="main" tabindex="-1">
+      <section class="hero" id="destination-home" tabindex="-1">
+        <div class="eyebrow">PRIVATE-BY-DEFAULT TELEPHONY ADMINISTRATION</div>
+        <h1 id="hero-title">Know what your phone system is doing.</h1>
+        <p id="hero-copy">Ding PBX Console is a planned desktop administration experience for Asterisk. This website is a landing, documentation, download, status, settings, and link surface only. <strong>It is not the installed desktop application and it is not a PBX runtime.</strong></p>
+        <div class="hero-actions">
+          <button class="filled-button" disabled aria-describedby="installer-status">Windows installer unavailable</button>
+          <a class="outlined-button" href="#destination-documentation">Read documentation</a>
+        </div>
+        <p class="status-line" id="installer-status">No verified release manifest exists yet, so this site does not guess a download URL.</p>
+      </section>
+
+      <section class="overview-grid" aria-label="Project overview">
+        <article class="metric-card"><span class="state-dot waiting"></span><h2>Release</h2><strong>Not published</strong><p>Installer link remains disabled until immutable release metadata is verified.</p></article>
+        <article class="metric-card"><span class="state-dot good"></span><h2>Site mode</h2><strong>Local-first</strong><p>No analytics, CDN assets, remote fonts, or background requests.</p></article>
+        <article class="metric-card"><span class="state-dot neutral"></span><h2>Coverage</h2><strong>32 destinations</strong><p>Explore the complete proposed administration and documentation map.</p></article>
+      </section>
+
+      <section class="section" id="destination-grid-section">
+        <div class="section-heading"><div><span class="eyebrow">FEATURE MAP</span><h2>Every destination</h2></div>
+          <div class="search-composite wide"><label class="sr-only" for="feature-search">Search destinations</label><input id="feature-search" type="search" placeholder="Search all destinations"><button class="regex-trigger" data-regex-for="feature-search" aria-label="Build regular expression for destination search">.*</button></div>
+        </div>
+        <div id="destination-grid" class="destination-grid"></div>
+      </section>
+
+      <section class="section interactive-lab" id="destination-settings">
+        <div class="section-heading"><div><span class="eyebrow">LOCAL SITE SETTINGS</span><h2>Make this surface yours</h2><p>Settings affect this browser only and are stored locally.</p></div></div>
+        <div class="settings-layout">
+          <div class="settings-tabs" role="tablist" aria-label="Settings categories">
+            <button role="tab" aria-selected="true" data-settings-tab="language">Language</button>
+            <button role="tab" aria-selected="false" data-settings-tab="appearance">Appearance</button>
+            <button role="tab" aria-selected="false" data-settings-tab="attention">Attention</button>
+            <button role="tab" aria-selected="false" data-settings-tab="schedule">Schedule</button>
+            <button role="tab" aria-selected="false" data-settings-tab="privacy">Local data</button>
+          </div>
+          <div class="settings-panels">
+            <div class="search-composite"><label class="sr-only" for="settings-search">Search settings</label><input id="settings-search" type="search" placeholder="Search settings"><button class="regex-trigger" data-regex-for="settings-search" aria-label="Build regular expression for settings search">.*</button></div>
+            <section class="settings-panel active" data-panel="language">
+              <div class="setting-row" data-search="language english cantonese bilingual"><div><h3>Language</h3><p>Choose the presentation used by this site.</p><p id="language-preview" role="status"></p></div><select id="language-mode"><option value="en">English</option><option value="zh">Playful Hong Kong-style Cantonese</option><option value="both">Bilingual</option></select></div>
+              <div class="setting-row" data-search="english funny level serious playful"><div><h3>English funny level</h3><p>Styles voice only; facts never change.</p></div><output id="english-funny-output">5</output><input id="english-funny" type="range" min="1" max="5" value="5"></div>
+              <div class="setting-row" data-search="cantonese funny level serious playful"><div><h3>Cantonese funny level</h3><p>Independent from English and defaults to 5.</p></div><output id="cantonese-funny-output">5</output><input id="cantonese-funny" type="range" min="1" max="5" value="5"></div>
+              <div class="setting-row" data-search="dialog emoji messages"><div><h3>Show emoji in dialogs and messages</h3><p>Decoration never replaces factual text.</p></div><input id="dialog-emoji" type="checkbox" checked></div>
+            </section>
+            <section class="settings-panel" data-panel="appearance">
+              <div class="setting-row" data-search="theme light dark contrast"><div><h3>Theme</h3><p>Applied immediately and persisted.</p></div><select id="theme-mode"><option value="dark">Dark</option><option value="light">Light</option><option value="contrast">High contrast</option></select></div>
+              <div class="setting-row" data-search="accent seed color"><div><h3>Accent colour</h3><p>Choose any local colour.</p></div><input id="accent-color" type="color" value="#9f86ff"></div>
+              <div class="setting-row" data-search="density comfortable compact spacious"><div><h3>Density</h3><p>Changes spacing without hiding controls.</p></div><select id="density-mode"><option value="compact">Compact</option><option value="comfortable" selected>Comfortable</option><option value="spacious">Spacious</option></select></div>
+              <div class="setting-row" data-search="font size typography"><div><h3>Text size</h3><p>Scales local site typography.</p></div><input id="font-scale" type="range" min="90" max="130" value="100"><output id="font-scale-output">100%</output></div>
+              <div class="setting-row" data-search="display name rename"><div><h3>Display name</h3><p>Changes this site's label, never product identity.</p></div><input id="display-name-input" value="Ding PBX Console" maxlength="48"><button id="display-name-reset" class="text-button">Reset</button></div>
+            </section>
+            <section class="settings-panel" data-panel="attention">
+              <p class="plain-note">These are interface accommodations, not medical features. Every mode is off by default and independent.</p>
+              <div id="attention-settings"></div>
+              <div class="setting-row"><div><h3>Current next action</h3><p>Persists through context switches.</p></div><input id="next-action" placeholder="Choose one next action"></div>
+            </section>
+            <section class="settings-panel" data-panel="schedule">
+              <div class="setting-row"><div><h3>Scheduled appearance</h3><p>Dates and times use this browser's local timezone. Later matching rules win.</p></div><input id="schedule-enabled" type="checkbox"></div>
+              <div class="schedule-grid"><label>Start date<input id="schedule-start-date" type="date"></label><label>End date<input id="schedule-end-date" type="date"></label><label>Start time<input id="schedule-start-time" type="time" value="18:00"></label><label>End time<input id="schedule-end-time" type="time" value="07:00"></label><label>Scheduled theme<select id="schedule-theme"><option value="dark">Dark</option><option value="light">Light</option><option value="contrast">High contrast</option></select></label></div>
+              <fieldset><legend>Weekdays</legend><div class="weekday-list" id="weekday-list"></div></fieldset>
+              <button id="schedule-save" class="tonal-button">Save schedule</button><p id="schedule-status" role="status"></p>
+            </section>
+            <section class="settings-panel" data-panel="privacy">
+              <div class="setting-row"><div><h3>Personal vocabulary JSON</h3><p>Local-only. Maximum 64 KiB, schema version 1, up to 256 string replacements. No data leaves this browser.</p></div><input id="vocabulary-file" type="file" accept="application/json,.json"><button id="vocabulary-clear" class="text-button">Clear</button></div><p id="vocabulary-status" role="status">No file loaded; original wording is active.</p>
+              <div class="setting-row"><div><h3>Local site history</h3><p>Settings changes stay in this browser. Exports omit uploaded vocabulary and lock credentials.</p></div><button id="export-settings" class="text-button">Export redacted settings</button><button id="clear-settings" class="danger-button">Reset local site data</button></div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="destination-appearance">
+        <div class="section-heading"><div><span class="eyebrow">IDENTITY &amp; APPEARANCE</span><h2>Local logo studio</h2></div></div>
+        <div class="logo-studio">
+          <div class="logo-preview" id="logo-preview"><span>D</span></div>
+          <div><div class="preset-row"><button class="logo-preset" data-logo="D">D</button><button class="logo-preset" data-logo="☎">Phone</button><button class="logo-preset" data-logo="✣">Switchboard</button></div><label>Custom local image<input id="logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label><div class="inline-controls"><label>Fit<select id="logo-fit"><option>contain</option><option>cover</option><option>fill</option></select></label><label>Background<input id="logo-background" type="color" value="#1d1733"></label></div><p id="logo-status" role="status">Using the shipped letter preset.</p><button id="logo-reset" class="text-button">Reset logo</button></div>
+        </div>
+      </section>
+
+      <section class="section" id="destination-automation">
+        <div class="section-heading"><div><span class="eyebrow">LOCAL TOOLS</span><h2>File converter catalogue</h2><p>This website documents and previews adapters; it does not replace the installed desktop converter.</p></div></div>
+        <div class="search-composite wide"><label class="sr-only" for="converter-search">Search converter formats</label><input id="converter-search" type="search" placeholder="Search formats and capabilities"><button class="regex-trigger" data-regex-for="converter-search" aria-label="Build regular expression for converter catalogue">.*</button></div>
+        <div id="converter-catalog" class="catalog-grid"></div>
+      </section>
+
+      <section class="section" id="destination-local-ai">
+        <div class="section-heading"><div><span class="eyebrow">LOCAL AI DOCUMENTATION</span><h2>Ollama suite manager</h2><p>The installed application will use Ollama's documented loopback API. This static website makes no API request.</p></div><span class="status-chip">Offline demo</span></div>
+        <div class="ai-grid"><article class="surface-card"><h3>Runtime</h3><strong>Not connected</strong><p>Static-site boundary: health, version, and models are unavailable here.</p><button disabled>Retry in installed app</button></article><article class="surface-card"><h3>Model Store</h3><strong>Verified catalogue unavailable</strong><p>No cached revision exists. The application will show exhaustive pagination, refresh time, and staleness.</p></article><article class="surface-card"><h3>Hardware fit</h3><strong>Unknown</strong><p>No RAM, GPU, VRAM, driver, storage, blob, or context evidence is available to this page.</p></article><article class="surface-card"><h3>Harness launch</h3><strong>Documentation only</strong><p>The application will use allowlisted profiles, preview, snapshot, health verification, and rollback—never arbitrary shell text.</p></article></div>
+      </section>
+
+      <section class="section" id="destination-security">
+        <div class="section-heading"><div><span class="eyebrow">LOCAL SITE EQUIVALENTS</span><h2>Locks, authenticator, and Support Tickets</h2><p>Browser-storage demonstrations do not secure sensitive data. Clear this site's data to reset them.</p></div></div>
+        <div class="security-grid">
+          <article class="surface-card"><h3>Toy lock</h3><p>A self-imposed speed bump only, never encryption or a security boundary.</p><label>Target<select id="lock-target"><option>Settings</option><option>Documentation</option><option>Status</option></select></label><label>Local PIN<input id="lock-pin" type="password" inputmode="numeric" autocomplete="new-password"></label><button id="lock-create" class="tonal-button">Create local toy lock</button><p id="lock-status" role="status">No lock created.</p></article>
+          <article class="surface-card"><h3>Authenticator demonstration</h3><p>No secret is generated or stored by this website. The installed application will support local QR and RFC 6238 verification.</p><div class="code-demo" aria-label="Example one-time code, not a real credential">123 456</div><progress max="30" value="19">19 seconds</progress><p>Example only · 19 seconds remaining</p><button disabled>Copy unavailable example</button></article>
+          <article class="surface-card"><h3>Support Tickets</h3><p class="plain-note">Nothing is sent anywhere, no ticket exists outside this browser, no network request is made, no data is collected, and nobody is reading it.</p><label>Category<select id="ticket-category"><option>Forgotten toy lock</option><option>Site settings</option><option>Documentation feedback</option></select></label><label>Description<textarea id="ticket-description" maxlength="500"></textarea></label><button id="ticket-create" class="tonal-button">Create local ticket</button><div id="ticket-list" class="ticket-list"></div></article>
+        </div>
+      </section>
+
+      <section class="section" id="destination-documentation">
+        <div class="section-heading"><div><span class="eyebrow">OFFLINE-FIRST DOCUMENTATION</span><h2>Read every feature article</h2><p>Each of the 32 destinations has a categorized article with behavior, configuration, failure modes, security, verification, and suggested reading.</p></div><a class="outlined-button" href="../docs/README.md">Documentation index</a></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="command-palette" class="overlay-card" aria-labelledby="palette-title"><form method="dialog"><div class="dialog-heading"><h2 id="palette-title">Command palette</h2><button class="icon-button" value="cancel" aria-label="Close command palette">×</button></div><div class="search-composite"><label class="sr-only" for="palette-search">Search commands</label><input id="palette-search" type="search" placeholder="Search every destination and setting" autocomplete="off"><button type="button" class="regex-trigger" data-regex-for="palette-search" aria-label="Build a regular expression for command search">.*</button></div><div id="palette-results" class="palette-results" role="listbox"></div></form></dialog>
+  <dialog id="regex-dialog" class="overlay-card" aria-labelledby="regex-title"><form method="dialog"><div class="dialog-heading"><h2 id="regex-title">Regular expression builder</h2><button class="icon-button" value="cancel" aria-label="Close regular expression builder">×</button></div><p id="regex-target-label"></p><label>Pattern<input id="regex-pattern" autocomplete="off"></label><fieldset><legend>Flags</legend><label><input id="regex-i" type="checkbox" checked> Ignore case</label><label><input id="regex-m" type="checkbox"> Multiline</label><label><input id="regex-u" type="checkbox" checked> Unicode</label></fieldset><div class="builder-buttons"><button type="button" data-insert="^">Starts with</button><button type="button" data-insert="$">Ends with</button><button type="button" data-insert="( )">Group</button><button type="button" data-insert="[a-z]">Class</button><button type="button" data-insert="|">Either</button><button type="button" data-insert="+">One or more</button></div><label>Sample text<textarea id="regex-sample">Dashboard\nDocumentation\nSettings</textarea></label><p id="regex-feedback" role="status">Enter a pattern.</p><button type="button" id="regex-apply" class="filled-button" value="default">Apply to search</button></form></dialog>
+  <dialog id="tab-manager" class="overlay-card" aria-labelledby="tab-manager-title"><form method="dialog"><div class="dialog-heading"><h2 id="tab-manager-title">Tab manager</h2><button class="icon-button" value="cancel" aria-label="Close tab manager">×</button></div><div class="four-searches"><label>Current strip search<input id="strip-search" type="search"><button type="button" class="regex-trigger" data-regex-for="strip-search">.*</button></label><label>Current group search<input id="group-tab-search" type="search"><button type="button" class="regex-trigger" data-regex-for="group-tab-search">.*</button></label><label>Group-name search<input id="group-search" type="search"><button type="button" class="regex-trigger" data-regex-for="group-search">.*</button></label><label>Master search<input id="master-tab-search" type="search"><button type="button" class="regex-trigger" data-regex-for="master-tab-search">.*</button></label></div><div class="bulk-row"><input id="bulk-tab-query" placeholder="Text in visible tab label"><button type="button" id="close-containing">Close containing</button><button type="button" id="close-not-containing">Close not containing</button></div><p id="bulk-preview" role="status">Enter text to preview affected unpinned tabs.</p><div id="managed-tab-list"></div></form></dialog>
+  <dialog id="notifications-dialog" class="overlay-card" aria-labelledby="notifications-title"><form method="dialog"><div class="dialog-heading"><h2 id="notifications-title">Notification history</h2><button class="icon-button" value="cancel" aria-label="Close notification history">×</button></div><div class="search-composite"><input id="notification-search" type="search" aria-label="Search notifications"><button type="button" class="regex-trigger" data-regex-for="notification-search">.*</button></div><div id="notification-history"></div><button id="notification-clear" type="button" class="text-button">Clear history</button></form></dialog>
+  <div id="context-menu" class="context-menu" hidden role="menu"><div class="search-composite"><input id="context-search" type="search" aria-label="Filter context menu"><button class="regex-trigger" data-regex-for="context-search" aria-label="Build regular expression for context menu">.*</button></div><button role="menuitem" data-action="pin">Pin or unpin tab <kbd>P</kbd></button><button role="menuitem" data-action="appearance">Edit appearance… <kbd>Shift</kbd>+<kbd>F10</kbd></button><button role="menuitem" data-action="lock">Lock this element…</button></div>
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-label="Notifications"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>
