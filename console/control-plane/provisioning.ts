@@ -1,4 +1,4 @@
-import type { ChangePlan, OperatingSystemIdentity, PlanAction } from "./contracts.ts";
+import type { ChangePlan, OperatingSystemIdentity, PlanAction } from "./contracts.js";
 
 export interface ProvisioningRequest {
   id: string;

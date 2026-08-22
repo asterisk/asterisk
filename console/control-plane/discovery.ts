@@ -4,8 +4,8 @@ import type {
   CapabilitySnapshot,
   OperatingSystemIdentity,
   TargetProfile,
-} from "./contracts.ts";
-import type { CommandResult, ProcessExecutor } from "./executor.ts";
+} from "./contracts.js";
+import type { CommandResult, ProcessExecutor } from "./executor.js";
 
 export interface DockerTarget {
   id: string;

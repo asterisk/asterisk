@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { assertNoSecretArguments, redactText } from "./redaction.ts";
+import { assertNoSecretArguments, redactText } from "./redaction.js";
 
 export type ExecutionStatus = "succeeded" | "failed" | "cancelled" | "timedOut";
 

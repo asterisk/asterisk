@@ -1,4 +1,4 @@
-import type { CommandResult, ProcessExecutor } from "./executor.ts";
+import type { CommandResult, ProcessExecutor } from "./executor.js";
 
 export interface SshTarget {
   host: string;

@@ -2,9 +2,9 @@ import type {
   AsteriskIdentity,
   CapabilityResult,
   TargetProfile,
-} from "./contracts.ts";
-import { unavailable, type LiveAsteriskDiscovery } from "./discovery.ts";
-import type { CommandResult } from "./executor.ts";
+} from "./contracts.js";
+import { unavailable, type LiveAsteriskDiscovery } from "./discovery.js";
+import type { CommandResult } from "./executor.js";
 
 export type AsteriskProbeOperation =
   | "identity"

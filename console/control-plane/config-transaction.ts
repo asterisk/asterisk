@@ -1,4 +1,4 @@
-import type { ApplyResult, ChangePlan, StructuredDiff } from "./contracts.ts";
+import type { ApplyResult, ChangePlan, StructuredDiff } from "./contracts.js";
 
 export interface ConfigDocument {
   resource: string;

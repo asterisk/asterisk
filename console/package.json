@@ -11,7 +11,7 @@
     "build": "tsc -b && vite build",
     "start": "electron .",
     "test:ui": "node --test tests/ui/*.test.mjs",
-    "test:control-plane": "node --test tests/control-plane/*.test.ts",
+    "test:control-plane": "tsx --test tests/control-plane/*.test.ts",
     "test:site": "node site/tests/site.test.mjs",
     "package:squirrel": "npm run build && electron-builder --win squirrel --config electron-builder.yml"
   },
@@ -27,6 +27,7 @@
     "electron": "43.4.1",
     "electron-builder": "26.15.3",
     "electron-builder-squirrel-windows": "26.15.3",
+    "tsx": "4.23.12",
     "typescript": "7.0.2",
     "vite": "8.2.2"
   }
