@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "requiredFeatureIds": [
+    "language-modes",
+    "funny-levels",
+    "dialog-emojis",
+    "school-mode",
+    "narration",
+    "scheduled-settings",
+    "external-settings-sources",
+    "dim-sum-surprise",
+    "regex-builder",
+    "non-blocking-notifications",
+    "status-hub",
+    "material-appearance",
+    "app-logo-customization",
+    "local-file-converter",
+    "ollama-suite-manager",
+    "browser-style-tabs",
+    "tab-groups-and-searches",
+    "command-palette",
+    "destructive-action-confirmation",
+    "local-version-history",
+    "changelog-viewer",
+    "external-editor-handoff",
+    "complete-exports",
+    "bulk-actions",
+    "accessibility",
+    "responsive-sizing",
+    "personal-vocabulary-upload",
+    "per-element-toy-locks",
+    "support-tickets",
+    "unlock-ladder",
+    "built-in-authenticator",
+    "attention-modes",
+    "browser-extension-download-surfaces",
+    "offline-documentation-browser",
+    "app-display-name",
+    "guided-forms",
+    "bounded-overlays",
+    "context-menu-shortcuts",
+    "long-operation-progress",
+    "in-context-recovery",
+    "provider-markup-rendering",
+    "forge-publishing",
+    "collapsible-filters",
+    "automatic-updates"
+  ],
+  "surfaces": [
+    {
+      "id": "windows-console",
+      "evidenceTemplates": {
+        "implementation": "console/app/feature-registry.json#{id}",
+        "documentation": "docs/features/{id}.md",
+        "localization": "console/app/locales/feature-registry.json#{id}",
+        "localCheck": "console/tests/contracts/{id}.test.mjs",
+        "builtInteraction": "console/release/evidence/windows-console/{id}.json",
+        "capture": "console/release/captures/windows-console/{id}.png"
+      },
+      "features": [
+        {"id":"language-modes","status":"unverified"},{"id":"funny-levels","status":"unverified"},{"id":"dialog-emojis","status":"unverified"},{"id":"school-mode","status":"unverified"},{"id":"narration","status":"unverified"},{"id":"scheduled-settings","status":"unverified"},{"id":"external-settings-sources","status":"unverified"},{"id":"dim-sum-surprise","status":"unverified"},{"id":"regex-builder","status":"unverified"},{"id":"non-blocking-notifications","status":"unverified"},{"id":"status-hub","status":"unverified"},{"id":"material-appearance","status":"unverified"},{"id":"app-logo-customization","status":"unverified"},{"id":"local-file-converter","status":"unverified"},{"id":"ollama-suite-manager","status":"unverified"},{"id":"browser-style-tabs","status":"unverified"},{"id":"tab-groups-and-searches","status":"unverified"},{"id":"command-palette","status":"unverified"},{"id":"destructive-action-confirmation","status":"unverified"},{"id":"local-version-history","status":"unverified"},{"id":"changelog-viewer","status":"unverified"},{"id":"external-editor-handoff","status":"unverified"},{"id":"complete-exports","status":"unverified"},{"id":"bulk-actions","status":"unverified"},{"id":"accessibility","status":"unverified"},{"id":"responsive-sizing","status":"unverified"},{"id":"personal-vocabulary-upload","status":"unverified"},{"id":"per-element-toy-locks","status":"unverified"},{"id":"support-tickets","status":"unverified"},{"id":"unlock-ladder","status":"unverified"},{"id":"built-in-authenticator","status":"unverified"},{"id":"attention-modes","status":"unverified"},{"id":"browser-extension-download-surfaces","status":"unverified"},{"id":"offline-documentation-browser","status":"unverified"},{"id":"app-display-name","status":"unverified"},{"id":"guided-forms","status":"unverified"},{"id":"bounded-overlays","status":"unverified"},{"id":"context-menu-shortcuts","status":"unverified"},{"id":"long-operation-progress","status":"unverified"},{"id":"in-context-recovery","status":"unverified"},{"id":"provider-markup-rendering","status":"unverified"},{"id":"forge-publishing","status":"unverified"},{"id":"collapsible-filters","status":"unverified"},{"id":"automatic-updates","status":"unverified"}
+      ]
+    },
+    {
+      "id": "pages-site",
+      "evidenceTemplates": {
+        "implementation": "console/site/feature-registry.json#{id}",
+        "documentation": "console/site/content/features/{id}.md",
+        "localization": "console/site/locales/feature-registry.json#{id}",
+        "localCheck": "console/site/tests/contracts/{id}.test.mjs",
+        "builtInteraction": "console/release/evidence/pages-site/{id}.json",
+        "capture": "console/release/captures/pages-site/{id}.png"
+      },
+      "features": [
+        {"id":"language-modes","status":"unverified"},{"id":"funny-levels","status":"unverified"},{"id":"dialog-emojis","status":"unverified"},{"id":"school-mode","status":"unverified"},{"id":"narration","status":"unverified"},{"id":"scheduled-settings","status":"unverified"},{"id":"external-settings-sources","status":"unverified"},{"id":"dim-sum-surprise","status":"unverified"},{"id":"regex-builder","status":"unverified"},{"id":"non-blocking-notifications","status":"unverified"},{"id":"status-hub","status":"unverified"},{"id":"material-appearance","status":"unverified"},{"id":"app-logo-customization","status":"unverified"},{"id":"local-file-converter","status":"unverified"},{"id":"ollama-suite-manager","status":"unverified"},{"id":"browser-style-tabs","status":"unverified"},{"id":"tab-groups-and-searches","status":"unverified"},{"id":"command-palette","status":"unverified"},{"id":"destructive-action-confirmation","status":"unverified"},{"id":"local-version-history","status":"unverified"},{"id":"changelog-viewer","status":"unverified"},{"id":"external-editor-handoff","status":"unverified"},{"id":"complete-exports","status":"unverified"},{"id":"bulk-actions","status":"unverified"},{"id":"accessibility","status":"unverified"},{"id":"responsive-sizing","status":"unverified"},{"id":"personal-vocabulary-upload","status":"unverified"},{"id":"per-element-toy-locks","status":"unverified"},{"id":"support-tickets","status":"unverified"},{"id":"unlock-ladder","status":"unverified"},{"id":"built-in-authenticator","status":"unverified"},{"id":"attention-modes","status":"unverified"},{"id":"browser-extension-download-surfaces","status":"unverified"},{"id":"offline-documentation-browser","status":"unverified"},{"id":"app-display-name","status":"unverified"},{"id":"guided-forms","status":"unverified"},{"id":"bounded-overlays","status":"unverified"},{"id":"context-menu-shortcuts","status":"unverified"},{"id":"long-operation-progress","status":"unverified"},{"id":"in-context-recovery","status":"unverified"},{"id":"provider-markup-rendering","status":"unverified"},{"id":"forge-publishing","status":"unverified"},{"id":"collapsible-filters","status":"unverified"},{"id":"automatic-updates","status":"unverified"}
+      ]
+    }
+  ]
+}

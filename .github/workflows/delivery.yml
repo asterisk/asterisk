@@ -1,0 +1,298 @@
+name: Build, package, release, and publish
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  resolve-runner:
+    name: Resolve available Windows runner
+    runs-on: windows-2025
+    outputs:
+      runner: ${{ steps.resolve.outputs.runner }}
+      workflow-started: ${{ steps.resolve.outputs.workflow-started }}
+    steps:
+      - name: Select an available compatible runner or pinned cloud fallback
+        id: resolve
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          $started = [DateTimeOffset]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
+          "workflow-started=$started" >> $env:GITHUB_OUTPUT
+          $selected = $null
+          try {
+            $inventory = gh api "repos/${{ github.repository }}/actions/runners?per_page=100" | ConvertFrom-Json
+            $selected = $inventory.runners |
+              Where-Object {
+                $_.status -eq 'online' -and -not $_.busy -and
+                ($_.labels.name -contains 'self-hosted') -and
+                ($_.labels.name -contains 'Windows') -and
+                ($_.labels.name -contains 'X64')
+              } |
+              Select-Object -First 1
+          } catch {
+            Write-Warning "Repository runner inventory was unavailable: $($_.Exception.Message)"
+          }
+          if ($null -ne $selected) {
+            $labels = @('self-hosted','Windows','X64')
+            foreach ($label in $selected.labels.name) {
+              if ($label -notin $labels -and $label -notin @('Default')) { $labels += $label }
+            }
+            $runner = ConvertTo-Json -Compress -InputObject $labels
+            Write-Host "Selected available self-hosted runner '$($selected.name)' with labels $runner."
+          } else {
+            $runner = '["windows-2025"]'
+            Write-Host 'No compatible available repository runner was found; using pinned windows-2025.'
+          }
+          "runner=$runner" >> $env:GITHUB_OUTPUT
+
+      - name: Record runner resolution evidence
+        if: ${{ always() }}
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path evidence | Out-Null
+          @{
+            runId = '${{ github.run_id }}'
+            commit = '${{ github.sha }}'
+            status = '${{ job.status }}'
+            runner = '${{ steps.resolve.outputs.runner }}'
+            workflowStarted = '${{ steps.resolve.outputs.workflow-started }}'
+          } | ConvertTo-Json | Set-Content -Encoding utf8 evidence/runner-resolution.json
+
+      - name: Upload runner resolution evidence
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-resolution-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/runner-resolution.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  build-package:
+    name: Build unsigned Squirrel.Windows package
+    needs: resolve-runner
+    runs-on: ${{ fromJSON(needs.resolve-runner.outputs.runner) }}
+    steps:
+      - name: Check out the exact source commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build console without tests or lint
+        shell: cmd
+        run: build.bat /s
+
+      - name: Build and verify unsigned Squirrel.Windows artifacts
+        shell: cmd
+        run: build-installer.bat /s
+
+      - name: Produce reproducible line-count evidence
+        shell: powershell
+        run: |
+          $nodeRecord = (Get-Content -Raw dependency-manifest.json | ConvertFrom-Json).dependencies | Where-Object id -eq 'node-win-x64'
+          $node = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) "DingPBX\toolchains\$($nodeRecord.archiveRoot)\node.exe"
+          & $node console/scripts/count-lines.mjs --markdown console/release/line-count.md --json console/release/line-count.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Stage safe release artifacts and hashes
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path release-staging,evidence | Out-Null
+          Copy-Item console/dist/squirrel-windows/* -Destination release-staging -Force
+          Get-ChildItem release-staging -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant(), $_.Name
+          } | Set-Content -Encoding ascii release-staging/SHA256SUMS.txt
+          Copy-Item console/release/line-count.md,console/release/line-count.json -Destination release-staging
+          @{
+            runId = '${{ github.run_id }}'
+            commit = '${{ github.sha }}'
+            status = '${{ job.status }}'
+            runnerName = '${{ runner.name }}'
+            runnerOs = '${{ runner.os }}'
+            runnerArch = '${{ runner.arch }}'
+            workflowStarted = '${{ needs.resolve-runner.outputs.workflow-started }}'
+            signing = 'prohibited-and-not-used'
+          } | ConvertTo-Json | Set-Content -Encoding utf8 evidence/build-context.json
+
+      - name: Upload safe build and package outputs
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ding-pbx-console-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            release-staging/**
+            evidence/build-context.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish-pages:
+    name: Compose and publish Pages
+    needs: [resolve-runner, build-package]
+    runs-on: ${{ fromJSON(needs.resolve-runner.outputs.runner) }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Check out the exact source commit
+        uses: actions/checkout@v4
+
+      - name: Bootstrap site build dependencies
+        shell: cmd
+        run: download-dependencies.bat /s
+
+      - name: Compose the static Pages tree without tests or lint
+        shell: powershell
+        run: |
+          $nodeRecord = (Get-Content -Raw dependency-manifest.json | ConvertFrom-Json).dependencies | Where-Object id -eq 'node-win-x64'
+          $node = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) "DingPBX\toolchains\$($nodeRecord.archiveRoot)\node.exe"
+          & $node console/site/build.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path -LiteralPath 'console/site/dist/index.html')) { throw 'compose-site did not create console/site/dist/index.html' }
+          if (-not (Test-Path -LiteralPath 'console/site/dist/build-manifest.json')) { throw 'compose-site did not create console/site/dist/build-manifest.json' }
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: console/site/dist
+
+      - name: Deploy Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Record Pages evidence
+        if: ${{ always() }}
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path evidence | Out-Null
+          @{
+            runId = '${{ github.run_id }}'
+            commit = '${{ github.sha }}'
+            status = '${{ job.status }}'
+            pageUrl = '${{ steps.deploy.outputs.page_url }}'
+            runner = '${{ runner.name }}'
+          } | ConvertTo-Json | Set-Content -Encoding utf8 evidence/pages.json
+
+      - name: Upload Pages evidence
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/pages.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  release:
+    name: Publish unique console release
+    needs: [resolve-runner, build-package, publish-pages]
+    runs-on: windows-2025
+    steps:
+      - name: Check out release records
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download the exact build outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: ding-pbx-console-${{ github.run_id }}-${{ github.run_attempt }}
+          path: downloaded
+
+      - name: Publish and verify one non-draft release
+        id: publish
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'ding-pbx-console-v0.0.${{ github.run_number }}-r${{ github.run_attempt }}'
+          $staging = Resolve-Path 'downloaded/release-staging'
+          $required = @(
+            Get-ChildItem $staging -File -Filter '*Setup.exe'
+            Get-ChildItem $staging -File -Filter 'RELEASES'
+            Get-ChildItem $staging -File -Filter '*-full.nupkg'
+          )
+          if ($required.Count -lt 3) { throw 'Required Squirrel.Windows release assets are incomplete.' }
+          if ((gh release view $tag --json tagName 2>$null)) { throw "Release tag $tag already exists; tags are immutable and never recycled." }
+
+          $started = [DateTimeOffset]::Parse('${{ needs.resolve-runner.outputs.workflow-started }}')
+          $notes = @()
+          $notes += '# Ding PBX Console'
+          $notes += ''
+          $notes += '> [!WARNING]'
+          $notes += '> These Squirrel.Windows artifacts are intentionally unsigned. Windows may show an unknown-publisher or SmartScreen warning.'
+          $notes += ''
+          $notes += "- Target commit: ``${{ github.sha }}``"
+          $notes += '- Automated checks: none. GitHub Actions builds, packages, publishes, and attaches evidence only.'
+          $notes += "- Workflow started: ``$($started.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))``"
+          $notes += '- Workflow completed: pending final publication timestamp'
+          $notes += '- Workflow duration: pending final publication timestamp'
+          $notes += ''
+          $notes += '## SHA-256'
+          $notes += '```text'
+          $notes += Get-Content (Join-Path $staging 'SHA256SUMS.txt')
+          $notes += '```'
+          $notes += ''
+          $notes += '## Project line count'
+          $notes += Get-Content -Raw (Join-Path $staging 'line-count.md')
+          $notesPath = Join-Path $PWD 'release-notes.md'
+          $notes -join "`n" | Set-Content -Encoding utf8 $notesPath
+
+          $assets = Get-ChildItem $staging -File | ForEach-Object FullName
+          gh release create $tag @assets --target '${{ github.sha }}' --title "Ding PBX Console $tag" --notes-file $notesPath --verify-tag=false
+          if ($LASTEXITCODE -ne 0) { throw "gh release create exited $LASTEXITCODE" }
+
+          $completed = [DateTimeOffset]::UtcNow
+          $duration = $completed - $started
+          $durationText = '{0:00}:{1:00}:{2:00}' -f [Math]::Floor($duration.TotalHours),$duration.Minutes,$duration.Seconds
+          $body = Get-Content -Raw $notesPath
+          $body = $body.Replace('- Workflow completed: pending final publication timestamp', "- Workflow completed: ``$($completed.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))``")
+          $body = $body.Replace('- Workflow duration: pending final publication timestamp', "- Workflow duration: ``$durationText``")
+          $body | Set-Content -Encoding utf8 $notesPath
+          gh release edit $tag --notes-file $notesPath
+          if ($LASTEXITCODE -ne 0) { throw "gh release edit exited $LASTEXITCODE" }
+
+          $release = gh release view $tag --json tagName,isDraft,targetCommitish,assets,url | ConvertFrom-Json
+          if ($release.isDraft) { throw 'Published release is unexpectedly a draft.' }
+          if ($release.targetCommitish -ne '${{ github.sha }}') { throw "Release target $($release.targetCommitish) is not ${{ github.sha }}." }
+          foreach ($asset in $assets) {
+            $name = Split-Path -Leaf $asset
+            if ($name -notin $release.assets.name) { throw "Published release is missing $name." }
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "url=$($release.url)" >> $env:GITHUB_OUTPUT
+
+      - name: Record release verification evidence
+        if: ${{ always() }}
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path evidence | Out-Null
+          @{
+            runId = '${{ github.run_id }}'
+            commit = '${{ github.sha }}'
+            status = '${{ job.status }}'
+            tag = '${{ steps.publish.outputs.tag }}'
+            url = '${{ steps.publish.outputs.url }}'
+            runner = '${{ runner.name }}'
+          } | ConvertTo-Json | Set-Content -Encoding utf8 evidence/release.json
+          if (Test-Path release-notes.md) { Copy-Item release-notes.md evidence/release-notes.md }
+
+      - name: Upload release evidence even after a publication failure
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/**
+          if-no-files-found: warn
+          retention-days: 30
