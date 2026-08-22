@@ -1,5 +1,57 @@
 # The Asterisk(R) Open Source PBX
 
+## Ding PBX Console
+
+This fork is developing **Ding PBX Console**, a Windows desktop control plane for
+provisioning, observing, and safely configuring Asterisk development and preview
+installations. The desktop application is additive: the upstream Asterisk source
+tree and its build remain available at the repository root, while console-specific
+source and documentation live under `console/`.
+
+The first supported targets are:
+
+- WSL 2 Ubuntu on Windows;
+- a dedicated local Docker project;
+- remote Debian or Ubuntu hosts reached over verified SSH; and
+- Docker on an approved remote Debian or Ubuntu host.
+
+Every configuration mutation is designed to follow the same transaction: discover
+the current state, show a reviewable change plan, create a backup, require explicit
+confirmation, stage and validate the change, apply it, read the state back from the
+target, and roll back when verification fails. Development targets Asterisk
+`master` and the Asterisk 24 preview line, so the application presents compatibility
+as preview support rather than a stable-LTS guarantee.
+
+> [!IMPORTANT]
+> Ding PBX Console is an independent project. It is not an official Sangoma or
+> Asterisk product, it does not use the Asterisk logo, and it does not change the
+> upstream project's licensing or trademark notices.
+
+The supplied interactive design export is the visual and behavior contract. Its
+public implementation preserves the navigation, controls, menus, drag-and-drop,
+wizards, confirmation flows, settings, and accessibility intent while removing
+private vocabulary and third-party runtime assets. The original private design
+archive is not stored in this public repository.
+
+- [Implementation issue](https://github.com/Ding-Ding-Projects/asterisk/issues/1)
+- [Rolling progress discussion](https://github.com/Ding-Ding-Projects/asterisk/discussions/2)
+- [Delivery project](https://github.com/orgs/Ding-Ding-Projects/projects/24)
+- Documentation site: publication pending the first verified build
+- Installer: publication pending the first verified unsigned Squirrel.Windows package
+
+<details>
+<summary><strong>Shared contributor requirements</strong></summary>
+
+This repository follows the shared Ding-Ding-Projects engineering requirements.
+The complete repository-local mirror is in [`AGENTS.md`](AGENTS.md). In summary:
+preserve unrelated work; keep user-facing behavior accessible and localizable;
+bundle runtime dependencies and assets; use real controls rather than decorative
+lookalikes; keep tests local rather than in GitHub Actions; keep release claims tied
+to exact commits and artifacts; never add code signing; and keep private machine,
+credential, vocabulary, and infrastructure details out of public records.
+
+</details>
+
 ```
 By Mark Spencer <markster@digium.com> and the Asterisk.org developer community.
 Copyright (C) 2001-2025 Sangoma Technologies Corporation and other copyright holders.
