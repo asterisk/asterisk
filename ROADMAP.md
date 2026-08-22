@@ -16,12 +16,12 @@
 - [x] Add deliberate red-then-green negative regression scripts.
 - [ ] Map all 32 audited destinations to final reference routes, product routes, and built-artifact captures after integration.
 - [ ] Replace every unverified per-surface inventory field with merged implementation, documentation, localization, local-check, interaction, and capture evidence.
-- [ ] Run the built Windows console through the approved headless interaction route and record genuine design-parity evidence.
+- [x] Run the built Windows console through the approved headless interaction route and record genuine packaged interaction evidence for WSL discovery.
 
 ## Release readiness
 
-- [ ] Verify `download-dependencies.bat /s` from a clean user-scoped toolchain cache.
-- [ ] Verify `build.bat /s` at the merged candidate commit.
-- [ ] Verify `build-installer.bat /s` produces an unsigned installable Squirrel.Windows set.
-- [ ] Verify the static Pages output includes `console/site/dist/build-manifest.json` and deploys without runtime asset fetches.
+- [x] Verify `download-dependencies.bat /s` from a clean user-scoped toolchain cache.
+- [x] Verify `build.bat /s` at the merged candidate commit.
+- [x] Verify `build-installer.bat /s` produces an unsigned installable Squirrel.Windows set.
+- [x] Verify the static Pages output includes `console/site/dist/build-manifest.json` and deploys without runtime asset fetches.
 - [ ] Publish and independently verify the first unique non-draft Ding PBX Console release and downloadable assets.

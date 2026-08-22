@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "commit": "5e7cc508d470b022c96d4008dc6b0927f5748d6f",
+  "artifact": "console/dist/squirrel-windows/win-unpacked/Ding PBX Console.exe",
+  "capture": "console/release/captures/windows-console/servers.png",
+  "captureSha256": "f3621c0c622fba580cc2ad9908a631eac34a73e4c8f90ab8ddca0d857a951aa6",
+  "captureBytes": 189709,
+  "viewport": {"width": 1989, "height": 1280, "scale": 1},
+  "launch": {
+    "method": "Lowlevel hidden Windows desktop",
+    "windowTitle": "Ding PBX Console",
+    "windowClass": "Chrome_WidgetWin_1",
+    "pageTargetCount": 1
+  },
+  "interaction": {
+    "route": "App > Deploy & servers",
+    "action": "Discover local targets",
+    "preloadBridgeType": "function",
+    "observedWslDistributions": ["Ubuntu"],
+    "observedProjectContainers": [],
+    "bannerTitle": "Read-only control plane",
+    "bannerText": "WSL and project-owned container discovery is live. Configuration writes still require a reviewed target-specific plan."
+  },
+  "verification": "inspected-real-packaged-artifact"
+}
