@@ -139,6 +139,16 @@ const pjsip_method pjsip_message_method = {PJSIP_OTHER_METHOD, {"MESSAGE", 7} };
 #define MAX_USER_SIZE 128
 
 static struct ast_taskprocessor *message_serializer;
+static struct ao2_container *in_dialog_message_deliveries;
+
+static pj_bool_t module_on_rx_request(pjsip_rx_data *rdata);
+
+static pjsip_module messaging_module = {
+	.name = {"Messaging Module", 16},
+	.id = -1,
+	.priority = PJSIP_MOD_PRIORITY_APPLICATION,
+	.on_rx_request = module_on_rx_request,
+};
 
 /*!
  * \internal
@@ -644,6 +654,496 @@ static struct message_response_data *message_response_data_create(
 	return resp_data;
 }
 
+struct in_dialog_message_delivery {
+	struct ast_sip_session *session;
+	struct ast_channel *channel;
+	/*!
+	 * Outgoing tdata currently holding our pointer in
+	 * tdata->mod_data[messaging_module.id]. When non-NULL the delivery
+	 * holds one reference on tdata via pjsip_tx_data_add_ref and the
+	 * slot holds one reference on the delivery; attach/detach helpers
+	 * keep both directions in lock-step.
+	 */
+	pjsip_tx_data *tdata;
+	unsigned int awaiting_auth_retry;
+	unsigned int auth_retry_sent;
+	unsigned int complete;
+	int challenge_code;
+	char *challenge_reason;
+	char *request_id;
+	char *to;
+	char *from;
+	char *body;
+	char *content_type;
+};
+
+static void in_dialog_message_delivery_destroy(void *obj)
+{
+	struct in_dialog_message_delivery *delivery = obj;
+
+	/*
+	 * The slot owns a reference on the delivery, so refcount can only
+	 * reach zero once the binding is gone. Be defensive in case something
+	 * leaked: clearing tdata->mod_data avoids a dangling pointer.
+	 */
+	if (delivery->tdata) {
+		if (delivery->tdata->mod_data[messaging_module.id] == delivery) {
+			delivery->tdata->mod_data[messaging_module.id] = NULL;
+		}
+		pjsip_tx_data_dec_ref(delivery->tdata);
+		delivery->tdata = NULL;
+	}
+	ao2_cleanup(delivery->session);
+	ao2_cleanup(delivery->channel);
+	ast_free(delivery->challenge_reason);
+	ast_free(delivery->request_id);
+	ast_free(delivery->to);
+	ast_free(delivery->from);
+	ast_free(delivery->body);
+	ast_free(delivery->content_type);
+}
+
+/*!
+ * \brief Bind \a delivery to \a tdata.
+ *
+ * Writes \a delivery into tdata->mod_data[messaging_module.id], adds a
+ * reference on the tdata, and bumps the delivery refcount for the slot.
+ * Caller must ensure \a delivery is currently unbound.
+ */
+static void attach_delivery_to_tdata(struct in_dialog_message_delivery *delivery,
+	pjsip_tx_data *tdata)
+{
+	ast_assert(delivery->tdata == NULL);
+	pjsip_tx_data_add_ref(tdata);
+	ao2_ref(delivery, +1);
+	delivery->tdata = tdata;
+	tdata->mod_data[messaging_module.id] = delivery;
+}
+
+/*!
+ * \brief Release the tdata binding on \a delivery.
+ *
+ * Clears tdata->mod_data[id] when it still points at \a delivery, drops
+ * the delivery's reference on the tdata and the slot's reference on the
+ * delivery. Idempotent.
+ */
+static void detach_delivery_from_tdata(struct in_dialog_message_delivery *delivery)
+{
+	pjsip_tx_data *tdata = delivery->tdata;
+
+	if (!tdata) {
+		return;
+	}
+	if (tdata->mod_data[messaging_module.id] == delivery) {
+		tdata->mod_data[messaging_module.id] = NULL;
+	}
+	delivery->tdata = NULL;
+	pjsip_tx_data_dec_ref(tdata);
+	ao2_ref(delivery, -1);
+}
+
+static struct in_dialog_message_delivery *in_dialog_message_delivery_create(
+	struct ast_sip_session *session, struct ast_msg_data *msg)
+{
+	struct in_dialog_message_delivery *delivery;
+	const char *request_id = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_REQUEST_ID);
+	const char *to = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_TO);
+	const char *from = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_FROM);
+	const char *body = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY);
+	const char *content_type = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
+
+	delivery = ao2_alloc(sizeof(*delivery), in_dialog_message_delivery_destroy);
+	if (!delivery) {
+		return NULL;
+	}
+
+	delivery->session = ao2_bump(session);
+	if (!session->channel) {
+		ao2_ref(delivery, -1);
+		return NULL;
+	}
+	delivery->channel = ast_channel_ref(session->channel);
+	delivery->request_id = ast_strdup(request_id);
+	delivery->to = ast_strdup(to);
+	delivery->from = ast_strdup(from);
+	delivery->body = ast_strdup(body);
+	delivery->content_type = ast_strdup(content_type);
+
+	if ((request_id[0] && !delivery->request_id)
+		|| (to[0] && !delivery->to)
+		|| (from[0] && !delivery->from)
+		|| (body[0] && !delivery->body)
+		|| (content_type[0] && !delivery->content_type)) {
+		ao2_ref(delivery, -1);
+		return NULL;
+	}
+
+	return delivery;
+}
+
+static int is_in_dialog_auth_challenge(int status_code)
+{
+	return status_code == 401 || status_code == 407 || status_code == 494;
+}
+
+static int has_auth_credentials(pjsip_tx_data *tdata)
+{
+	return pjsip_msg_find_hdr(tdata->msg, PJSIP_H_AUTHORIZATION, NULL)
+		|| pjsip_msg_find_hdr(tdata->msg, PJSIP_H_PROXY_AUTHORIZATION, NULL);
+}
+
+static void publish_in_dialog_message_delivery_status(
+	struct in_dialog_message_delivery *delivery, const char *status,
+	int sip_status_code, const char *reason)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
+	if (ast_strlen_zero(delivery->request_id)) {
+		return;
+	}
+
+	if (!delivery->channel) {
+		return;
+	}
+
+	blob = ast_json_pack("{s: s, s: s}",
+		"request_id", S_OR(delivery->request_id, ""),
+		"status", status);
+	if (!blob) {
+		return;
+	}
+
+	if (!ast_strlen_zero(delivery->to)) {
+		ast_json_object_set(blob, "to", ast_json_string_create(delivery->to));
+	}
+	if (!ast_strlen_zero(delivery->from)) {
+		ast_json_object_set(blob, "from", ast_json_string_create(delivery->from));
+	}
+	if (!ast_strlen_zero(delivery->body)) {
+		ast_json_object_set(blob, "body", ast_json_string_create(delivery->body));
+	}
+	if (!ast_strlen_zero(delivery->content_type)) {
+		ast_json_object_set(blob, "content_type", ast_json_string_create(delivery->content_type));
+	}
+	if (sip_status_code > 0) {
+		ast_json_object_set(blob, "sip_status_code", ast_json_integer_create(sip_status_code));
+	}
+	if (!ast_strlen_zero(reason)) {
+		ast_json_object_set(blob, "reason", ast_json_string_create(reason));
+	}
+
+	ast_channel_publish_cached_blob(delivery->channel,
+		ast_channel_message_delivery_status_type(), blob);
+}
+
+static void complete_in_dialog_message_delivery(
+	struct in_dialog_message_delivery *delivery, const char *status,
+	int sip_status_code, const char *reason)
+{
+	pjsip_dialog *dlg;
+	int slot_cleared = 0;
+
+	ao2_lock(delivery);
+	if (delivery->complete) {
+		ao2_unlock(delivery);
+		return;
+	}
+
+	delivery->complete = 1;
+	ao2_unlock(delivery);
+
+	dlg = (delivery->session && delivery->session->inv_session)
+		? delivery->session->inv_session->dlg : NULL;
+	if (dlg) {
+		pjsip_dlg_inc_lock(dlg);
+		if (dlg->mod_data[messaging_module.id] == delivery) {
+			dlg->mod_data[messaging_module.id] = NULL;
+			slot_cleared = 1;
+		}
+		pjsip_dlg_dec_lock(dlg);
+	}
+	if (slot_cleared) {
+		ao2_ref(delivery, -1);
+	}
+
+	/*
+	 * Sever the tdata binding so any late or duplicate response that still
+	 * holds a reference to the originating tdata resolves to NULL via
+	 * tdata->mod_data[messaging_module.id] and is silently ignored.
+	 */
+	detach_delivery_from_tdata(delivery);
+
+	if (in_dialog_message_deliveries) {
+		ao2_unlink(in_dialog_message_deliveries, delivery);
+	}
+	publish_in_dialog_message_delivery_status(delivery, status, sip_status_code, reason);
+}
+
+static void complete_in_dialog_auth_retry_failed_if_pending(
+	struct in_dialog_message_delivery *delivery)
+{
+	int should_complete;
+	int challenge_code;
+	char challenge_reason[256];
+
+	ao2_lock(delivery);
+	should_complete = !delivery->complete && delivery->awaiting_auth_retry
+		&& !delivery->auth_retry_sent;
+	challenge_code = delivery->challenge_code;
+	ast_copy_string(challenge_reason,
+		S_OR(delivery->challenge_reason,
+			"Authentication challenge could not be retried"),
+		sizeof(challenge_reason));
+	ao2_unlock(delivery);
+
+	if (should_complete) {
+		complete_in_dialog_message_delivery(delivery, "failed",
+			challenge_code, challenge_reason);
+	}
+}
+
+static int check_in_dialog_auth_retry(void *obj)
+{
+	struct in_dialog_message_delivery *delivery = obj;
+
+	complete_in_dialog_auth_retry_failed_if_pending(delivery);
+	ao2_ref(delivery, -1);
+
+	return 0;
+}
+
+static void schedule_in_dialog_auth_retry_check(struct ast_sip_session *session,
+	struct in_dialog_message_delivery *delivery)
+{
+	struct in_dialog_message_delivery *task_data;
+
+	if (!session->serializer || !ast_taskprocessor_is_task(session->serializer)) {
+		return;
+	}
+
+	task_data = ao2_bump(delivery);
+	if (!task_data) {
+		return;
+	}
+
+	if (ast_sip_push_task(session->serializer, check_in_dialog_auth_retry, task_data)) {
+		ast_log(LOG_WARNING, "Unable to schedule in-dialog MESSAGE auth retry check\n");
+		ao2_ref(task_data, -1);
+	}
+}
+
+static void fail_pending_in_dialog_deliveries_for_session(struct ast_sip_session *session,
+	const char *status, const char *reason)
+{
+	struct ao2_iterator it;
+	struct in_dialog_message_delivery *entry;
+
+	if (!in_dialog_message_deliveries) {
+		return;
+	}
+
+	it = ao2_iterator_init(in_dialog_message_deliveries, 0);
+	while ((entry = ao2_iterator_next(&it))) {
+		if (entry->session == session) {
+			complete_in_dialog_message_delivery(entry, status, 0, reason);
+		}
+		ao2_ref(entry, -1);
+	}
+	ao2_iterator_destroy(&it);
+}
+
+static void fail_all_pending_in_dialog_deliveries(const char *reason)
+{
+	struct ao2_iterator it;
+	struct in_dialog_message_delivery *entry;
+
+	if (!in_dialog_message_deliveries) {
+		return;
+	}
+
+	it = ao2_iterator_init(in_dialog_message_deliveries, 0);
+	while ((entry = ao2_iterator_next(&it))) {
+		complete_in_dialog_message_delivery(entry, "failed", 0, reason);
+		ao2_ref(entry, -1);
+	}
+	ao2_iterator_destroy(&it);
+}
+
+static void mark_in_dialog_delivery_auth_challenge(
+	struct in_dialog_message_delivery *delivery, pjsip_rx_data *rdata)
+{
+	pjsip_status_line status_line = rdata->msg_info.msg->line.status;
+	char reason[256];
+
+	ast_copy_pj_str(reason, &status_line.reason, sizeof(reason));
+
+	ao2_lock(delivery);
+	if (!delivery->complete) {
+		delivery->awaiting_auth_retry = 1;
+		delivery->auth_retry_sent = 0;
+		delivery->challenge_code = status_line.code;
+		ast_free(delivery->challenge_reason);
+		delivery->challenge_reason = ast_strdup(reason);
+	}
+	ao2_unlock(delivery);
+}
+
+static void handle_in_dialog_message_final_response(
+	struct in_dialog_message_delivery *delivery, pjsip_rx_data *rdata);
+
+static void handle_in_dialog_message_response(struct ast_sip_session *session,
+	pjsip_rx_data *rdata)
+{
+	RAII_VAR(struct in_dialog_message_delivery *, delivery, NULL, ao2_cleanup);
+	RAII_VAR(struct in_dialog_message_delivery *, evicted, NULL, ao2_cleanup);
+	pjsip_status_line status_line;
+	pjsip_transaction *tsx;
+	struct in_dialog_message_delivery *bound;
+	pjsip_dialog *dlg;
+
+	if (!session || !rdata || !rdata->msg_info.msg
+		|| rdata->msg_info.msg->type != PJSIP_RESPONSE_MSG) {
+		return;
+	}
+
+	status_line = rdata->msg_info.msg->line.status;
+	if (status_line.code < 200) {
+		return;
+	}
+
+	/*
+	 * The UAC transaction's last_tx is the exact pjsip_tx_data we wrote our
+	 * pointer into at send time, so a single deref gives us the originating
+	 * delivery with no CSeq, branch, or container lookup involved.
+	 */
+	tsx = pjsip_rdata_get_tsx(rdata);
+	if (!tsx || !tsx->last_tx) {
+		return;
+	}
+	bound = tsx->last_tx->mod_data[messaging_module.id];
+	if (!bound) {
+		return;
+	}
+	delivery = ao2_bump(bound);
+
+	if (!is_in_dialog_auth_challenge(status_line.code)) {
+		handle_in_dialog_message_final_response(delivery, rdata);
+		return;
+	}
+
+	mark_in_dialog_delivery_auth_challenge(delivery, rdata);
+	if (!session->endpoint || !AST_VECTOR_SIZE(&session->endpoint->outbound_auths)) {
+		complete_in_dialog_auth_retry_failed_if_pending(delivery);
+		return;
+	}
+
+	/*
+	 * Park the delivery in the dialog mod_data slot so messaging_outgoing_request
+	 * can pick it up when it sees the authed retry. If the slot already holds an
+	 * older delivery whose retry never landed, evict and fail it.
+	 */
+	dlg = session->inv_session ? session->inv_session->dlg : NULL;
+	if (dlg) {
+		pjsip_dlg_inc_lock(dlg);
+		evicted = dlg->mod_data[messaging_module.id];
+		dlg->mod_data[messaging_module.id] = ao2_bump(delivery);
+		pjsip_dlg_dec_lock(dlg);
+	}
+	if (evicted && evicted != delivery) {
+		complete_in_dialog_auth_retry_failed_if_pending(evicted);
+	}
+
+	/*
+	 * res_pjsip_session attempts the auth retry after incoming_response
+	 * supplements run. Queue behind the current serializer task so failure
+	 * is published if no authed retry is actually sent.
+	 */
+	schedule_in_dialog_auth_retry_check(session, delivery);
+}
+
+static void handle_in_dialog_message_final_response(
+	struct in_dialog_message_delivery *delivery, pjsip_rx_data *rdata)
+{
+	pjsip_status_line status_line;
+	char reason[256];
+
+	if (!delivery || !rdata || !rdata->msg_info.msg
+		|| rdata->msg_info.msg->type != PJSIP_RESPONSE_MSG) {
+		return;
+	}
+
+	status_line = rdata->msg_info.msg->line.status;
+	if (status_line.code < 200 || is_in_dialog_auth_challenge(status_line.code)) {
+		return;
+	}
+
+	ast_copy_pj_str(reason, &status_line.reason, sizeof(reason));
+	complete_in_dialog_message_delivery(delivery,
+		(status_line.code >= 200 && status_line.code < 300) ? "delivered" : "failed",
+		status_line.code, reason);
+}
+
+static void messaging_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata)
+{
+	handle_in_dialog_message_response(session, rdata);
+}
+
+static void messaging_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
+{
+	RAII_VAR(struct in_dialog_message_delivery *, delivery, NULL, ao2_cleanup);
+	pjsip_dialog *dlg;
+	int proceed;
+
+	/*
+	 * The initial outgoing MESSAGE has its delivery bound to its tdata by
+	 * track_in_dialog_message_request, so only the authed retry needs work
+	 * here: rebind the delivery onto the brand-new tdata produced by
+	 * ast_sip_create_request_with_auth.
+	 */
+	if (!has_auth_credentials(tdata)) {
+		return;
+	}
+
+	dlg = session->inv_session ? session->inv_session->dlg : NULL;
+	if (!dlg) {
+		return;
+	}
+
+	pjsip_dlg_inc_lock(dlg);
+	delivery = dlg->mod_data[messaging_module.id];
+	dlg->mod_data[messaging_module.id] = NULL;
+	pjsip_dlg_dec_lock(dlg);
+
+	if (!delivery) {
+		return;
+	}
+
+	ao2_lock(delivery);
+	proceed = !delivery->complete && delivery->awaiting_auth_retry;
+	if (proceed) {
+		delivery->awaiting_auth_retry = 0;
+		delivery->auth_retry_sent = 1;
+	}
+	ao2_unlock(delivery);
+
+	if (proceed) {
+		detach_delivery_from_tdata(delivery);
+		attach_delivery_to_tdata(delivery, tdata);
+	}
+}
+
+static void messaging_session_end(struct ast_sip_session *session)
+{
+	fail_pending_in_dialog_deliveries_for_session(session, "transport_error",
+		"Session ended before a final SIP response was received");
+}
+
+static void messaging_session_destroy(struct ast_sip_session *session)
+{
+	fail_pending_in_dialog_deliveries_for_session(session, "transport_error",
+		"Session ended before a final SIP response was received");
+}
+
 static void update_content_type(pjsip_tx_data *tdata, struct ast_msg *msg, struct ast_sip_body *body)
 {
 	static const pj_str_t CONTENT_TYPE = { "Content-Type", sizeof("Content-Type") - 1 };
@@ -1106,6 +1606,58 @@ static const struct ast_msg_tech msg_tech = {
 	.msg_send = sip_msg_send,
 };
 
+static int track_in_dialog_message_request(struct ast_sip_session *session,
+	struct ast_msg_data *msg, pjsip_tx_data *tdata)
+{
+	RAII_VAR(struct in_dialog_message_delivery *, delivery, NULL, ao2_cleanup);
+	const char *request_id = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_REQUEST_ID);
+
+	if (!ast_strlen_zero(request_id)) {
+		delivery = in_dialog_message_delivery_create(session, msg);
+		if (!delivery) {
+			return -1;
+		}
+
+		if (!ao2_link(in_dialog_message_deliveries, delivery)) {
+			publish_in_dialog_message_delivery_status(delivery, "transport_error", 0,
+				"Failed to register MESSAGE delivery tracking entry");
+			return -1;
+		}
+
+		/*
+		 * Bind the delivery to this tdata so messaging_incoming_response
+		 * can resolve back to it via pjsip_rdata_get_tsx(rdata)->last_tx.
+		 */
+		attach_delivery_to_tdata(delivery, tdata);
+	}
+
+	return 0;
+}
+
+static void track_in_dialog_message_send_failed(struct ast_sip_session *session,
+	struct ast_msg_data *msg, int sip_status_code, const char *reason)
+{
+	RAII_VAR(struct in_dialog_message_delivery *, delivery, NULL, ao2_cleanup);
+	const char *request_id = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_REQUEST_ID);
+
+	if (ast_strlen_zero(request_id)) {
+		return;
+	}
+
+	delivery = in_dialog_message_delivery_create(session, msg);
+	if (!delivery) {
+		return;
+	}
+
+	publish_in_dialog_message_delivery_status(delivery, "transport_error",
+		sip_status_code, reason);
+}
+
+static struct ast_sip_session_message_tracker in_dialog_message_tracker = {
+	.request_prepared = track_in_dialog_message_request,
+	.send_failed = track_in_dialog_message_send_failed,
+};
+
 static pj_status_t send_response(pjsip_rx_data *rdata, enum pjsip_status_code code,
 				 pjsip_dialog *dlg, pjsip_transaction *tsx)
 {
@@ -1254,7 +1806,10 @@ static int incoming_in_dialog_request(struct ast_sip_session *session, struct pj
 		send_response(rdata, PJSIP_SC_INTERNAL_SERVER_ERROR, dlg, tsx);
 		return 0;
 	}
-	ast_copy_string(attrs[pos].value, rdata->msg_info.msg->body->data, rdata->msg_info.msg->body->len + 1);
+	/* pjsip body->data is not null-terminated; use memcpy to avoid reading
+	 * uninitialised bytes */
+	memcpy(attrs[pos].value, rdata->msg_info.msg->body->data, rdata->msg_info.msg->body->len);
+	((char *)attrs[pos].value)[rdata->msg_info.msg->body->len] = '\0';
 	pos++;
 
 	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG, attrs, pos);
@@ -1271,27 +1826,40 @@ static int incoming_in_dialog_request(struct ast_sip_session *session, struct pj
 		ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY));
 
 	rc = ast_msg_data_queue_frame(session->channel, msg);
-	ast_free(attrs[body_pos].value);
-	ast_free(msg);
 	if (rc != 0) {
 		send_response(rdata, PJSIP_SC_INTERNAL_SERVER_ERROR, dlg, tsx);
-	} else {
-		send_response(rdata, PJSIP_SC_ACCEPTED, dlg, tsx);
+	} else if (!send_response(rdata, PJSIP_SC_ACCEPTED, dlg, tsx)) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+		blob = ast_json_pack("{s: s, s: s}",
+			"body", ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY),
+			"content_type", ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_CONTENT_TYPE));
+		if (blob) {
+			const char *from = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_FROM);
+			const char *to = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_TO);
+			if (!ast_strlen_zero(from)) {
+				ast_json_object_set(blob, "from", ast_json_string_create(from));
+			}
+			if (!ast_strlen_zero(to)) {
+				ast_json_object_set(blob, "to", ast_json_string_create(to));
+			}
+			ast_channel_publish_cached_blob(session->channel,
+				ast_channel_message_received_type(), blob);
+		}
 	}
+	ast_free(attrs[body_pos].value);
+	ast_free(msg);
 
 	return 0;
 }
 
 static struct ast_sip_session_supplement messaging_supplement = {
 	.method = "MESSAGE",
-	.incoming_request = incoming_in_dialog_request
-};
-
-static pjsip_module messaging_module = {
-	.name = {"Messaging Module", 16},
-	.id = -1,
-	.priority = PJSIP_MOD_PRIORITY_APPLICATION,
-	.on_rx_request = module_on_rx_request,
+	.incoming_request = incoming_in_dialog_request,
+	.incoming_response = messaging_incoming_response,
+	.outgoing_request = messaging_outgoing_request,
+	.session_end = messaging_session_end,
+	.session_destroy = messaging_session_destroy,
+	.response_priority = AST_SIP_SESSION_BEFORE_MEDIA | AST_SIP_SESSION_AFTER_MEDIA,
 };
 
 static int load_module(void)
@@ -1313,8 +1881,28 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	in_dialog_message_deliveries = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK,
+		AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW, NULL, NULL);
+	if (!in_dialog_message_deliveries) {
+		ast_sip_unregister_service(&messaging_module);
+		ast_msg_tech_unregister(&msg_tech);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	message_serializer = ast_sip_create_serializer("pjsip/messaging");
 	if (!message_serializer) {
+		ao2_cleanup(in_dialog_message_deliveries);
+		in_dialog_message_deliveries = NULL;
+		ast_sip_unregister_service(&messaging_module);
+		ast_msg_tech_unregister(&msg_tech);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (ast_sip_session_register_message_tracker(&in_dialog_message_tracker)) {
+		ao2_cleanup(in_dialog_message_deliveries);
+		in_dialog_message_deliveries = NULL;
+		ast_taskprocessor_unreference(message_serializer);
+		message_serializer = NULL;
 		ast_sip_unregister_service(&messaging_module);
 		ast_msg_tech_unregister(&msg_tech);
 		return AST_MODULE_LOAD_DECLINE;
@@ -1326,7 +1914,11 @@ static int load_module(void)
 
 static int unload_module(void)
 {
+	ast_sip_session_unregister_message_tracker(&in_dialog_message_tracker);
 	ast_sip_session_unregister_supplement(&messaging_supplement);
+	fail_all_pending_in_dialog_deliveries("PJSIP messaging module unloaded");
+	ao2_cleanup(in_dialog_message_deliveries);
+	in_dialog_message_deliveries = NULL;
 	ast_msg_tech_unregister(&msg_tech);
 	ast_sip_unregister_service(&messaging_module);
 	ast_taskprocessor_unreference(message_serializer);
