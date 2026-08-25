@@ -108,6 +108,20 @@
 						automatically set for the opus, speex and g729 codecs.
 						</para>
 					</enum>
+					<enum name="u - Unbuffered mode">
+						<para>In unbuffered mode, the channel driver won't attempt
+						to re-frame or re-time media coming in over the websocket from
+						the remote app. In this case, the remote app is fully responsible
+						for correctly framing and timing media sent to Asterisk.  This is
+						useful for when the app is getting its media from a source that's
+						already framed and timed. The difference between unbuffered and
+						passthrough modes is that, if you're not using an unbufferable
+						codec (opus, speex and g729), you can still use START_MEDIA_BUFFERING
+						to switch to buffered mode to send a file, then when you call
+						STOP_MEDIA_BUFFERING, the channel will go back into unbuffered
+						mode.
+						</para>
+					</enum>
 					<enum name="v(uri_parameters) - Add parameters to the outbound URI">
 						<para>This option allows you to add additional parameters to the
 						outbound URI.  The format is:
