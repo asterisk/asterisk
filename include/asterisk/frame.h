@@ -612,18 +612,28 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
 struct ast_frame *ast_frame_enqueue(struct ast_frame *head, struct ast_frame *f, int maxlen, int dupe);
 
 /*!
-  \brief Adjusts the volume of the audio samples contained in a frame.
-  \param f The frame containing the samples (must be AST_FRAME_VOICE and AST_FORMAT_SLINEAR)
-  \param adjustment The number of dB to adjust up or down.
-  \return 0 for success, non-zero for an error
+ * \brief Adjusts the volume of the audio samples contained in a frame.
+ * \param f The frame containing the samples (must be AST_FRAME_VOICE and AST_FORMAT_SLINEAR)
+ * \param adjustment The linear gain factor applied to each sample.
+ *
+ * \note This is NOT a dB value.  A positive value multiplies each sample by the factor
+ * (e.g. 2 doubles the volume), a negative value divides each sample by the magnitude
+ * (e.g. -2 halves it), and 0 leaves the audio unchanged. To convert a dB change
+ *  to this factor use adjustment = 10^(dB/20) (so 10 ~= +20 dB and 2 ~= +6 dB).
+ * \return 0 for success, non-zero for an error
  */
 int ast_frame_adjust_volume(struct ast_frame *f, int adjustment);
 
 /*!
-  \brief Adjusts the volume of the audio samples contained in a frame.
-  \param f The frame containing the samples (must be AST_FRAME_VOICE and AST_FORMAT_SLINEAR)
-  \param adjustment The number of dB to adjust up or down.
-  \return 0 for success, non-zero for an error
+ * \brief Adjusts the volume of the audio samples contained in a frame.
+ * \param f The frame containing the samples (must be AST_FRAME_VOICE and AST_FORMAT_SLINEAR)
+ * \param adjustment The linear gain factor applied to each sample.
+ *
+ * \note This is NOT a dB value.  A positive value multiplies each sample by the factor
+ * (e.g. 2 doubles the volume), a negative value divides each sample by the magnitude
+ * (e.g. -2 halves it), and 0 leaves the audio unchanged. To convert a dB change
+ *  to this factor use adjustment = 10^(dB/20) (so 10 ~= +20 dB and 2 ~= +6 dB).
+ * \return 0 for success, non-zero for an error
  */
 int ast_frame_adjust_volume_float(struct ast_frame *f, float adjustment);
 
