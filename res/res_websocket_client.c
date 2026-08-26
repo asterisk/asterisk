@@ -477,9 +477,13 @@ struct ast_websocket *ast_websocket_client_connect(struct ast_websocket_client *
 		}
 
 		if (lock_obj) {
-			ao2_lock(lock_obj);
+			ao2_unlock(lock_obj);
 		}
 		usleep(wc->reconnect_interval * 1000);
+	}
+
+	if (lock_obj) {
+		ao2_unlock(lock_obj);
 	}
 
 	return NULL;
