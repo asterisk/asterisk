@@ -1,18 +1,18 @@
 
-## Change Log for Release asterisk-22.11.0-rc1
+## Change Log for Release asterisk-22.11.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.11.0-rc1.html)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/22.10.1...22.11.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.11.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.11.0.html)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/22.10.1...22.11.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.11.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
 
-- Commits: 38
+- Commits: 39
 - Commit Authors: 16
-- Issues Resolved: 27
+- Issues Resolved: 28
 - Security Advisories Resolved: 0
 
 ### User Notes:
@@ -78,7 +78,7 @@
 - Alexis Chenard: (1)
 - Aqeel Abbas: (1)
 - Ben Ford: (1)
-- George Joseph: (6)
+- George Joseph: (7)
 - Jeremy Lainé: (2)
 - Joshua C. Colp: (4)
 - Mehrdad Seifzadeh: (3)
@@ -122,6 +122,7 @@
   - 2056: [bug]: pjsua fails to build if the address sanitizer is used.
   - 2059: [bug]: Occasional call drops during re-INVITE when codec changes
   - 2061: [bug]: backtrace.c: stdbool.h needed for portability
+  - 2085: [bug]: res_http_websocket: SEGV if we're a server and receive a PONG frame
 
 ### Commits By Author:
 
@@ -137,7 +138,8 @@
 - #### Ben Ford (1):
   - Logger: Don't discard WARNING or ERROR messages.
 
-- #### George Joseph (6):
+- #### George Joseph (7):
+  - res_http_websocket: Check for client before handling PONG frames.
   - SECURITY.md: Add warning about reporting multiple issues in one advisory.
   - res_pjsip_refer: Fix issues with Refer-Sub:false and ARI.
   - Bundled pjproject: Make it easier to override options in config_site.h.
@@ -197,6 +199,7 @@
 
 ### Commit List:
 
+-  res_http_websocket: Check for client before handling PONG frames.
 -  res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change
 -  chan_websocket: Fix NULL requestor dereference in webchan_request.
 -  backtrace.c: Include stdbool.h
@@ -237,6 +240,15 @@
 -  chan_local: Update chan_local references for Local channels.
 
 ### Commit Details:
+
+#### res_http_websocket: Check for client before handling PONG frames.
+  Author: George Joseph
+  Date:   2026-08-13
+
+  websocket_handled_pong_or_close() now checks that session->client is valid
+  before trying to check missed_pong_count.
+
+  Resolves: #2085
 
 #### res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change
   Author: Mike Bradeen
