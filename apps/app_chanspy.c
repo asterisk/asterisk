@@ -811,14 +811,23 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	   channel has gone away.
 	*/
 
-	/* Note: it is very important that the ast_waitfor() be the first
-	   condition in this expression, so that if we wait for some period
-	   of time before receiving a frame from our spying channel, we check
-	   for hangup on the spied-on channel _after_ knowing that a frame
-	   has arrived, since the spied-on channel could have gone away while
-	   we were waiting
+	/* Use a short waitfor timeout so we notice the spy audiohook leaving
+	   RUNNING promptly. An indefinite wait holds an autochan ref on the
+	   spyee until waitfor times out, delaying destructor / Hangup when
+	   the spy channel is not readable.
 	*/
-	while (ast_waitfor(chan, -1) > -1 && csth.spy_audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING) {
+	while (csth.spy_audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING) {
+		int waitres = ast_waitfor(chan, 100);
+
+		if (waitres < 0) {
+			running = -1;
+			break;
+		}
+		if (waitres == 0) {
+			/* Timeout: re-check hook status without reading. */
+			continue;
+		}
+
 		if (!(f = ast_read(chan)) || ast_check_hangup(chan)) {
 			running = -1;
 			if (f) {
