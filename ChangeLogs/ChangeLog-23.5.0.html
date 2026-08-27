@@ -1,17 +1,17 @@
-<html><head><title>ChangeLog for asterisk-23.5.0-rc1</title></head><body>
-<h2>Change Log for Release asterisk-23.5.0-rc1</h2>
+<html><head><title>ChangeLog for asterisk-23.5.0</title></head><body>
+<h2>Change Log for Release asterisk-23.5.0</h2>
 <h3>Links:</h3>
 <ul>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-23.5.0-rc1.html">Full ChangeLog</a>  </li>
-<li><a href="https://github.com/asterisk/asterisk/compare/23.4.1...23.5.0-rc1">GitHub Diff</a>  </li>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-23.5.0-rc1.tar.gz">Tarball</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-23.5.0.html">Full ChangeLog</a>  </li>
+<li><a href="https://github.com/asterisk/asterisk/compare/23.4.1...23.5.0">GitHub Diff</a>  </li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-23.5.0.tar.gz">Tarball</a>  </li>
 <li><a href="https://downloads.asterisk.org/pub/telephony/asterisk">Downloads</a>  </li>
 </ul>
 <h3>Summary:</h3>
 <ul>
-<li>Commits: 38</li>
+<li>Commits: 39</li>
 <li>Commit Authors: 16</li>
-<li>Issues Resolved: 27</li>
+<li>Issues Resolved: 28</li>
 <li>Security Advisories Resolved: 0</li>
 </ul>
 <h3>User Notes:</h3>
@@ -84,7 +84,7 @@
 <li>Alexis Chenard: (1)</li>
 <li>Aqeel Abbas: (1)</li>
 <li>Ben Ford: (1)</li>
-<li>George Joseph: (6)</li>
+<li>George Joseph: (7)</li>
 <li>Jeremy Lainé: (2)</li>
 <li>Joshua C. Colp: (4)</li>
 <li>Mehrdad Seifzadeh: (3)</li>
@@ -127,6 +127,7 @@
 <li>2056: [bug]: pjsua fails to build if the address sanitizer is used.</li>
 <li>2059: [bug]: Occasional call drops during re-INVITE when codec changes</li>
 <li>2061: [bug]: backtrace.c: stdbool.h needed for portability</li>
+<li>2085: [bug]: res_http_websocket: SEGV if we're a server and receive a PONG frame</li>
 </ul>
 <h3>Commits By Author:</h3>
 <ul>
@@ -155,8 +156,9 @@
 <p>Logger: Don't discard WARNING or ERROR messages.</p>
 </li>
 <li>
-<h4>George Joseph (6):</h4>
+<h4>George Joseph (7):</h4>
 </li>
+<li>res_http_websocket: Check for client before handling PONG frames.</li>
 <li>SECURITY.md: Add warning about reporting multiple issues in one advisory.</li>
 <li>res_pjsip_refer: Fix issues with Refer-Sub:false and ARI.</li>
 <li>Bundled pjproject: Make it easier to override options in config_site.h.</li>
@@ -249,6 +251,7 @@
 </ul>
 <h3>Commit List:</h3>
 <ul>
+<li>res_http_websocket: Check for client before handling PONG frames.</li>
 <li>res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change</li>
 <li>chan_websocket: Fix NULL requestor dereference in webchan_request.</li>
 <li>backtrace.c: Include stdbool.h</li>
@@ -289,6 +292,12 @@
 <li>chan_local: Update chan_local references for Local channels.</li>
 </ul>
 <h3>Commit Details:</h3>
+<h4>res_http_websocket: Check for client before handling PONG frames.</h4>
+<p>Author: George Joseph
+  Date:   2026-08-13</p>
+<p>websocket_handled_pong_or_close() now checks that session-&gt;client is valid
+  before trying to check missed_pong_count.</p>
+<p>Resolves: #2085</p>
 <h4>res_pjsip_sdp_rtp: Fix intermittent call drop on reINVITE sdp change</h4>
 <p>Author: Mike Bradeen
   Date:   2026-08-05</p>
