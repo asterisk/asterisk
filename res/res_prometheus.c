@@ -83,6 +83,44 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="channels_detail_metrics_enabled" default="yes">
+					<since>
+						<version>20.22.0</version>
+						<version>22.12.0</version>
+						<version>23.6.0</version>
+						<version>24.1.0</version>
+					</since>
+					<synopsis>Enable or disable asterisk_channels_state and asterisk_channels_duration_seconds metrics.</synopsis>
+					<description>
+						<para>
+						channels_detail_metrics_enabled defaults to yes to maintain backward‑compatibility.
+						Set to no to disable the high‑cardinality channel detail metrics.
+						</para>
+						<enumlist>
+							<enum name="no" />
+							<enum name="yes" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="bridges_detail_metrics_enabled" default="yes">
+					<since>
+						<version>20.22.0</version>
+						<version>22.12.0</version>
+						<version>23.6.0</version>
+						<version>24.1.0</version>
+					</since>
+					<synopsis>Enable or disable asterisk_bridges_channels_count metric.</synopsis>
+					<description>
+						<para>
+						bridges_detail_metrics_enabled defaults to yes to maintain backward‑compatibility.
+						Set to no to disable the high‑cardinality bridge detail metrics.
+						</para>
+						<enumlist>
+							<enum name="no" />
+							<enum name="yes" />
+						</enumlist>
+					</description>
+				</configOption>
 				<configOption name="uri" default="metrics">
 					<since>
 						<version>17.0.0</version>
@@ -991,6 +1029,8 @@ static int load_module(void)
 	}
 	aco_option_register(&cfg_info, "enabled", ACO_EXACT, global_options, "no", OPT_BOOL_T, 1, FLDSET(struct prometheus_general_config, enabled));
 	aco_option_register(&cfg_info, "core_metrics_enabled", ACO_EXACT, global_options, "yes", OPT_BOOL_T, 1, FLDSET(struct prometheus_general_config, core_metrics_enabled));
+	aco_option_register(&cfg_info, "channels_detail_metrics_enabled", ACO_EXACT, global_options, "yes", OPT_BOOL_T, 1, FLDSET(struct prometheus_general_config, channels_detail_metrics_enabled));
+	aco_option_register(&cfg_info, "bridges_detail_metrics_enabled", ACO_EXACT, global_options, "yes", OPT_BOOL_T, 1, FLDSET(struct prometheus_general_config, bridges_detail_metrics_enabled));
 	aco_option_register(&cfg_info, "uri", ACO_EXACT, global_options, "", OPT_STRINGFIELD_T, 1, STRFLDSET(struct prometheus_general_config, uri));
 	aco_option_register(&cfg_info, "auth_username", ACO_EXACT, global_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct prometheus_general_config, auth_username));
 	aco_option_register(&cfg_info, "auth_password", ACO_EXACT, global_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct prometheus_general_config, auth_password));

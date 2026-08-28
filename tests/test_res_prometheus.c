@@ -727,6 +727,7 @@ AST_TEST_DEFINE(bridge_to_string)
 	RAII_VAR(struct ast_bridge *, bridge1, NULL, safe_bridge_destroy);
 	RAII_VAR(struct ast_bridge *, bridge2, NULL, safe_bridge_destroy);
 	RAII_VAR(struct ast_bridge *, bridge3, NULL, safe_bridge_destroy);
+	struct prometheus_general_config *config;
 	struct ast_str *response;
 
 	switch (cmd) {
@@ -741,6 +742,14 @@ AST_TEST_DEFINE(bridge_to_string)
 	case TEST_EXECUTE:
 		break;
 	}
+
+	config = config_alloc();
+	if (!config) {
+		return AST_TEST_NOT_RUN;
+	}
+	config->bridges_detail_metrics_enabled = 1;
+	prometheus_general_config_set(config);
+	ao2_ref(config, -1);
 
 	bridge1 = ast_bridge_basic_new();
 	ast_test_validate(test, bridge1 != NULL);
