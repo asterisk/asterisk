@@ -77,6 +77,7 @@ struct bridge_metric_defs {
  */
 static void bridges_scrape_cb(struct ast_str **response)
 {
+	RAII_VAR(struct prometheus_general_config *, config, prometheus_general_config_get(), ao2_cleanup);
 	struct ao2_container *bridge_cache;
 	struct ao2_container *bridges;
 	struct ao2_iterator it_bridges;
@@ -113,6 +114,11 @@ static void bridges_scrape_cb(struct ast_str **response)
 	prometheus_metric_to_string(&bridge_count, response);
 
 	if (num_bridges == 0) {
+		ao2_ref(bridges, -1);
+		return;
+	}
+
+	if (!config || !config->bridges_detail_metrics_enabled) {
 		ao2_ref(bridges, -1);
 		return;
 	}
