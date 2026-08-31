@@ -485,8 +485,13 @@ static char *geoloc_config_show_profiles(struct ast_cli_entry *e, int cmd, struc
 		struct ast_str *usage_rules_str = NULL;
 		struct ast_str *confidence_str = NULL;
 		struct ast_geoloc_eprofile *eprofile = ast_geoloc_eprofile_create_from_profile(profile);
+		if (!eprofile) {
+			ast_cli(a->fd, "\nid:                      %-s\n", ast_sorcery_object_get_id(profile));
+			ast_cli(a->fd, "  There was a problem retrieving the profile.  Check logs for errors.\n");
+			ao2_ref(profile, -1);
+			continue;
+		}
 		ao2_ref(profile, -1);
-
 		loc_str = ast_variable_list_join(eprofile->location_info, ",", "=", "\"", NULL);
 		resolved_str = ast_variable_list_join(eprofile->effective_location, ",", "=", "\"", NULL);
 
@@ -628,6 +633,19 @@ static int default_profile_create(const char *name)
 	char *id = ast_alloca(strlen(name) + 3 /* <, >, NULL */);
 
 	sprintf(id, "<%s>", name); /* Safe */
+
+	/*
+	 * If realtime is being used for profiles, we need to check if the default
+	 * exists before trying to create it because the act of creating it will
+	 * actually write it to the database.  If we try to write it again, the
+	 * primary key constraint will fail.
+	 */
+	profile = ast_sorcery_retrieve_by_id(geoloc_sorcery, "profile", id);
+	if (profile) {
+		ao2_ref(profile, -1);
+		return 1;
+	}
+
 	profile = ast_sorcery_alloc(geoloc_sorcery, "profile", id);
 	ast_assert_return(profile != NULL, 0);
 
