@@ -749,6 +749,38 @@
 						This feature must also be enabled in user profiles.</para>
 					</description>
 				</configOption>
+				<configOption name="announcements" default="yes">
+					<since>
+						<version>20.22.0</version>
+						<version>22.12.0</version>
+						<version>23.6.0</version>
+					</since>
+					<synopsis>Enables announcements played to the conference as a whole</synopsis>
+					<description>
+						<para>When set to <literal>no</literal>, no announcer channel
+						(<literal>CBAnn</literal>) is created for the conference and no
+						announcement is ever played to the conference as a whole. This
+						suppresses the join and leave sounds, recorded name intros, the
+						participant count announced to everyone, and the
+						<literal>sound_begin</literal> and
+						<literal>sound_leader_has_left</literal> prompts. Users are also
+						never prompted to record their name, regardless of the
+						<literal>announce_join_leave</literal> user profile option.</para>
+						<para>Prompts that are played only to the participant that caused
+						them are not affected. <literal>sound_kicked</literal>,
+						<literal>sound_muted</literal>, <literal>sound_unmuted</literal>,
+						the join sound played back by
+						<literal>hear_own_join_sound</literal> and the participant count
+						requested from the DTMF menu are all still played.</para>
+						<para>Disabling announcements saves a channel and a taskprocessor
+						thread per conference and removes a member from the mix, which is
+						worthwhile for systems running many conferences that never play
+						announcements.</para>
+						<para>The value that takes effect is the one from the bridge
+						profile of the channel that creates the conference, since the
+						announcer channel exists for the lifetime of the conference.</para>
+					</description>
+				</configOption>
 				<configOption name="template">
 					<since>
 						<version>11.0.0</version>
@@ -2025,6 +2057,10 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		b_profile.flags & BRIDGE_OPT_ENABLE_EVENTS ?
 		"yes" : "no");
 
+	ast_cli(a->fd,"Announcements:             %s\n",
+		b_profile.flags & BRIDGE_OPT_ANNOUNCEMENTS ?
+		"yes" : "no");
+
 	ast_cli(a->fd,"sound_only_person:    %s\n", conf_get_sound(CONF_SOUND_ONLY_PERSON, b_profile.sounds));
 	ast_cli(a->fd,"sound_only_one:       %s\n", conf_get_sound(CONF_SOUND_ONLY_ONE, b_profile.sounds));
 	ast_cli(a->fd,"sound_has_joined:     %s\n", conf_get_sound(CONF_SOUND_HAS_JOINED, b_profile.sounds));
@@ -2672,6 +2708,7 @@ int conf_load_config(void)
 	aco_option_register_custom(&cfg_info, "remb_behavior", ACO_EXACT, bridge_types, "average", remb_behavior_handler, 0);
 	aco_option_register(&cfg_info, "remb_estimated_bitrate", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, remb_estimated_bitrate));
 	aco_option_register(&cfg_info, "enable_events", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_ENABLE_EVENTS);
+	aco_option_register(&cfg_info, "announcements", ACO_EXACT, bridge_types, "yes", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_ANNOUNCEMENTS);
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, bridge_types, NULL, bridge_template_handler, 0);
 
