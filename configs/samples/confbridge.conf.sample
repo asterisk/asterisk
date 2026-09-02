@@ -288,6 +288,26 @@ type=bridge
                            ; "text/x-ast-confbridge-event".
                            ; This feature must also be enabled in user profiles.
 
+;announcements=yes         ; When set to "no", no announcer channel (CBAnn) is created for
+                           ; this conference and nothing is ever played to the conference as
+                           ; a whole. The join and leave sounds, recorded name intros, the
+                           ; participant count announced to everyone, sound_begin and
+                           ; sound_leader_has_left are all suppressed, and users are never
+                           ; prompted to record their name regardless of the
+                           ; announce_join_leave user profile option.
+                           ; Prompts played only to the participant that caused them are
+                           ; not affected: sound_kicked, sound_muted, sound_unmuted, the
+                           ; join sound played back by hear_own_join_sound and the
+                           ; participant count requested from the DTMF menu all still play.
+                           ; Disabling announcements saves a channel and a taskprocessor
+                           ; thread per conference and removes a member from the mix, which
+                           ; is worthwhile for systems running many conferences that never
+                           ; play announcements.
+                           ; The value that takes effect is the one from the bridge profile
+                           ; of the channel that creates the conference, since the announcer
+                           ; channel exists for the lifetime of the conference.
+                           ; This defaults to "yes".
+
 ; All sounds in the conference are customizable using the bridge profile options below.
 ; Simply state the option followed by the filename or full path of the filename after
 ; the option.  Example: sound_had_joined=conf-hasjoin  This will play the conf-hasjoin
