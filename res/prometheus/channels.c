@@ -129,6 +129,7 @@ static struct prometheus_metric global_channel_metrics[] = {
  */
 static void channels_scrape_cb(struct ast_str **response)
 {
+	RAII_VAR(struct prometheus_general_config *, config, prometheus_general_config_get(), ao2_cleanup);
 	struct ao2_container *channel_cache;
 	struct ao2_container *channels;
 	struct ao2_iterator it_chans;
@@ -172,6 +173,11 @@ static void channels_scrape_cb(struct ast_str **response)
 	}
 
 	if (num_channels == 0) {
+		ao2_ref(channels, -1);
+		return;
+	}
+
+	if (!config || !config->channels_detail_metrics_enabled) {
 		ao2_ref(channels, -1);
 		return;
 	}
