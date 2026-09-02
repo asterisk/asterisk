@@ -1127,6 +1127,12 @@ static int announce_user_count(struct confbridge_conference *conference, struct 
 	const char *only_one = conf_get_sound(CONF_SOUND_ONLY_ONE, conference->b_profile.sounds);
 	const char *there_are = conf_get_sound(CONF_SOUND_THERE_ARE, conference->b_profile.sounds);
 
+	if (!user && !conference->playback_queue) {
+		/* Announcements to the entire conference are disabled. Announcements to a
+		 * single caller are played on that caller's channel, so they still work. */
+		return 0;
+	}
+
 	if (conference->activeusers <= 1) {
 		/* Awww we are the only person in the conference bridge OR we only have waitmarked users */
 		return 0;
@@ -1920,20 +1926,29 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 		/* Set the initial state to EMPTY */
 		conference->state = CONF_STATE_EMPTY;
 
-		if (alloc_playback_chan(conference)) {
-			ao2_unlink(conference_bridges, conference);
-			ao2_ref(conference, -1);
-			ao2_unlock(conference_bridges);
-			ast_log(LOG_ERROR, "Could not allocate announcer channel for conference '%s'\n", conference_name);
-			return NULL;
-		}
+		/* The announcer channel lives for as long as the conference does, so whether it
+		 * gets created is decided once here, using the profile of the channel that
+		 * creates the conference. Leaving playback_chan and playback_queue NULL is what
+		 * tells the rest of this module that announcements are not available. */
+		if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_ANNOUNCEMENTS)) {
+			if (alloc_playback_chan(conference)) {
+				ao2_unlink(conference_bridges, conference);
+				ao2_ref(conference, -1);
+				ao2_unlock(conference_bridges);
+				ast_log(LOG_ERROR, "Could not allocate announcer channel for conference '%s'\n", conference_name);
+				return NULL;
+			}
 
-		if (push_announcer(conference)) {
-			ao2_unlink(conference_bridges, conference);
-			ao2_ref(conference, -1);
-			ao2_unlock(conference_bridges);
-			ast_log(LOG_ERROR, "Could not add announcer channel for conference '%s' bridge\n", conference_name);
-			return NULL;
+			if (push_announcer(conference)) {
+				ao2_unlink(conference_bridges, conference);
+				ao2_ref(conference, -1);
+				ao2_unlock(conference_bridges);
+				ast_log(LOG_ERROR, "Could not add announcer channel for conference '%s' bridge\n", conference_name);
+				return NULL;
+			}
+		} else {
+			ast_debug(1, "Announcements are disabled for conference '%s', not creating an announcer channel\n",
+				conference_name);
 		}
 
 		if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_RECORD_CONFERENCE)) {
@@ -2133,6 +2148,11 @@ static void playback_task_data_destroy(struct playback_task_data *ptd)
 static int play_sound_helper(struct confbridge_conference *conference, const char *filename, int say_number)
 {
 	struct playback_task_data ptd;
+
+	/* Announcements are disabled for this conference, there is nothing to play them on */
+	if (!conference->playback_queue) {
+		return 0;
+	}
 
 	/* Do not waste resources trying to play files that do not exist */
 	if (ast_strlen_zero(filename)) {
@@ -2386,6 +2406,11 @@ static int async_play_sound_helper(struct confbridge_conference *conference,
 {
 	struct async_playback_task_data *aptd;
 
+	/* Announcements are disabled for this conference, there is nothing to play them on */
+	if (!conference->playback_queue) {
+		return 0;
+	}
+
 	/* Do not waste resources trying to play files that do not exist */
 	if (ast_strlen_zero(filename)) {
 		if (say_number < 0) {
@@ -2636,6 +2661,14 @@ static int async_delete_name_rec(struct confbridge_conference *conference,
 		return 0;
 	}
 
+	/* Without a playback queue there is no playback to wait for, so just remove it now */
+	if (!conference->playback_queue) {
+		ast_filedelete(filename, NULL);
+		ast_debug(1, "Conference '%s' removed user name file '%s'\n",
+			conference->name, filename);
+		return 0;
+	}
+
 	atd = async_delete_name_rec_task_data_alloc(conference, filename);
 	if (!atd) {
 		return -1;
@@ -2769,8 +2802,10 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	/* See if we need them to record a intro name */
-	if (!quiet &&
+	/* See if we need them to record a intro name. There is no point in asking for one
+	 * when announcements are disabled, since it could never be played. The conference
+	 * does not necessarily exist yet, so this caller's own bridge profile is used. */
+	if (!quiet && ast_test_flag(&user.b_profile, BRIDGE_OPT_ANNOUNCEMENTS) &&
 		(ast_test_flag(&user.u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE) ||
 		(ast_test_flag(&user.u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW)))) {
 		if (conf_rec_name(&user, args.conf_name)) {
