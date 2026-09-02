@@ -45,6 +45,11 @@
 typedef uint16_t ilbc_bytes;
 typedef int16_t  ilbc_block;
 #define BUF_TYPE i16
+/* In the ilbc library were removed RFC 3951 compatibility macros */
+#define initDecode WebRtcIlbcfix_InitDecode
+#define initEncode WebRtcIlbcfix_InitEncode
+#define iLBC_decode WebRtcIlbcfix_DecodeImpl
+#define iLBC_encode WebRtcIlbcfix_EncodeImpl
 #else
 #include "ilbc/iLBC_encode.h"
 #include "ilbc/iLBC_decode.h"
