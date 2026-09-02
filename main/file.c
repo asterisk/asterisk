@@ -843,19 +843,26 @@ static struct ast_filestream *openstream_internal(struct ast_channel *chan,
 		return NULL;
 	}
 
-	/* Set the channel to a format we can work with and save off the previous format. */
+	/*
+	 * Keep the channel locked across setting the write format and filehelper(ACTION_OPEN)
+	 * to avoid race conditions with the bridging / format-negotiation code. Otherwise the
+	 * write format may be changed concurrently, leading to a valid file being rejected as
+	 * not supported.
+	 */
 	ast_channel_lock(chan);
+	/* Set the channel to a format we can work with and save off the previous format. */
 	ast_channel_set_oldwriteformat(chan, ast_channel_writeformat(chan));
 	/* Set the channel to the best format that exists for the file. */
 	res = ast_set_write_format_from_cap(chan, file_fmt_cap);
-	ast_channel_unlock(chan);
 	/* don't need this anymore now that the channel's write format is set. */
 	ao2_ref(file_fmt_cap, -1);
 
 	if (res == -1) {	/* No format available that works with this channel */
+		ast_channel_unlock(chan);
 		return NULL;
 	}
 	res = filehelper(buf, chan, NULL, ACTION_OPEN);
+	ast_channel_unlock(chan);
 	if (res >= 0)
 		return ast_channel_stream(chan);
 	return NULL;
