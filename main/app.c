@@ -2491,6 +2491,7 @@ int ast_app_group_set_var(struct ast_channel *chan, const char *group, const cha
 		AST_LIST_TRAVERSE(headp, variable, entries) {
 			if (strcasecmp(ast_var_name(variable), name) == 0) {
 				/* there is already such a variable, nuke it so we can replace it */
+				AST_LIST_REMOVE(headp, variable, entries);
 				ast_var_delete(variable);
 				break;
 			}
