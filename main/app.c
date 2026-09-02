@@ -2467,7 +2467,7 @@ int ast_app_group_set_var(struct ast_channel *chan, const char *group, const cha
 	struct ast_var_t *variable = NULL;
 
 	if (!group || !name) {
-		ast_log(LOG_WARNING, "<%s> GROUP variable assignment failed for %s@%s, group/name cannot be NULL, group variable '%s' not set\n", ast_channel_name(chan), group, category, name);
+		ast_log(LOG_WARNING, "<%s> GROUP variable assignment failed for %s@%s, group/name cannot be NULL, group variable '%s' not set\n", chan ? ast_channel_name(chan) : "none", group, category, name);
 		return -2;
 	}
 
@@ -2517,7 +2517,7 @@ int ast_app_group_set_var(struct ast_channel *chan, const char *group, const cha
 	AST_RWLIST_UNLOCK(&groups_meta);
 
 	if (!variable) {
-		ast_log(LOG_WARNING, "<%s> GROUP assignment %s@%s doesn't exist, group variable '%s' not set\n", ast_channel_name(chan), group, category, name);
+		ast_log(LOG_WARNING, "<%s> GROUP assignment %s@%s doesn't exist, group variable '%s' not set\n", chan ? ast_channel_name(chan) : "none", group, category, name);
 		return -1;
 	}
 
@@ -2565,7 +2565,7 @@ char *ast_app_group_get_var(const char *group, const char *category, const char 
 					return NULL;
                                 }
 
-				ast_copy_string(return_value, variable, len);
+				ast_copy_string(return_value, variable, len + 1);
 				AST_RWLIST_UNLOCK(&groups_meta);
 
 				return return_value;

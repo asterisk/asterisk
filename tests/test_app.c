@@ -221,8 +221,168 @@ exit_group_test:
 	return res;
 }
 
+AST_TEST_DEFINE(app_group_var)
+{
+	struct ast_channel *test_channel1 = NULL;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	static const char group[] = "vartestgroup";
+	static const char category[] = "vartestcategory";
+	char *value = NULL;
+	struct ast_group_meta *gmi;
+	struct ast_var_t *var;
+	int count;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "app_group_var";
+		info->category = "/main/app/";
+		info->summary = "App group variable unit test";
+		info->description =
+			"This tests setting, getting, overwriting, and cleaning up group\n"
+			"variables. It includes a regression test for a use-after-free that\n"
+			"occurred when overwriting an existing group variable (the old variable\n"
+			"was freed without being unlinked from the group's variable list), and\n"
+			"a regression test for a NULL channel crash when setting a variable on\n"
+			"a group@category that doesn't exist (the path exercised by the AMI\n"
+			"GroupVarSet action, which always passes a NULL channel).";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, 0, "TestChannel1"))) {
+		return AST_TEST_FAIL;
+	}
+	ast_channel_unlock(test_channel1);
+
+	/* A group must already exist (have a member channel) before a variable can be
+	 * set on it. This is also a regression test: with a NULL chan (as the AMI
+	 * GroupVarSet action always passes), this used to crash inside the "doesn't
+	 * exist" error log via an unconditional ast_channel_name(NULL). */
+	if (ast_app_group_set_var(NULL, group, "", "foo", "bar") != -1) {
+		ast_test_status_update(test, "Expected failure setting a variable on a nonexistent group\n");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+
+	ast_app_group_set_channel(test_channel1, group);
+
+	/* Basic set/get */
+	if (ast_app_group_set_var(test_channel1, group, "", "myvar", "value1")) {
+		ast_test_status_update(test, "Failed to set group variable 'myvar'\n");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+	if (!(value = ast_app_group_get_var(group, "", "myvar")) || strcmp(value, "value1")) {
+		ast_test_status_update(test, "Expected 'value1', got '%s'\n", value ? value : "(null)");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+	ast_free(value);
+	value = NULL;
+
+	/* Overwrite: regression test for a use-after-free when replacing an existing
+	 * group variable. The old ast_var_t node used to be freed without first being
+	 * unlinked from the group's variable list, leaving a dangling node for the
+	 * next traversal (this get, or another set) to walk into. */
+	if (ast_app_group_set_var(test_channel1, group, "", "myvar", "value2")) {
+		ast_test_status_update(test, "Failed to overwrite group variable 'myvar'\n");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+	if (ast_app_group_set_var(test_channel1, group, "", "myvar", "value3")) {
+		ast_test_status_update(test, "Failed to overwrite group variable 'myvar' a second time\n");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+	if (!(value = ast_app_group_get_var(group, "", "myvar")) || strcmp(value, "value3")) {
+		ast_test_status_update(test, "Expected 'value3' after overwriting twice, got '%s'\n", value ? value : "(null)");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+	ast_free(value);
+	value = NULL;
+
+	/* Confirm the overwrites left exactly one 'myvar' entry in the list (no
+	 * dangling freed node left behind by an unlinked-then-freed variable) */
+	ast_app_group_meta_rdlock();
+	count = 0;
+	for (gmi = ast_app_group_meta_head(); gmi; gmi = AST_LIST_NEXT(gmi, group_meta_list)) {
+		if (strcasecmp(gmi->group, group) || strcasecmp(gmi->category, "")) {
+			continue;
+		}
+		AST_LIST_TRAVERSE(&gmi->varshead, var, entries) {
+			if (!strcasecmp(ast_var_name(var), "myvar")) {
+				count++;
+			}
+		}
+	}
+	ast_app_group_meta_unlock();
+	if (count != 1) {
+		ast_test_status_update(test, "Expected exactly 1 'myvar' entry after overwriting, found %d "
+			"(indicates a stale/dangling list node)\n", count);
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+
+	/* Independent variables coexist, and lookups are case-insensitive by name */
+	if (ast_app_group_set_var(test_channel1, group, "", "othervar", "otherval")) {
+		ast_test_status_update(test, "Failed to set group variable 'othervar'\n");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+	if (!(value = ast_app_group_get_var(group, "", "MYVAR")) || strcmp(value, "value3")) {
+		ast_test_status_update(test, "Case-insensitive lookup of 'MYVAR' failed, got '%s'\n", value ? value : "(null)");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+	ast_free(value);
+	value = NULL;
+	if (!(value = ast_app_group_get_var(group, "", "othervar")) || strcmp(value, "otherval")) {
+		ast_test_status_update(test, "Setting 'othervar' should not disturb 'myvar', got '%s' for 'othervar'\n", value ? value : "(null)");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+	ast_free(value);
+	value = NULL;
+
+	/* Variables are isolated per category */
+	if (ast_app_group_get_var(group, category, "myvar") != NULL) {
+		ast_test_status_update(test, "Variable 'myvar' set on the default category should not be visible under a different category\n");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+
+	/* Nonexistent variable/group lookups return NULL */
+	if (ast_app_group_get_var(group, "", "novar") != NULL) {
+		ast_test_status_update(test, "Expected NULL for a variable that was never set\n");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+	if (ast_app_group_get_var("nosuchgroup", "", "myvar") != NULL) {
+		ast_test_status_update(test, "Expected NULL for a variable on a group that doesn't exist\n");
+		res = AST_TEST_FAIL;
+		goto exit_group_var_test;
+	}
+
+exit_group_var_test:
+	ast_free(value);
+	ast_hangup(test_channel1);
+
+	/* Once the last channel leaves the group, the group (and its variables)
+	 * should be destroyed */
+	if (res == AST_TEST_PASS && ast_app_group_get_var(group, "", "myvar") != NULL) {
+		ast_test_status_update(test, "Group variable 'myvar' should have been freed when the group was destroyed\n");
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
+}
+
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(app_group_var);
 	AST_TEST_UNREGISTER(app_group);
 	AST_TEST_UNREGISTER(options_parsing);
 	return 0;
@@ -230,6 +390,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	AST_TEST_REGISTER(app_group_var);
 	AST_TEST_REGISTER(app_group);
 	AST_TEST_REGISTER(options_parsing);
 	return AST_MODULE_LOAD_SUCCESS;
