@@ -91,6 +91,7 @@ enum bridge_profile_flags {
 	BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL = (1 << 13), /*!< The lowest estimated maximum bitrate from all receivers is sent to each sender */
 	BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL = (1 << 14), /*!< The highest estimated maximum bitrate from all receivers is sent to each sender */
 	BRIDGE_OPT_REMB_BEHAVIOR_FORCE = (1 << 15), /*!< Force the REMB estimated bitrate to that specified in remb_estimated_bitrate */
+	BRIDGE_OPT_ANNOUNCEMENTS = (1 << 16), /*!< Set if the conference should have an announcer channel to play announcements to the conference as a whole */
 };
 
 enum conf_menu_action_id {
