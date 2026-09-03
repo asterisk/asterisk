@@ -703,14 +703,9 @@ static struct ari_ws_session *session_create(
 static int session_update(struct ari_ws_session *ari_ws_session,
 	struct ast_websocket *ast_ws_session, int send_registered_events)
 {
-	RAII_VAR(struct ari_conf_general *, general, ari_conf_get_general(), ao2_cleanup);
 	int i;
 
 	if (ast_ws_session == NULL) {
-		return -1;
-	}
-
-	if (!general) {
 		return -1;
 	}
 
@@ -726,11 +721,6 @@ static int session_update(struct ari_ws_session *ari_ws_session,
 			"ARI web socket failed to set nonblock; closing: %s\n",
 			strerror(errno));
 		return -1;
-	}
-
-	if (ast_websocket_set_timeout(ast_ws_session, general->write_timeout)) {
-		ast_log(LOG_WARNING, "Failed to set write timeout %d on ARI web socket\n",
-			general->write_timeout);
 	}
 
 	ast_websocket_ref(ast_ws_session);
@@ -818,8 +808,11 @@ static void websocket_established_cb(struct ast_websocket *ast_ws_session,
 	char *remote_addr = ast_sockaddr_stringify(
 		ast_websocket_remote_address(ast_ws_session));
 	const char *session_id = ast_websocket_session_id(ast_ws_session);
-
+	struct ari_conf_general *general = ari_conf_get_general();
+	int general_write_timeout = general ? general->write_timeout : AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
 	SCOPE_ENTER(2, "%s: WebSocket established\n", remote_addr);
+
+	ao2_cleanup(general);
 
 	if (TRACE_ATLEAST(2)) {
 		ast_trace(2, "%s: Websocket Upgrade Headers:\n", remote_addr);
@@ -843,6 +836,8 @@ static void websocket_established_cb(struct ast_websocket *ast_ws_session,
 			"%s: Failed to locate an event session for the websocket session %s\n",
 			remote_addr, session_id);
 	}
+
+	ast_websocket_set_timeout(ast_ws_session, general_write_timeout);
 
 	/*
 	 * Since this is a new inbound websocket session,
@@ -951,7 +946,10 @@ static void *outbound_session_handler_thread(void *obj)
 {
 	struct ari_ws_session *session = obj;
 	int already_sent_registers = 1;
+	struct ari_conf_general *general = ari_conf_get_general();
+	int general_write_timeout = general ? general->write_timeout : AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
 
+	ao2_cleanup(general);
 	/*
 	 * We use pthread_cleanup_push because RAII destructors don't run
 	 * if we cancel the thread.
@@ -968,6 +966,7 @@ static void *outbound_session_handler_thread(void *obj)
 		RAII_VAR(struct ast_variable *, upgrade_headers, NULL, ast_variables_destroy);
 		enum ast_websocket_result result;
 		struct ast_json *msg;
+
 
 		ast_debug(3, "%s: Attempting to connect to %s\n", session->session_id,
 			session->owc->websocket_client->uri);
@@ -1004,6 +1003,21 @@ static void *outbound_session_handler_thread(void *obj)
 		ast_log(LOG_NOTICE, "%s: Outbound websocket connected to %s\n",
 			session->type == AST_WS_TYPE_CLIENT_PERSISTENT ? session->session_id : session->channel_name,
 				session->owc->websocket_client->uri);
+
+		/*
+		 * If websocket_client->write_timeout was set in websocket_client.conf, it will
+		 * have been applied to the websocket by ast_websocket_client_connect() above.
+		 * If it wasn't set in websocket_client.conf, the value will be INT_MAX and
+		 * and ast_websocket_client_connect() will have set AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT
+		 * on the websocket.  However, the user may have set write_timeout in the general section
+		 * of ari.conf so if it wasn't set in websocket_client.conf, we'll now set the websocket
+		 * timeout to that.  If they  haven't set it in ari.conf either, it'll default to
+		 * AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT as well so the call below will basically
+		 * become a no-op.
+		 */
+		if (session->owc->websocket_client->write_timeout == INT_MAX) {
+			ast_websocket_set_timeout(astws, general_write_timeout);
+		}
 
 		/*
 		 * We only want to send "ApplicationRegistered" events in the
