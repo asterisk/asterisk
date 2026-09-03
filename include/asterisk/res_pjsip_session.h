@@ -51,6 +51,7 @@ struct pjmedia_sdp_media;
 struct pjmedia_sdp_session;
 struct ast_dsp;
 struct ast_udptl;
+struct ast_msg_data;
 
 /*! \brief T.38 states for a session */
 enum ast_sip_session_t38state {
@@ -736,6 +737,77 @@ int ast_sip_session_add_datastore(struct ast_sip_session *session, struct ast_da
  * \retval non-NULL The specified datastore
  */
 struct ast_datastore *ast_sip_session_get_datastore(struct ast_sip_session *session, const char *name);
+
+/*!
+ * \brief Optional delivery tracker for tracking in-dialog MESSAGEs.
+ */
+struct ast_sip_session_message_tracker {
+	/*! Reference module info */
+	struct ast_module *module;
+	/*!
+	 * \brief Track a prepared in-dialog MESSAGE request.
+	 *
+	 * This is called from the session serializer after the SIP MESSAGE has
+	 * been created and populated, but before it is sent.
+	 *
+	 * \param session The session on which the MESSAGE will be sent.
+	 * \param msg The message data being sent.
+	 * \param tdata The SIP MESSAGE transmission data.
+	 *
+	 * \retval 0 The request may be sent.
+	 * \retval -1 The request should not be sent.
+	 */
+	int (*request_prepared)(struct ast_sip_session *session,
+		struct ast_msg_data *msg, struct pjsip_tx_data *tdata);
+	/*!
+	 * \brief Track failure before an in-dialog MESSAGE request is sent.
+	 *
+	 * This is called from the session serializer when MESSAGE construction
+	 * fails before \ref request_prepared can be called.
+	 *
+	 * \param session The session on which the MESSAGE would have been sent.
+	 * \param msg The message data that failed.
+	 * \param sip_status_code SIP status code associated with the failure, if any.
+	 * \param reason Text reason for the failure.
+	 */
+	void (*send_failed)(struct ast_sip_session *session,
+		struct ast_msg_data *msg, int sip_status_code, const char *reason);
+};
+
+/*!
+ * \brief Register an optional tracker for tracking in-dialog MESSAGE delivery.
+ *
+ * Only one tracker may be registered at a time.
+ *
+ * \param module Referenced module(NULL safe)
+ * \param tracker The tracker to register
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_session_register_message_tracker_with_module(struct ast_module *module,
+	struct ast_sip_session_message_tracker *tracker);
+
+#define ast_sip_session_register_message_tracker(tracker) \
+	ast_sip_session_register_message_tracker_with_module(AST_MODULE_SELF, tracker)
+
+/*!
+ * \brief Unregister an optional tracker for tracking in-dialog MESSAGE delivery.
+ *
+ * \param tracker The tracker to unregister
+ */
+void ast_sip_session_unregister_message_tracker(struct ast_sip_session_message_tracker *tracker);
+
+/*!
+ * \brief Send an in-dialog MESSAGE.
+ *
+ * \param session The session on which to send the MESSAGE.
+ * \param msg The message data to send.
+ *
+ * \retval 0 The request was accepted for delivery.
+ * \retval -1 The request could not be sent.
+ */
+int ast_sip_session_send_message(struct ast_sip_session *session, struct ast_msg_data *msg);
 
 /*!
  * \brief Remove a session datastore from the session

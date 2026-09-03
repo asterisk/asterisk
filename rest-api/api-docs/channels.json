@@ -901,6 +901,93 @@
 			]
 		},
 		{
+			"path": "/channels/{channelId}/sendMessage",
+			"description": "Send a message on a channel's active dialog.",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"since": [
+						"22.7.0"
+					],
+					"summary": "Send a message on a channel's active dialog.",
+					"nickname": "sendMessage",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "to",
+							"description": "Name for the message to send to (e.g. for PJSIP channels this is the display name of the To header).",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "from",
+							"description": "Name for the message to send from (e.g. for PJSIP channels this is the display name of the From header).",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "body",
+							"description": "The body of the message, sent verbatim as the SIP MESSAGE body.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "request_id",
+							"description": "Application-provided correlation identifier for async delivery workflow.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "content_type",
+							"description": "Optional content type for the outbound SIP MESSAGE body. Defaults to text/plain.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Body is required."
+						},
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
+						},
+						{
+							"code": 422,
+							"reason": "In-dialog channel MESSAGE delivery is supported only for PJSIP channels"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/channels/{channelId}/mute",
 			"description": "Mute a channel",
 			"operations": [
