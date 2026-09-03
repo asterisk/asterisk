@@ -56,6 +56,7 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/json.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/vector.h"
 
 #define AST_NAME_STRLEN 256
 #define NUM_SPYGROUPS 128
@@ -578,7 +579,7 @@ static struct ast_generator spygen = {
 	.generate = spy_generate,
 };
 
-static int start_spying(struct ast_autochan *autochan, const char *spychan_name, struct ast_audiohook *audiohook, struct ast_flags *flags)
+static int start_spying(struct ast_autochan *autochan, const char *spychan_name, struct ast_audiohook *audiohook, const struct ast_flags *flags)
 {
 	int res;
 
@@ -732,8 +733,8 @@ static int attach_barge(struct ast_autochan *spyee_autochan,
 }
 
 static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_autochan,
-	int *volfactor, int fd, struct spy_dtmf_options *user_options, struct ast_flags *flags,
-	char *exitcontext)
+	int *volfactor, int fd, const struct spy_dtmf_options *user_options, struct ast_flags *flags,
+	const char *exitcontext)
 {
 	struct chanspy_translation_helper csth;
 	int running = 0, bridge_connected = 0, res, x = 0;
@@ -950,7 +951,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 }
 
 static struct ast_autochan *next_channel(struct ast_channel_iterator *iter,
-	struct ast_channel *chan)
+	struct ast_channel *chan, struct ast_vector_const_string *skip)
 {
 	struct ast_channel *next;
 	struct ast_autochan *autochan_store;
@@ -961,8 +962,21 @@ static struct ast_autochan *next_channel(struct ast_channel_iterator *iter,
 	}
 
 	for (; (next = ast_channel_iterator_next(iter)); ast_channel_unref(next)) {
-		if (!strncmp(ast_channel_name(next), "DAHDI/pseudo", pseudo_len)
-			|| next == chan) {
+		const char *name = ast_channel_name(next);
+		int do_next = 0;
+
+		if (!strncmp(name, "DAHDI/pseudo", pseudo_len) || next == chan) {
+			do_next = 1;
+		} else {
+			for (unsigned i = 0; i < AST_VECTOR_SIZE(skip); ++i) {
+				if (!strcmp(name, AST_VECTOR_GET(skip, i))) {
+					do_next = 1;
+					break;
+				}
+			}
+		}
+
+		if (do_next) {
 			continue;
 		}
 
@@ -983,18 +997,249 @@ static int spy_sayname(struct ast_channel *chan, const char *mailbox, const char
 	return ast_app_sayname(chan, mailbox_id);
 }
 
+struct channel_spy_context {
+	const char *mygroup;
+	const char *myenforced;
+	const char *spec;
+	const char *exten;
+	const char *context;
+	const char *mailbox;
+	const char *name_context;
+};
+
+static int channel_spy_select_one(struct ast_channel_iterator *iter,
+	struct ast_vector_const_string *channels_spied_upon,
+	struct ast_channel *chan, int *num_spied_upon,
+	int *volfactor, const int fd, const struct spy_dtmf_options *user_options,
+	struct ast_flags *flags, const char *exitcontext, const struct channel_spy_context *ctx)
+{
+	struct ast_autochan *autochan = NULL, *next_autochan = NULL;
+	struct ast_channel *prev = NULL;
+	int res = 0;
+
+	for (autochan = next_channel(iter, chan, channels_spied_upon);
+		autochan;
+		prev = autochan->chan,
+			ast_autochan_destroy(autochan),
+			autochan = next_autochan ?: (
+				iter ? next_channel(iter, chan, channels_spied_upon) : NULL),
+			next_autochan = NULL) {
+		int igrp = !ctx->mygroup;
+		int ienf = !ctx->myenforced;
+
+		if (autochan->chan == prev) {
+			ast_autochan_destroy(autochan);
+			break;
+		}
+
+		if (ast_check_hangup(chan)) {
+			ast_autochan_destroy(autochan);
+			break;
+		}
+
+		ast_autochan_channel_lock(autochan);
+		if (ast_test_flag(flags, OPTION_BRIDGED)
+			&& !ast_channel_is_bridged(autochan->chan)) {
+			ast_autochan_channel_unlock(autochan);
+			continue;
+		}
+
+		if (ast_check_hangup(autochan->chan)
+			|| ast_test_flag(ast_channel_flags(autochan->chan), AST_FLAG_SPYING)) {
+			ast_autochan_channel_unlock(autochan);
+			continue;
+		}
+		ast_autochan_channel_unlock(autochan);
+
+		if (ctx->mygroup) {
+			int num_groups = 0;
+			int num_mygroups = 0;
+			char dup_group[512];
+			char dup_mygroup[512];
+			char *groups[NUM_SPYGROUPS];
+			char *mygroups[NUM_SPYGROUPS];
+			const char *group = NULL;
+			int x;
+			int y;
+			ast_copy_string(dup_mygroup, ctx->mygroup, sizeof(dup_mygroup));
+			num_mygroups = ast_app_separate_args(dup_mygroup, ':', mygroups,
+				ARRAY_LEN(mygroups));
+
+			/* Before dahdi scan was part of chanspy, it would use the "GROUP" variable
+			 * rather than "SPYGROUP", this check is done to preserve expected behavior */
+			ast_autochan_channel_lock(autochan);
+			if (ast_test_flag(flags, OPTION_DAHDI_SCAN)) {
+				group = pbx_builtin_getvar_helper(autochan->chan, "GROUP");
+			} else {
+				group = pbx_builtin_getvar_helper(autochan->chan, "SPYGROUP");
+			}
+			ast_autochan_channel_unlock(autochan);
+
+			if (!ast_strlen_zero(group)) {
+				ast_copy_string(dup_group, group, sizeof(dup_group));
+				num_groups = ast_app_separate_args(dup_group, ':', groups,
+					ARRAY_LEN(groups));
+			}
+
+			for (y = 0; y < num_mygroups && !igrp; y++) {
+				for (x = 0; x < num_groups; x++) {
+					if (!strcmp(mygroups[y], groups[x])) {
+						igrp = 1;
+						break;
+					}
+				}
+			}
+		}
+
+		if (!igrp) {
+			continue;
+		}
+		if (ctx->myenforced) {
+			char ext[AST_CHANNEL_NAME + 3];
+			char buffer[512];
+			char *end;
+
+			snprintf(buffer, sizeof(buffer) - 1, ":%s:", ctx->myenforced);
+
+			ast_autochan_channel_lock(autochan);
+			ast_copy_string(ext + 1, ast_channel_name(autochan->chan), sizeof(ext) - 1);
+			ast_autochan_channel_unlock(autochan);
+			if ((end = strchr(ext, '-'))) {
+				*end++ = ':';
+				*end = '\0';
+			}
+
+			ext[0] = ':';
+
+			if (strcasestr(buffer, ext)) {
+				ienf = 1;
+			}
+		}
+
+		if (!ienf) {
+			continue;
+		}
+
+		/* Important! We destroy the channel iterator here, freeing unrelated channels
+		 * that are held by refcount. We're now holding on to exactly one victim channel. */
+		iter = ast_channel_iterator_destroy(iter);
+
+		/* BUG: In theory, we're leaking (hoarding) memory until either:
+		 * - the spying channels hangs up, or
+		 * - we do a full iteration without getting finding a single channel to spy on.
+		 * When either event occurs, the memory is freed. This is more
+		 * likely to happen than not. */
+		AST_VECTOR_APPEND(channels_spied_upon, ast_strdup(ast_channel_name(autochan->chan)));
+		ast_debug(1, "After adding %s we have %zu items in the channels_spied_upon list\n",
+			ast_channel_name(autochan->chan), AST_VECTOR_SIZE(channels_spied_upon));
+
+		if (!ast_test_flag(flags, OPTION_QUIET)) {
+			char peer_name[AST_NAME_STRLEN + 5];
+			char *ptr, *s;
+
+			strcpy(peer_name, "spy-");
+			ast_autochan_channel_lock(autochan);
+			strncat(peer_name, ast_channel_name(autochan->chan), AST_NAME_STRLEN - 4 - 1);
+			ast_autochan_channel_unlock(autochan);
+			if ((ptr = strchr(peer_name, '/'))) {
+				*ptr++ = '\0';
+				for (s = peer_name; s < ptr; s++) {
+					*s = tolower(*s);
+				}
+				if ((s = strchr(ptr, '-'))) {
+					*s = '\0';
+				}
+			}
+
+			if (ast_test_flag(flags, OPTION_NAME)) {
+				const char *local_context = S_OR(ctx->name_context, "default");
+				const char *local_mailbox = S_OR(ctx->mailbox, ptr);
+
+				if (local_mailbox) {
+					res = spy_sayname(chan, local_mailbox, local_context);
+				} else {
+					res = -1;
+				}
+			}
+			if (!ast_test_flag(flags, OPTION_NAME) || res < 0) {
+				int num;
+				if (!ast_test_flag(flags, OPTION_NOTECH)) {
+					if (ast_fileexists(peer_name, NULL, NULL) > 0) {
+						res = ast_streamfile(chan, peer_name, ast_channel_language(chan));
+						if (!res) {
+							res = ast_waitstream(chan, "");
+						}
+						if (res) {
+							ast_autochan_destroy(autochan);
+							break;
+						}
+					} else {
+						res = ast_say_character_str(chan, peer_name, "", ast_channel_language(chan), AST_SAY_CASE_NONE);
+					}
+				}
+				if (ptr && (num = atoi(ptr))) {
+					ast_say_digits(chan, num, "", ast_channel_language(chan));
+				}
+			}
+		}
+
+		res = channel_spy(chan, autochan, volfactor, fd, user_options, flags, exitcontext);
+		(*num_spied_upon)++;
+
+		if (res == -1 || res == -2) {
+			ast_autochan_destroy(autochan);
+			break;
+		} else if (res > 1 && ctx->spec && !ast_test_flag(flags, OPTION_UNIQUEID)) {
+			char nameprefix[AST_NAME_STRLEN];
+			struct ast_channel *next;
+
+			snprintf(nameprefix, AST_NAME_STRLEN, "%s/%d", ctx->spec, res);
+
+			if ((next = ast_channel_get_by_name_prefix(nameprefix, strlen(nameprefix)))) {
+				next_autochan = ast_autochan_setup(next);
+				next = ast_channel_unref(next);
+			} else {
+				/* stay on this channel, if it is still valid */
+				ast_autochan_channel_lock(autochan);
+				if (!ast_check_hangup(autochan->chan)) {
+					next_autochan = ast_autochan_setup(autochan->chan);
+				} else {
+					/* the channel is gone */
+					next_autochan = NULL;
+				}
+				ast_autochan_channel_unlock(autochan);
+			}
+		} else if (res == 0 && ast_test_flag(flags, OPTION_EXITONHANGUP)) {
+			ast_autochan_destroy(autochan);
+			res = -2; /* propagates stop, but with 0 exit status */
+			break;
+		}
+	}
+
+	if (iter) {
+		iter = ast_channel_iterator_destroy(iter);
+	}
+
+	return res;
+}
+
+/* Same as ast_free_ptr(), but this allows us to free const char*'s without the
+ * compiler complaining about touching const. */
+static void free_const_ptr(const char *ptr) {
+	ast_free((char *)ptr);
+}
+
 static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	int volfactor, const int fd, struct spy_dtmf_options *user_options,
-	const char *mygroup, const char *myenforced, const char *spec, const char *exten,
-	const char *context, const char *mailbox, const char *name_context)
+	const struct channel_spy_context *ctx)
 {
-	char nameprefix[AST_NAME_STRLEN];
 	char exitcontext[AST_MAX_CONTEXT] = "";
 	signed char zero_volume = 0;
-	int waitms;
+	const int waitms = 100;
 	int res;
 	int num_spied_upon = 1;
 	struct ast_channel_iterator *iter = NULL;
+	struct ast_vector_const_string channels_spied_upon;
 
 	if (ast_test_flag(flags, OPTION_EXIT)) {
 		const char *c;
@@ -1013,12 +1258,9 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 	ast_channel_set_flag(chan, AST_FLAG_SPYING);
 
-	waitms = 100;
+	AST_VECTOR_INIT(&channels_spied_upon, 0);
 
 	for (;;) {
-		struct ast_autochan *autochan = NULL, *next_autochan = NULL;
-		struct ast_channel *prev = NULL;
-
 		if (!ast_test_flag(flags, OPTION_QUIET) && num_spied_upon) {
 			res = ast_streamfile(chan, "beep", ast_channel_language(chan));
 			if (!res)
@@ -1031,42 +1273,41 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 				char tmp[2];
 				tmp[0] = res;
 				tmp[1] = '\0';
-				if (!ast_goto_if_exists(chan, exitcontext, tmp, 1))
-					goto exit;
-				else
-					ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
+				if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
+					break;
+				}
+				ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
 			}
 		}
 
 		/* Set up the iterator we'll be using during this call */
-		if (!ast_strlen_zero(spec)) {
+		if (!ast_strlen_zero(ctx->spec)) {
 			if (ast_test_flag(flags, OPTION_UNIQUEID)) {
 				struct ast_channel *unique_chan;
 
-				unique_chan = ast_channel_get_by_name(spec);
+				unique_chan = ast_channel_get_by_name(ctx->spec);
 				if (!unique_chan) {
 					res = -1;
-					goto exit;
+					break;
 				}
 				iter = ast_channel_iterator_by_name_new(ast_channel_name(unique_chan), 0);
 				ast_channel_unref(unique_chan);
 			} else {
-				iter = ast_channel_iterator_by_name_new(spec, strlen(spec));
+				iter = ast_channel_iterator_by_name_new(ctx->spec, strlen(ctx->spec));
 			}
-		} else if (!ast_strlen_zero(exten)) {
-			iter = ast_channel_iterator_by_exten_new(exten, context);
+		} else if (!ast_strlen_zero(ctx->exten)) {
+			iter = ast_channel_iterator_by_exten_new(ctx->exten, ctx->context);
 		} else {
 			iter = ast_channel_iterator_all_new();
 		}
 
 		if (!iter) {
 			res = -1;
-			goto exit;
+			break;
 		}
 
 		res = ast_waitfordigit(chan, waitms);
 		if (res < 0) {
-			iter = ast_channel_iterator_destroy(iter);
 			ast_channel_clear_flag(chan, AST_FLAG_SPYING);
 			break;
 		}
@@ -1075,216 +1316,49 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 			tmp[0] = res;
 			tmp[1] = '\0';
 			if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
-				iter = ast_channel_iterator_destroy(iter);
-				goto exit;
-			} else {
-				ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
+				break;
 			}
+			ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
 		}
 
-		/* reset for the next loop around, unless overridden later */
-		waitms = 100;
+		/* The channel_spy_select_one spies on at most one channel. It
+		 * destroys the iterator so the unused channels can be freed asap. */
 		num_spied_upon = 0;
+		res = channel_spy_select_one(iter, &channels_spied_upon, chan, &num_spied_upon, &volfactor, fd, user_options, flags, exitcontext, ctx);
+		iter = NULL;
 
-		for (autochan = next_channel(iter, chan);
-			autochan;
-			prev = autochan->chan,
-				ast_autochan_destroy(autochan),
-				autochan = next_autochan ?: next_channel(iter, chan),
-				next_autochan = NULL) {
-			int igrp = !mygroup;
-			int ienf = !myenforced;
-
-			if (autochan->chan == prev) {
-				ast_autochan_destroy(autochan);
-				break;
-			}
-
-			if (ast_check_hangup(chan)) {
-				ast_autochan_destroy(autochan);
-				break;
-			}
-
-			ast_autochan_channel_lock(autochan);
-			if (ast_test_flag(flags, OPTION_BRIDGED)
-				&& !ast_channel_is_bridged(autochan->chan)) {
-				ast_autochan_channel_unlock(autochan);
-				continue;
-			}
-
-			if (ast_check_hangup(autochan->chan)
-				|| ast_test_flag(ast_channel_flags(autochan->chan), AST_FLAG_SPYING)) {
-				ast_autochan_channel_unlock(autochan);
-				continue;
-			}
-			ast_autochan_channel_unlock(autochan);
-
-			if (mygroup) {
-				int num_groups = 0;
-				int num_mygroups = 0;
-				char dup_group[512];
-				char dup_mygroup[512];
-				char *groups[NUM_SPYGROUPS];
-				char *mygroups[NUM_SPYGROUPS];
-				const char *group = NULL;
-				int x;
-				int y;
-				ast_copy_string(dup_mygroup, mygroup, sizeof(dup_mygroup));
-				num_mygroups = ast_app_separate_args(dup_mygroup, ':', mygroups,
-					ARRAY_LEN(mygroups));
-
-				/* Before dahdi scan was part of chanspy, it would use the "GROUP" variable
-				 * rather than "SPYGROUP", this check is done to preserve expected behavior */
-				ast_autochan_channel_lock(autochan);
-				if (ast_test_flag(flags, OPTION_DAHDI_SCAN)) {
-					group = pbx_builtin_getvar_helper(autochan->chan, "GROUP");
-				} else {
-					group = pbx_builtin_getvar_helper(autochan->chan, "SPYGROUP");
-				}
-				ast_autochan_channel_unlock(autochan);
-
-				if (!ast_strlen_zero(group)) {
-					ast_copy_string(dup_group, group, sizeof(dup_group));
-					num_groups = ast_app_separate_args(dup_group, ':', groups,
-						ARRAY_LEN(groups));
-				}
-
-				for (y = 0; y < num_mygroups; y++) {
-					for (x = 0; x < num_groups; x++) {
-						if (!strcmp(mygroups[y], groups[x])) {
-							igrp = 1;
-							break;
-						}
-					}
-				}
-			}
-
-			if (!igrp) {
-				continue;
-			}
-			if (myenforced) {
-				char ext[AST_CHANNEL_NAME + 3];
-				char buffer[512];
-				char *end;
-
-				snprintf(buffer, sizeof(buffer) - 1, ":%s:", myenforced);
-
-				ast_autochan_channel_lock(autochan);
-				ast_copy_string(ext + 1, ast_channel_name(autochan->chan), sizeof(ext) - 1);
-				ast_autochan_channel_unlock(autochan);
-				if ((end = strchr(ext, '-'))) {
-					*end++ = ':';
-					*end = '\0';
-				}
-
-				ext[0] = ':';
-
-				if (strcasestr(buffer, ext)) {
-					ienf = 1;
-				}
-			}
-
-			if (!ienf) {
-				continue;
-			}
-
-			if (!ast_test_flag(flags, OPTION_QUIET)) {
-				char peer_name[AST_NAME_STRLEN + 5];
-				char *ptr, *s;
-
-				strcpy(peer_name, "spy-");
-				ast_autochan_channel_lock(autochan);
-				strncat(peer_name, ast_channel_name(autochan->chan), AST_NAME_STRLEN - 4 - 1);
-				ast_autochan_channel_unlock(autochan);
-				if ((ptr = strchr(peer_name, '/'))) {
-					*ptr++ = '\0';
-					for (s = peer_name; s < ptr; s++) {
-						*s = tolower(*s);
-					}
-					if ((s = strchr(ptr, '-'))) {
-						*s = '\0';
-					}
-				}
-
-				if (ast_test_flag(flags, OPTION_NAME)) {
-					const char *local_context = S_OR(name_context, "default");
-					const char *local_mailbox = S_OR(mailbox, ptr);
-
-					if (local_mailbox) {
-						res = spy_sayname(chan, local_mailbox, local_context);
-					} else {
-						res = -1;
-					}
-				}
-				if (!ast_test_flag(flags, OPTION_NAME) || res < 0) {
-					int num;
-					if (!ast_test_flag(flags, OPTION_NOTECH)) {
-						if (ast_fileexists(peer_name, NULL, NULL) > 0) {
-							res = ast_streamfile(chan, peer_name, ast_channel_language(chan));
-							if (!res) {
-								res = ast_waitstream(chan, "");
-							}
-							if (res) {
-								ast_autochan_destroy(autochan);
-								break;
-							}
-						} else {
-							res = ast_say_character_str(chan, peer_name, "", ast_channel_language(chan), AST_SAY_CASE_NONE);
-						}
-					}
-					if (ptr && (num = atoi(ptr))) {
-						ast_say_digits(chan, num, "", ast_channel_language(chan));
-					}
-				}
-			}
-
-			res = channel_spy(chan, autochan, &volfactor, fd, user_options, flags, exitcontext);
-			num_spied_upon++;
-
-			if (res == -1) {
-				ast_autochan_destroy(autochan);
-				iter = ast_channel_iterator_destroy(iter);
-				goto exit;
-			} else if (res == -2) {
-				res = 0;
-				ast_autochan_destroy(autochan);
-				iter = ast_channel_iterator_destroy(iter);
-				goto exit;
-			} else if (res > 1 && spec && !ast_test_flag(flags, OPTION_UNIQUEID)) {
-				struct ast_channel *next;
-
-				snprintf(nameprefix, AST_NAME_STRLEN, "%s/%d", spec, res);
-
-				if ((next = ast_channel_get_by_name_prefix(nameprefix, strlen(nameprefix)))) {
-					next_autochan = ast_autochan_setup(next);
-					next = ast_channel_unref(next);
-				} else {
-					/* stay on this channel, if it is still valid */
-					ast_autochan_channel_lock(autochan);
-					if (!ast_check_hangup(autochan->chan)) {
-						next_autochan = ast_autochan_setup(autochan->chan);
-					} else {
-						/* the channel is gone */
-						next_autochan = NULL;
-					}
-					ast_autochan_channel_unlock(autochan);
-				}
-			} else if (res == 0 && ast_test_flag(flags, OPTION_EXITONHANGUP)) {
-				ast_autochan_destroy(autochan);
-				iter = ast_channel_iterator_destroy(iter);
-				goto exit;
-			}
+		if (res == -2) {
+			/* propagated stop */
+			res = 0;
+			break;
+		} else if (res == -1) {
+			/* stop because of error */
+			break;
+		} else if (ast_check_hangup(chan)) {
+			/* stop because spy hung up */
+			break;
 		}
 
-		iter = ast_channel_iterator_destroy(iter);
+		if (num_spied_upon == 0) {
+			if (ast_test_flag(flags, OPTION_STOP)) {
+				/* stop after one fully depleted iterator */
+				break;
+			}
 
-		if (res == -1 || ast_check_hangup(chan))
-			break;
-		if (ast_test_flag(flags, OPTION_STOP) && !next_autochan) {
-			break;
+			/* If we did spy on a channel, we'll keep the channels_spied_upon
+			 * list. If we spied on nothing, we'll wipe it so we
+			 * can restart the iteration. */
+			AST_VECTOR_RESET(&channels_spied_upon, free_const_ptr);
 		}
 	}
-exit:
+
+	if (iter) {
+		iter = ast_channel_iterator_destroy(iter);
+	}
+
+	/* Make sure we free our temp storage. */
+	AST_VECTOR_RESET(&channels_spied_upon, free_const_ptr);
+	AST_VECTOR_FREE(&channels_spied_upon);
 
 	ast_channel_clear_flag(chan, AST_FLAG_SPYING);
 
@@ -1295,8 +1369,6 @@ exit:
 
 static int chanspy_exec(struct ast_channel *chan, const char *data)
 {
-	char *myenforced = NULL;
-	char *mygroup = NULL;
 	char *recbase = NULL;
 	int fd = 0;
 	struct ast_flags flags;
@@ -1306,10 +1378,9 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 		.exit = '\0',
 	};
 	RAII_VAR(struct ast_format *, oldwf, NULL, ao2_cleanup);
+	struct channel_spy_context ctx = {0};
 	int volfactor = 0;
 	int res;
-	char *mailbox = NULL;
-	char *name_context = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(spec);
 		AST_APP_ARG(options);
@@ -1319,14 +1390,15 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (args.spec && !strcmp(args.spec, "all"))
-		args.spec = NULL;
+	if (args.spec && strcmp(args.spec, "all")) {
+		ctx.spec = args.spec;
+	}
 
 	if (args.options) {
 		char tmp;
 		ast_app_parse_options(spy_opts, &flags, opts, args.options);
 		if (ast_test_flag(&flags, OPTION_GROUP))
-			mygroup = opts[OPT_ARG_GROUP];
+			ctx.mygroup = opts[OPT_ARG_GROUP];
 
 		if (ast_test_flag(&flags, OPTION_RECORD) &&
 			!(recbase = opts[OPT_ARG_RECORD]))
@@ -1363,17 +1435,17 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 			ast_set_flag(&flags, OPTION_WHISPER);
 
 		if (ast_test_flag(&flags, OPTION_ENFORCED))
-			myenforced = opts[OPT_ARG_ENFORCED];
+			ctx.myenforced = opts[OPT_ARG_ENFORCED];
 
 		if (ast_test_flag(&flags, OPTION_NAME)) {
 			if (!ast_strlen_zero(opts[OPT_ARG_NAME])) {
 				char *delimiter;
 				if ((delimiter = strchr(opts[OPT_ARG_NAME], '@'))) {
-					mailbox = opts[OPT_ARG_NAME];
+					ctx.mailbox = opts[OPT_ARG_NAME];
 					*delimiter++ = '\0';
-					name_context = delimiter;
+					ctx.name_context = delimiter;
 				} else {
-					mailbox = opts[OPT_ARG_NAME];
+					ctx.mailbox = opts[OPT_ARG_NAME];
 				}
 			}
 		}
@@ -1397,7 +1469,7 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	res = common_exec(chan, &flags, volfactor, fd, &user_options, mygroup, myenforced, args.spec, NULL, NULL, mailbox, name_context);
+	res = common_exec(chan, &flags, volfactor, fd, &user_options, &ctx);
 
 	if (fd)
 		close(fd);
@@ -1414,8 +1486,7 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 
 static int extenspy_exec(struct ast_channel *chan, const char *data)
 {
-	char *ptr, *exten = NULL;
-	char *mygroup = NULL;
+	char *ptr;
 	char *recbase = NULL;
 	int fd = 0;
 	struct ast_flags flags;
@@ -1425,10 +1496,9 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 		.exit = '\0',
 	};
 	RAII_VAR(struct ast_format *, oldwf, NULL, ao2_cleanup);
+	struct channel_spy_context ctx = {0};
 	int volfactor = 0;
 	int res;
-	char *mailbox = NULL;
-	char *name_context = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(context);
 		AST_APP_ARG(options);
@@ -1438,12 +1508,13 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!ast_strlen_zero(args.context) && (ptr = strchr(args.context, '@'))) {
-		exten = args.context;
+		ctx.exten = args.context;
 		*ptr++ = '\0';
-		args.context = ptr;
+		ctx.context = ptr;
 	}
-	if (ast_strlen_zero(args.context))
-		args.context = ast_strdupa(ast_channel_context(chan));
+	if (ast_strlen_zero(ctx.context)) {
+		ctx.context = ast_strdupa(ast_channel_context(chan));
+	}
 
 	if (args.options) {
 		char *opts[OPT_ARG_ARRAY_SIZE];
@@ -1451,7 +1522,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 
 		ast_app_parse_options(spy_opts, &flags, opts, args.options);
 		if (ast_test_flag(&flags, OPTION_GROUP))
-			mygroup = opts[OPT_ARG_GROUP];
+			ctx.mygroup = opts[OPT_ARG_GROUP];
 
 		if (ast_test_flag(&flags, OPTION_RECORD) &&
 			!(recbase = opts[OPT_ARG_RECORD]))
@@ -1491,11 +1562,11 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 			if (!ast_strlen_zero(opts[OPT_ARG_NAME])) {
 				char *delimiter;
 				if ((delimiter = strchr(opts[OPT_ARG_NAME], '@'))) {
-					mailbox = opts[OPT_ARG_NAME];
+					ctx.mailbox = opts[OPT_ARG_NAME];
 					*delimiter++ = '\0';
-					name_context = delimiter;
+					ctx.name_context = delimiter;
 				} else {
-					mailbox = opts[OPT_ARG_NAME];
+					ctx.mailbox = opts[OPT_ARG_NAME];
 				}
 			}
 		}
@@ -1521,8 +1592,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-
-	res = common_exec(chan, &flags, volfactor, fd, &user_options, mygroup, NULL, NULL, exten, args.context, mailbox, name_context);
+	res = common_exec(chan, &flags, volfactor, fd, &user_options, &ctx);
 
 	if (fd)
 		close(fd);
@@ -1535,23 +1605,24 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 
 static int dahdiscan_exec(struct ast_channel *chan, const char *data)
 {
-	const char *spec = "DAHDI";
 	struct ast_flags flags = {0};
 	struct spy_dtmf_options user_options = {
 		.cycle = '#',
 		.volume = '\0',
 		.exit = '*',
 	};
+	struct channel_spy_context ctx = {0};
 	struct ast_format *oldwf;
 	int res;
-	char *mygroup = NULL;
 
 	/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
 	ast_clear_flag(&flags, AST_FLAGS_ALL);
 
 	if (!ast_strlen_zero(data)) {
-		mygroup = ast_strdupa(data);
+		ctx.mygroup = data;
 	}
+	ctx.spec = "DAHDI";
+
 	ast_set_flag(&flags, OPTION_DTMF_EXIT);
 	ast_set_flag(&flags, OPTION_DTMF_CYCLE);
 	ast_set_flag(&flags, OPTION_DAHDI_SCAN);
@@ -1563,7 +1634,7 @@ static int dahdiscan_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	res = common_exec(chan, &flags, 0, 0, &user_options, mygroup, NULL, spec, NULL, NULL, NULL, NULL);
+	res = common_exec(chan, &flags, 0, 0, &user_options, &ctx);
 
 	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
