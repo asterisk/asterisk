@@ -68,6 +68,7 @@ static const char *msg_format_map[] = {
 struct webchan_conf_global {
 	SORCERY_OBJECT(details);
 	enum webchan_control_msg_format control_msg_format;
+	int write_timeout;
 };
 
 /* This is from the perspective of the app, NOT Asterisk */
@@ -534,10 +535,15 @@ static struct ast_frame *dequeue_frame(struct websocket_pvt *instance)
 			 * We just need to send the data to the websocket.
 			 * The data should already be NULL terminated.
 			 */
-			ast_websocket_write_string(instance->websocket,
+			int res = ast_websocket_write_string(instance->websocket,
 				queued_frame->data.ptr);
-			ast_debug(4, "%s: Sent %s\n",
-				ast_channel_name(instance->channel), (char *)queued_frame->data.ptr);
+			if (res != 0) {
+				ast_log(LOG_ERROR, "%s: Unable to send event %s\n",
+					ast_channel_name(instance->channel), (char *)queued_frame->data.ptr);
+			} else {
+				ast_debug(4, "%s: Sent %s\n",
+					ast_channel_name(instance->channel), (char *)queued_frame->data.ptr);
+			}
 		}
 		/*
 		 * We do NOT send these to the core so we need to free
@@ -1214,6 +1220,14 @@ static int websocket_handoff_to_channel(struct websocket_pvt *instance)
 	}
 
 	/*
+	 * The way write timeouts are handled in iostream requires the socket to be
+	 * in non-blocking mode.  This is fine for reads as well because we already
+	 * set the websocket file descriptor on the channel and let it call
+	 * webchan_read() when data is available.
+	 */
+	ast_websocket_set_nonblock(instance->websocket);
+
+	/*
 	 * Tell res_http_websocket to accumulate incoming WebSocket CONTINUATION frames
 	 * into chunks of 1024 bytes and send us a TEXT or BINARY frame when the threshold
 	 * is reached.
@@ -1266,6 +1280,7 @@ static void _websocket_request_hangup(struct websocket_pvt *instance, int ast_ca
 static int webchan_write(struct ast_channel *ast, struct ast_frame *f)
 {
 	struct websocket_pvt *instance = ast_channel_tech_pvt(ast);
+	int res = 0;
 
 	if (!instance || !instance->websocket) {
 		ast_log(LOG_WARNING, "%s: WebSocket instance or client not found\n",
@@ -1295,8 +1310,13 @@ static int webchan_write(struct ast_channel *ast, struct ast_frame *f)
 		return -1;
 	}
 
-	return ast_websocket_write(instance->websocket, AST_WEBSOCKET_OPCODE_BINARY,
+	res = ast_websocket_write(instance->websocket, AST_WEBSOCKET_OPCODE_BINARY,
 		(char *)f->data.ptr, (uint64_t)f->datalen);
+	if (res != 0) {
+		ast_log(LOG_WARNING, "%s: WebSocket write failure\n", ast_channel_name(ast));
+	}
+
+	return res;
 }
 
 /*!
@@ -1311,6 +1331,10 @@ static int webchan_call(struct ast_channel *ast, const char *dest,
 {
 	struct websocket_pvt *instance = ast_channel_tech_pvt(ast);
 	enum ast_websocket_result result;
+	struct webchan_conf_global *global_cfg = ast_sorcery_retrieve_by_id(sorcery, "global", "global");
+	int global_write_timeout = global_cfg ? global_cfg->write_timeout : AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
+
+	ao2_cleanup(global_cfg);
 
 	if (!instance) {
 		ast_log(LOG_WARNING, "%s: WebSocket instance not found\n",
@@ -1346,6 +1370,21 @@ static int webchan_call(struct ast_channel *ast, const char *dest,
 			ast_channel_name(ast), dest, ast_websocket_result_to_str(result));
 		ast_channel_hangupcause_set(ast, AST_CAUSE_NO_ROUTE_DESTINATION);
 		return -1;
+	}
+
+	/*
+	 * If websocket_client->write_timeout was set in websocket_client.conf, it will
+	 * have been applied to the websocket by ast_websocket_client_connect() above.
+	 * If it wasn't set in websocket_client.conf, the value will be INT_MAX and
+	 * and ast_websocket_client_connect() will have set AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT
+	 * on the websocket.  However, the user may have set write_timeout in the global section
+	 * of chan_websocket.conf so if it wasn't set in websocket_client.conf, we'll now set
+	 * the websocket timeout to that.  If they  haven't set it in chan_websocket.conf either,
+	 * it'll default to AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT as well so the call below will
+	 * basically become a no-op.
+	 */
+	if (instance->client->write_timeout == INT_MAX) {
+		ast_websocket_set_timeout(instance->websocket, global_write_timeout);
 	}
 
 	return websocket_handoff_to_channel(instance);
@@ -1877,6 +1916,10 @@ static void incoming_ws_established_cb(struct ast_websocket *ast_ws_session,
 	struct ast_variable *v;
 	const char *connection_id = NULL;
 	struct websocket_pvt *instance = NULL;
+	struct webchan_conf_global *global_cfg = ast_sorcery_retrieve_by_id(sorcery, "global", "global");
+	int global_write_timeout = global_cfg ? global_cfg->write_timeout : AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
+
+	ao2_cleanup(global_cfg);
 
 	ast_debug(3, "WebSocket established\n");
 
@@ -1914,6 +1957,8 @@ static void incoming_ws_established_cb(struct ast_websocket *ast_ws_session,
 		return;
 	}
 	instance->websocket = ao2_bump(ast_ws_session);
+
+	ast_websocket_set_timeout(instance->websocket, global_write_timeout);
 
 	websocket_handoff_to_channel(instance);
 	ao2_cleanup(instance);
@@ -2066,6 +2111,11 @@ static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 	ast_debug(1, "control_msg_format: %s\n",
 		control_msg_format_to_str(cfg->control_msg_format));
 
+	if (cfg->write_timeout <= 0) {
+		ast_log(LOG_WARNING, "The write_timeout parameter must be > 0\n");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -2090,6 +2140,8 @@ static int load_config(void)
 
 	ast_sorcery_object_field_register_nodoc(sorcery, "global", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_register_cust(global, control_message_format, "plain-text");
+	ast_sorcery_register_int(global, webchan_conf_global, write_timeout, write_timeout,
+		AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT);
 
 	ast_sorcery_load(sorcery);
 

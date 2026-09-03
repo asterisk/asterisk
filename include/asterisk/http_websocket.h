@@ -548,6 +548,14 @@ struct ast_websocket_client_options {
 	int pingpongs;                   /*!< Enable Websocket PING/PONGs */
 	unsigned int pingpong_interval;  /*!< Send PING messages at this interval in seconds */
 	unsigned int pingpong_probes;    /*!< Close connection after this many missed responses */
+	/*!
+	 * Optional write timeout
+	 *
+	 * How long (in milliseconds) to wait for a write to the websocket to complete.
+	 * \warning This parameter is ignored if the WebSocket is in blocking mode.
+	 * Ensure ast_websocket_set_nonblock() is called before calling ast_websocket_write().
+	 */
+	int write_timeout;
 };
 
 /*!
@@ -588,6 +596,11 @@ AST_OPTIONAL_API(const char *, ast_websocket_client_accept_protocol,
  *
  * \since 11.11.0
  * \since 12.4.0
+ *
+ * \warning To be effective, the socket must be in non-blocking mode because the timeout
+ * can only be checked after a read or write operation returns. If the socket is in blocking
+ * mode (the default), those calls may block for longer than the specified timeout, possibly
+ * much longer.
  *
  * \retval 0 on success
  * \retval -1 on failure
