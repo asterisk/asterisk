@@ -1555,7 +1555,7 @@ static struct ast_websocket * websocket_client_create(
 	ws->client->version = 13;
 	ws->opcode = -1;
 	ws->reconstruct = DEFAULT_RECONSTRUCTION_CEILING;
-	ws->timeout = options->timeout;
+	ws->timeout = options->write_timeout;
 
 	return ws;
 }
@@ -1920,6 +1920,7 @@ struct ast_websocket *AST_OPTIONAL_API_NAME(ast_websocket_client_create)
 		.protocols = protocols,
 		.timeout = -1,
 		.tls_cfg = tls_cfg,
+		.write_timeout = AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT,
 	};
 
 	return ast_websocket_client_create_with_options(&options, result);

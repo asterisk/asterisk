@@ -52,6 +52,7 @@ enum ast_ws_client_fields {
 	AST_WS_CLIENT_FIELD_PINGPONGS =              (1ULL << 26),
 	AST_WS_CLIENT_FIELD_PINGPONG_INTERVAL =      (1ULL << 27),
 	AST_WS_CLIENT_FIELD_PINGPONG_PROBES =        (1ULL << 28),
+	AST_WS_CLIENT_FIELD_WRITE_TIMEOUT =          (1ULL << 29),
 	AST_WS_CLIENT_NEEDS_RECONNECT = AST_WS_CLIENT_FIELD_URI | AST_WS_CLIENT_FIELD_PROTOCOLS
 		| AST_WS_CLIENT_FIELD_CONNECTION_TYPE
 		| AST_WS_CLIENT_FIELD_USERNAME | AST_WS_CLIENT_FIELD_PASSWORD
@@ -65,7 +66,7 @@ enum ast_ws_client_fields {
 		| AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_TIME | AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_INTERVAL
 		| AST_WS_CLIENT_FIELD_TCP_KEEPALIVE_PROBES
 		| AST_WS_CLIENT_FIELD_PINGPONGS | AST_WS_CLIENT_FIELD_PINGPONG_INTERVAL
-		| AST_WS_CLIENT_FIELD_PINGPONG_PROBES,
+		| AST_WS_CLIENT_FIELD_PINGPONG_PROBES | AST_WS_CLIENT_FIELD_WRITE_TIMEOUT,
 };
 
 /*
@@ -105,6 +106,7 @@ struct ast_websocket_client {
 	int pingpongs;                   /*!< Enable WebSocket PING/PONGs */
 	unsigned int pingpong_interval;  /*!< Send WebSocket PINGs at this interval in seconds */
 	unsigned int pingpong_probes;    /*!< Close connection after this many missed PONG responses */
+	unsigned int write_timeout;      /*!< Write timeout (ms) */
 };
 
 /*!

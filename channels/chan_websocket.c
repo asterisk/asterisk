@@ -1219,6 +1219,7 @@ static void _websocket_request_hangup(struct websocket_pvt *instance, int ast_ca
 static int webchan_write(struct ast_channel *ast, struct ast_frame *f)
 {
 	struct websocket_pvt *instance = ast_channel_tech_pvt(ast);
+	int res = 0;
 
 	if (!instance || !instance->websocket) {
 		ast_log(LOG_WARNING, "%s: WebSocket instance or client not found\n",
@@ -1248,8 +1249,13 @@ static int webchan_write(struct ast_channel *ast, struct ast_frame *f)
 		return -1;
 	}
 
-	return ast_websocket_write(instance->websocket, AST_WEBSOCKET_OPCODE_BINARY,
+	res = ast_websocket_write(instance->websocket, AST_WEBSOCKET_OPCODE_BINARY,
 		(char *)f->data.ptr, (uint64_t)f->datalen);
+	if (res != 0) {
+		ast_log(LOG_WARNING, "%s: WebSocket write failure\n", ast_channel_name(ast));
+	}
+
+	return res;
 }
 
 /*!
@@ -1300,6 +1306,14 @@ static int webchan_call(struct ast_channel *ast, const char *dest,
 		ast_channel_hangupcause_set(ast, AST_CAUSE_NO_ROUTE_DESTINATION);
 		return -1;
 	}
+
+	/*
+	 * Setting non-blocking is required for write timeouts to work.
+	 * Ultimately this should be moved to websocket_handoff_to_channel()
+	 * but when we're the server, there's currently no way to set the
+	 * timeout.
+	 */
+	ast_websocket_set_nonblock(instance->websocket);
 
 	return websocket_handoff_to_channel(instance);
 }

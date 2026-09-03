@@ -14,6 +14,10 @@
 ;password = password           ; The authentication password for the username.
                                ; Default: none
 ;connection_timeout = 500      ; Connection timeout in milliseconds.
+                               ; The maximum number of milliseconds to wait for a connection
+                               ; to the WebSocket server to succeed. If the timer expires,
+                               ; reconnection will be attempted based on the settings of the
+                               ; reconnect_attempts and reconnect_interval parameters.
                                ; Default: 500
 ;reconnect_interval = 1000     ; Number of milliseconds between (re)connection
                                ; attempts.
@@ -24,6 +28,15 @@
                                ; always retry forever but this setting will control
                                ; how often failure messages are logged.
                                ; Default: 4 for both connection types.
+;write_timeout = 100           ; Write timeout in milliseconds.
+                               ; The maximum number of milliseconds to wait for a write
+                               ; to the WebSocket to succeed. If this connection is used
+                               ; by chan_websocket, the WebSocket will be closed and the
+                               ; channel hung up when the timeout is reached.
+                               ; NOTE: Success means the write request was accepted by the
+                               ; operating system and does not imply the payload was
+                               ; actually transmitted or received by the server.
+                               ; Default: 100
 ;tls_enabled = no              ; Set to "yes" to enable TLS connections.
                                ; Default: no
 ;ca_list_file = /etc/pki/tls/cert.pem

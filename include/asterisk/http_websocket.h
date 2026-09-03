@@ -548,6 +548,14 @@ struct ast_websocket_client_options {
 	int pingpongs;                   /*!< Enable Websocket PING/PONGs */
 	unsigned int pingpong_interval;  /*!< Send PING messages at this interval in seconds */
 	unsigned int pingpong_probes;    /*!< Close connection after this many missed responses */
+	/*!
+	 * Optional write timeout
+	 *
+	 * How long (in milliseconds) to wait for a write to the websocket to complete.
+	 * \warning This parameter is ignored if the WebSocket is in blocking mode.
+	 * Ensure ast_websocket_set_nonblock() is called before calling ast_websocket_write().
+	 */
+	unsigned int write_timeout;
 };
 
 /*!
