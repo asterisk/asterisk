@@ -139,6 +139,20 @@ verify_server_hostname = no
 						<version>22.5.0</version>
 					</since>
 					<synopsis>Connection timeout (ms).</synopsis>
+					<description>
+						<para>
+							The maximum number of milliseconds to wait for a connection
+							to the WebSocket server to succeed. If the timer expires,
+							reconnection will be attempted based on the settings of the
+							<literal>reconnect_attempts</literal> and <literal>reconnect_interval</literal>
+							parameters.
+						</para>
+					</description>
+					<see-also>
+						<ref type="configOption">write_timeout</ref>
+						<ref type="configOption">reconnect_attempts</ref>
+						<ref type="configOption">reconnect_interval</ref>
+					</see-also>
 				</configOption>
 				<configOption name="reconnect_attempts">
 					<since>
@@ -156,6 +170,10 @@ verify_server_hostname = no
 							how often failure messages are logged.
 						</para>
 					</description>
+					<see-also>
+						<ref type="configOption">connection_timeout</ref>
+						<ref type="configOption">reconnect_interval</ref>
+					</see-also>
 				</configOption>
 				<configOption name="reconnect_interval">
 					<since>
@@ -164,6 +182,38 @@ verify_server_hostname = no
 						<version>22.5.0</version>
 					</since>
 					<synopsis>How often should reconnection be attempted (ms)?</synopsis>
+					<see-also>
+						<ref type="configOption">connection_timeout</ref>
+						<ref type="configOption">reconnect_attempts</ref>
+					</see-also>
+				</configOption>
+				<configOption name="write_timeout">
+					<since>
+						<version>20.22.0</version>
+						<version>22.12.0</version>
+						<version>23.6.0</version>
+						<version>24.0.0</version>
+					</since>
+					<synopsis>Write timeout (ms).</synopsis>
+					<description>
+						<para>
+							The maximum number of milliseconds to wait for a write
+							to the WebSocket to succeed. If this connection is used
+							by chan_websocket, the WebSocket will be closed and the
+							channel hung up when the timeout is reached. The default
+							value is set by the module creating the client.
+						</para>
+						<note>
+							<para>
+							Success means the write request was accepted by the
+							operating system and does not imply the payload was
+							actually transmitted or received by the server.
+							</para>
+						</note>
+					</description>
+					<see-also>
+						<ref type="configOption">connection_timeout</ref>
+					</see-also>
 				</configOption>
 				<configOption name="tls_enabled">
 					<since>
@@ -397,6 +447,7 @@ struct ast_websocket *ast_websocket_client_connect(struct ast_websocket_client *
 			.username = wc->username,
 			.password = wc->password,
 			.timeout = wc->connect_timeout,
+			.write_timeout = wc->write_timeout != INT_MAX ? wc->write_timeout : AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT,
 			.suppress_connection_msgs = 1,
 			.proxy_host = wc->proxy_host,
 			.proxy_username = wc->proxy_username,
@@ -612,6 +663,12 @@ static int wc_apply(const struct ast_sorcery *sorcery, void *obj)
 			res = -1;
 		}
 	}
+
+	if (wc->write_timeout <= 0) {
+		ast_log(LOG_WARNING, "The write_timeout parameter must be > 0\n");
+		res = -1;
+	}
+
 	if (res != 0) {
 		ast_log(LOG_WARNING, "%s: Websocket client configuration failed\n", id);
 	} else {
@@ -720,6 +777,8 @@ enum ast_ws_client_fields ast_websocket_client_get_field_diff(
 			changed |= AST_WS_CLIENT_FIELD_PINGPONG_INTERVAL;
 		} else if (ast_strings_equal(v->name, "pingpong_probes")) {
 			changed |= AST_WS_CLIENT_FIELD_PINGPONG_PROBES;
+		} else if (ast_strings_equal(v->name, "write_timeout")) {
+			changed |= AST_WS_CLIENT_FIELD_WRITE_TIMEOUT;
 		} else {
 			ast_debug(2, "%s: Unknown change %s\n", new_id, v->name);
 		}
@@ -803,6 +862,11 @@ static int load_module(void)
 	ast_sorcery_register_bool(websocket_client, ast_websocket_client, enable_pingpongs, pingpongs, "no");
 	ast_sorcery_register_uint(websocket_client, ast_websocket_client, pingpong_interval, pingpong_interval, 20);
 	ast_sorcery_register_uint(websocket_client, ast_websocket_client, pingpong_probes, pingpong_probes, 3);
+	/*
+	 * The default for write_timeout needs to be INT_MAX so we can tell that it's not set.
+	 * This allows the modules using this capability to apply their own default value.
+	 */
+	ast_sorcery_register_int(websocket_client, ast_websocket_client, write_timeout, write_timeout, INT_MAX);
 
 	ast_sorcery_load(sorcery);
 
