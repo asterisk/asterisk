@@ -35,6 +35,34 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="write_timeout" default="100">
+					<since>
+						<version>20.22.0</version>
+						<version>22.12.0</version>
+						<version>23.6.0</version>
+						<version>24.0.0</version>
+					</since>
+					<synopsis>Write timeout (ms).</synopsis>
+					<description>
+						<para>
+							The maximum number of milliseconds to wait for a write
+							to the WebSocket to succeed. The WebSocket will be closed and the
+							channel hung up when the timeout is reached.  For outgoing
+							WebSocket connections, this sets the default timeout which can be
+							overridden in websocket_client.conf.
+						</para>
+						<note>
+							<para>
+							Success means the write request was accepted by the
+							operating system and does not imply the payload was
+							actually transmitted or received by the server.
+							</para>
+						</note>
+					</description>
+					<see-also>
+						<ref type="configOption" module="res_websocket_client">write_timeout</ref>
+					</see-also>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
