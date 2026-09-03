@@ -8,3 +8,15 @@
                                      ; json: All messages are properly formatted
                                      ; JSON.
                                      ; Default: plain-text
+
+;write_timeout = 100                 ; Write timeout in milliseconds.
+                                     ; The maximum number of milliseconds to wait for a write
+                                     ; to the WebSocket to succeed.  The WebSocket will be closed
+                                     ; and the channel hung up when the timeout is reached.
+                                     ; Outgoing WebSocket connections can override this in
+                                     ; websocket_client.conf.
+                                     ; NOTE: Success means the write request was accepted by the
+                                     ; operating system and does not imply the payload was
+                                     ; actually transmitted or received by the server.
+                                     ; Default: 100
+                                     

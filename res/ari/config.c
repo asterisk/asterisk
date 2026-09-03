@@ -461,6 +461,11 @@ static int general_apply(const struct ast_sorcery *sorcery, void *obj)
 
 	ast_debug(2, "Initializing general config\n");
 
+	if (general->write_timeout <= 0) {
+		ast_log(LOG_WARNING, "The websocket_write_timeout parameter must be > 0\n");
+		return -1;
+	}
+
 	parse = ast_strdupa(general->channelvars);
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -741,7 +746,6 @@ static int ari_conf_init(void)
 	ast_sorcery_register_cust(general, pretty, "no");
 	ast_sorcery_register_int(general, ari_conf_general, websocket_write_timeout, write_timeout,
 		AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT);
-
 
 	ast_sorcery_object_field_register(sorcery, "user", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_register_sf(user, ari_conf_user, password, password, "");
