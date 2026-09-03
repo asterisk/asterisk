@@ -30,12 +30,25 @@
 						<version>11.11.0</version>
 						<version>12.4.0</version>
 					</since>
-					<synopsis>The timeout (in milliseconds) to set on WebSocket connections.</synopsis>
+					<synopsis>Write timeout (ms).</synopsis>
 					<description>
-						<para>If a websocket connection accepts input slowly, the timeout
-						for writes to it can be increased to keep it from being disconnected.
-						Value is in milliseconds.</para>
+						<para>
+							The maximum number of milliseconds to wait for a write
+							to the WebSocket to succeed. The WebSocket will be closed
+							when the timeout is reached.  For outgoing WebSocket connections,
+							this sets the default timeout which can be overridden in websocket_client.conf.
+						</para>
+						<note>
+							<para>
+							Success means the write request was accepted by the
+							operating system and does not imply the payload was
+							actually transmitted or received by the server.
+							</para>
+						</note>
 					</description>
+					<see-also>
+						<ref type="configOption" module="res_websocket_client">write_timeout</ref>
+					</see-also>
 				</configOption>
 				<configOption name="pretty">
 					<since>
