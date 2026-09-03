@@ -89,6 +89,10 @@ void ast_iostream_set_timeout_idle_inactivity(struct ast_iostream *stream, int t
  * to complete an operation that can take several I/O calls.  The
  * main use is as an authentication timer with us.
  *
+ * \warning The timeout can only be checked after a read or write operation returns.
+ * If the socket is in blocking mode (the default), those calls may block for longer
+ * than the specified timeout, possibly much longer.
+ *
  * \note Setting timeout to -1 disables the timeout.
  * \note Setting this timeout replaces the inactivity timeout timer.
  */
