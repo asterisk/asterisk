@@ -102,56 +102,80 @@ static int send_keepalive(const void *data)
 }
 
 /*! \brief Check whether RTP is being received or not */
-static int rtp_check_timeout(const void *data)
+static int session_check_rtp_timeout(const void *data)
 {
-	struct ast_sip_session_media *session_media = (struct ast_sip_session_media *)data;
-	struct ast_rtp_instance *rtp = session_media->rtp;
-	struct ast_channel *chan;
-	int elapsed;
+	struct ast_sip_session_media_state *media_state;
+	int i;
 	int now;
 	int timeout;
+	int res = 0;
+	struct ast_sip_session *session = (struct ast_sip_session *)data;
 
-	if (!rtp) {
+	if (!session->channel) {
 		return 0;
 	}
 
-	chan = ast_channel_get_by_name(ast_rtp_instance_get_channel_id(rtp));
-	if (!chan) {
+	media_state = session->active_media_state;
+	if (!media_state) {
 		return 0;
 	}
 
-	/* Store these values locally to avoid multiple function calls */
+	timeout = session->use_rtp_timeout_hold ? session->endpoint->media.rtp.timeout_hold :
+		session->endpoint->media.rtp.timeout;
 	now = time(NULL);
-	timeout = ast_rtp_instance_get_timeout(rtp);
 
-	/* If the channel is not in UP state or call is redirected
-	 * outside Asterisk return for later check.
-	 */
-	if (ast_channel_state(chan) != AST_STATE_UP || !ast_sockaddr_isnull(&session_media->direct_media_addr)) {
-		/* Avoiding immediately disconnect after channel up or direct media has been stopped */
-		ast_rtp_instance_set_last_rx(rtp, now);
-		ast_channel_unref(chan);
-		/* Recheck after half timeout for avoiding possible races
-		* and faster reacting to cases while there is no an RTP at all.
-		*/
-		return timeout * 500;
+	for (i = 0; i < AST_VECTOR_SIZE(&media_state->sessions); i++) {
+		struct ast_sip_session_media *session_media;
+		struct ast_rtp_instance *rtp;
+		int elapsed;
+
+		session_media = AST_VECTOR_GET(&media_state->sessions, i);
+		if (!session_media) {
+			continue;
+		}
+
+		rtp = session_media->rtp;
+		if (!rtp) {
+			continue;
+		}
+
+		/* If the call is redirected outside Asterisk, check the channel
+		 * state. If it isn't UP, reschedule for half the timeout. Otherwise,
+		 * check the rest of the session medias.
+		 */
+		if (!ast_sockaddr_isnull(&session_media->direct_media_addr)) {
+			/* Avoiding immediate disconnect after channel up or direct media has been stopped */
+			ast_rtp_instance_set_last_rx(rtp, now);
+			/* If we don't see any RTP in the upcoming checks, recheck after
+			 * half timeout to avoid possible races and faster reacting to
+			 * cases while there is no RTP at all.
+			 */
+			res = timeout * 500;
+			if (ast_channel_state(session->channel) != AST_STATE_UP) {
+				return res;
+			}
+			continue;
+		}
+
+		elapsed = now - ast_rtp_instance_get_last_rx(rtp);
+		if (elapsed < timeout) {
+			return timeout * 1000;
+		}
 	}
 
-	elapsed = now - ast_rtp_instance_get_last_rx(rtp);
-	if (elapsed < timeout) {
-		ast_channel_unref(chan);
-		return (timeout - elapsed) * 1000;
+	/* We have a channel state != UP case, or direct media. */
+	if (res) {
+		return res;
 	}
 
-	ast_log(LOG_NOTICE, "Disconnecting channel '%s' for lack of %s RTP activity in %d seconds\n",
-		ast_channel_name(chan), ast_codec_media_type2str(session_media->type), elapsed);
+	ast_log(LOG_NOTICE, "Disconnecting channel '%s' for lack of RTP activity in %d seconds\n",
+		ast_channel_name(session->channel), timeout);
 
-	ast_channel_lock(chan);
-	ast_channel_hangupcause_set(chan, AST_CAUSE_REQUESTED_CHAN_UNAVAIL);
-	ast_channel_unlock(chan);
+	ast_channel_lock(session->channel);
+	ast_channel_hangupcause_set(session->channel, AST_CAUSE_REQUESTED_CHAN_UNAVAIL);
+	ast_channel_unlock(session->channel);
 
-	ast_softhangup(chan, AST_SOFTHANGUP_DEV);
-	ast_channel_unref(chan);
+	ast_softhangup(session->channel, AST_SOFTHANGUP_DEV);
 
 	return 0;
 }
@@ -2255,6 +2279,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	int res;
 	int rtp_timeout;
 	struct ast_sip_session_media *session_media_transport;
+	struct ast_stream_topology *stream_topology;
 	SCOPE_ENTER(1, "%s Stream: %s\n", ast_sip_session_get_name(session),
 		ast_str_tmp(128, ast_stream_to_str(asterisk_stream, &STR_TMP)));
 
@@ -2397,17 +2422,29 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	 * instance itself.
 	 */
 	ast_rtp_instance_set_timeout(session_media->rtp, 0);
-	if (session->endpoint->media.rtp.timeout && !session_media->remotely_held && !session_media->locally_held) {
-		ast_rtp_instance_set_timeout(session_media->rtp, session->endpoint->media.rtp.timeout);
-	} else if (session->endpoint->media.rtp.timeout_hold && (session_media->remotely_held || session_media->locally_held)) {
-		ast_rtp_instance_set_timeout(session_media->rtp, session->endpoint->media.rtp.timeout_hold);
-	}
 
-	rtp_timeout = ast_rtp_instance_get_timeout(session_media->rtp);
+	/* We only care about the first active stream when checking for RTP timeout values, since
+	 * it will be used to determine whether we use rtp.timeout or rtp.timeout_hold.
+	 */
+	stream_topology = ast_channel_get_stream_topology(session->channel);
+	if (ast_stream_topology_is_first_nonremoved_stream(stream_topology, asterisk_stream)) {
+		rtp_timeout = 0;
+		if (session->endpoint->media.rtp.timeout && !session_media->remotely_held && !session_media->locally_held) {
+			rtp_timeout = session->endpoint->media.rtp.timeout;
+			session->use_rtp_timeout_hold = 0;
+		} else if (session->endpoint->media.rtp.timeout_hold && (session_media->remotely_held || session_media->locally_held)) {
+			rtp_timeout = session->endpoint->media.rtp.timeout_hold;
+			session->use_rtp_timeout_hold = 1;
+		}
 
-	if (rtp_timeout) {
-		session_media->timeout_sched_id = ast_sched_add_variable(sched,	rtp_timeout*1000, rtp_check_timeout,
-			session_media, 1);
+		if (rtp_timeout) {
+			/* As the channel lock is not held during this process the scheduled item won't block if
+			 * it is hanging up the channel at the same point we are applying this negotiated SDP.
+			 */
+			AST_SCHED_DEL(sched, session->rtp_timeout_sched_id);
+			session->rtp_timeout_sched_id = ast_sched_add_variable(sched, rtp_timeout*1000, session_check_rtp_timeout,
+				session, 1);
+		}
 	}
 
 	SCOPE_EXIT_RTN_VALUE(1, "Handled\n");

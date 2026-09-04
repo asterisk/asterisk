@@ -985,6 +985,33 @@ struct ast_stream *ast_stream_topology_get_first_stream_by_type(
 	return NULL;
 }
 
+int ast_stream_topology_is_first_nonremoved_stream(
+	const struct ast_stream_topology *topology,
+	const struct ast_stream *stream)
+{
+	int i;
+
+	ast_assert(topology != NULL);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
+		struct ast_stream *cur_stream;
+
+		cur_stream = AST_VECTOR_GET(&topology->streams, i);
+		if (cur_stream->state == AST_STREAM_STATE_REMOVED) {
+			continue;
+		}
+
+		// TODO: verify stream is the one we are checking in the topology
+		if (stream->position == i) {
+			return 1;
+		}
+
+		return 0;
+	}
+
+	return 0;
+}
+
 void ast_stream_topology_map(const struct ast_stream_topology *topology,
 	struct ast_vector_int *types, struct ast_vector_int *v0, struct ast_vector_int *v1)
 {
