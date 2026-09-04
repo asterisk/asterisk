@@ -553,7 +553,6 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 		session_media->remote_ice = session->endpoint->media.rtp.ice_support;
 		session_media->remote_rtcp_mux = session->endpoint->media.rtcp_mux;
 		session_media->keepalive_sched_id = -1;
-		session_media->timeout_sched_id = -1;
 		session_media->type = type;
 		session_media->stream_num = position;
 
@@ -3004,6 +3003,12 @@ static void session_destructor(void *obj)
 		, session->contact ? ast_sorcery_object_get_id(session->contact) : "<none>"
 		);
 
+	if (session->rtp_timeout_sched_task) {
+		ast_sip_sched_task_cancel(session->rtp_timeout_sched_task);
+		ao2_ref(session->rtp_timeout_sched_task, -1);
+		session->rtp_timeout_sched_task = NULL;
+	}
+
 	/* fire session destroy handler */
 	handle_session_destroy(session);
 
@@ -3447,6 +3452,12 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 
 	if (!response) {
 		response = 603;
+	}
+
+	if (session->rtp_timeout_sched_task) {
+		ast_sip_sched_task_cancel(session->rtp_timeout_sched_task);
+		ao2_ref(session->rtp_timeout_sched_task, -1);
+		session->rtp_timeout_sched_task = NULL;
 	}
 
 	/* The media sessions need to exist for the lifetime of the underlying channel
@@ -5680,7 +5691,6 @@ static struct ast_sip_session_media *test_media_add(
 	}
 
 	session_media->keepalive_sched_id = -1;
-	session_media->timeout_sched_id = -1;
 	session_media->type = type;
 	session_media->stream_num = position;
 	session_media->bundle_group = -1;
