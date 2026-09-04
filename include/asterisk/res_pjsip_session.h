@@ -237,6 +237,10 @@ struct ast_sip_session {
 	unsigned int early_confirmed:1;
 	/*! Delayed BYE is waiting behind a UAC INVITE with a fallback timeout */
 	unsigned int terminate_on_invite_timeout:1;
+	/*! \brief Scheduler ID for RTP timeout */
+	int rtp_timeout_sched_id;
+	/*! \brief The RTP timeout scheduler task for this session */
+	struct ast_sip_sched_task *rtp_timeout_sched_task;
 	/*! DTMF mode to use with this session, from endpoint but can change */
 	enum ast_sip_dtmf_mode dtmf;
 	/*! Initial incoming INVITE Request-URI.  NULL otherwise. */
