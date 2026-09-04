@@ -902,6 +902,23 @@ struct ast_stream *ast_stream_topology_get_first_stream_by_type(
 	enum ast_media_type type);
 
 /*!
+ * \brief Checks the given stream to see if it is the first non-removed one in the topology
+ *
+ * \param topology The topology of streams
+ * \param stream The stream to check
+ *
+ * \retval 0 if not the first non-removed stream
+ * \retval 1 if the first non-removed stream
+ *
+ * \since 23.6.0
+ * \since 22.12.0
+ * \since 20.22.0
+ */
+int ast_stream_topology_is_first_nonremoved_stream(
+	const struct ast_stream_topology *topology,
+	const struct ast_stream *stream);
+
+/*!
  * \brief Map a given topology's streams to the given types.
  *
  * \note The given vectors in which mapping values are placed are reset by
