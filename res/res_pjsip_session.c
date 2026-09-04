@@ -553,7 +553,6 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 		session_media->remote_ice = session->endpoint->media.rtp.ice_support;
 		session_media->remote_rtcp_mux = session->endpoint->media.rtcp_mux;
 		session_media->keepalive_sched_id = -1;
-		session_media->timeout_sched_id = -1;
 		session_media->type = type;
 		session_media->stream_num = position;
 
@@ -3484,6 +3483,17 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 		response = 603;
 	}
 
+	/* We do this here instead of in hangup because everything should be
+	 * handled by the serializer. If, for some reason, something goes
+	 * wrong when hanging up and this never gets called, there are much
+	 * bigger problems going on
+	 */
+	if (session->rtp_timeout_sched_task) {
+		ast_sip_sched_task_cancel(session->rtp_timeout_sched_task);
+		ao2_ref(session->rtp_timeout_sched_task, -1);
+		session->rtp_timeout_sched_task = NULL;
+	}
+
 	/* The media sessions need to exist for the lifetime of the underlying channel
 	 * to ensure that anything (such as bridge_native_rtp) has access to them as
 	 * appropriate. Since ast_sip_session_terminate is called by chan_pjsip and other
@@ -5715,7 +5725,6 @@ static struct ast_sip_session_media *test_media_add(
 	}
 
 	session_media->keepalive_sched_id = -1;
-	session_media->timeout_sched_id = -1;
 	session_media->type = type;
 	session_media->stream_num = position;
 	session_media->bundle_group = -1;
