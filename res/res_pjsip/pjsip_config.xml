@@ -895,6 +895,29 @@
 						Maximum session timer expiration period. Time in seconds.
 					</para></description>
 				</configOption>
+				<configOption name="timers_refresher" default="auto">
+					<synopsis>Preferred session timer refresher for inbound call legs</synopsis>
+					<description>
+						<para>Controls which side refreshes the session when the
+						remote party sends a <literal>Session-Expires</literal>
+						header without a <literal>refresher</literal> parameter.
+						</para>
+						<enumlist>
+							<enum name="auto">
+								<para>Do not force a refresher. The session timer
+								refresher is selected by normal negotiation.</para>
+							</enum>
+							<enum name="uas">
+								<para>This side, as the UAS on the inbound call leg,
+								refreshes the session.</para>
+							</enum>
+							<enum name="uac">
+								<para>The remote side, as the UAC, refreshes the
+								session.</para>
+							</enum>
+						</enumlist>
+					</description>
+				</configOption>
 				<configOption name="transport">
 					<since>
 						<version>12.0.0</version>
