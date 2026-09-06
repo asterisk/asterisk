@@ -329,8 +329,8 @@ static int unbound_resolver_resolve(struct ast_dns_query *query)
 		ao2_bump(query), unbound_resolver_callback, &data->id);
 
 	if (res) {
-		ast_log(LOG_ERROR, "Failed to perform async DNS resolution of '%s'\n",
-			ast_dns_query_get_name(query));
+		ast_log(LOG_ERROR, "Failed to perform async DNS resolution of '%s': %s\n",
+			ast_dns_query_get_name(query), ub_strerror(res));
 		ao2_ref(query, -1);
 	}
 
