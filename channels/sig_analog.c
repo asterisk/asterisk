@@ -104,8 +104,12 @@ static const struct {
 	 * way to do this in the dialplan now. */
 };
 
+/*! \brief Whether a channel is FXS signaled */
 #define ISTRUNK(p) ((p->sig == ANALOG_SIG_FXSLS) || (p->sig == ANALOG_SIG_FXSKS) || \
 					(p->sig == ANALOG_SIG_FXSGS))
+
+/*! \brief Whether a channel is FXO signaled */
+#define IS_FXO_SIG(p) (((p)->sig == ANALOG_SIG_FXOKS) || ((p)->sig == ANALOG_SIG_FXOLS) || ((p)->sig == ANALOG_SIG_FXOGS))
 
 enum analog_sigtype analog_str_to_sigtype(const char *name)
 {
@@ -838,7 +842,7 @@ int analog_available(struct analog_pvt *p)
 	}
 
 	/* If it's not an FXO, forget about call wait */
-	if ((p->sig != ANALOG_SIG_FXOKS) && (p->sig != ANALOG_SIG_FXOLS) && (p->sig != ANALOG_SIG_FXOGS)) {
+	if (!IS_FXO_SIG(p)) {
 		return 0;
 	}
 
@@ -3228,7 +3232,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		analog_get_and_handle_alarms(p);
 		cause_code->ast_cause = AST_CAUSE_NETWORK_OUT_OF_ORDER;
 	case ANALOG_EVENT_ONHOOK:
-		if (p->calledsubscriberheld && (p->sig == ANALOG_SIG_FXOLS || p->sig == ANALOG_SIG_FXOGS || p->sig == ANALOG_SIG_FXOKS) && idx == ANALOG_SUB_REAL) {
+		if (p->calledsubscriberheld && IS_FXO_SIG(p) && idx == ANALOG_SUB_REAL) {
 			ast_debug(4, "Channel state on %s is %d\n", ast_channel_name(ast), ast_channel_state(ast));
 			/* Called Subscriber Held: don't let the called party hang up on an incoming call immediately (if it's the only call). */
 			if (p->subs[ANALOG_SUB_CALLWAIT].owner || p->subs[ANALOG_SUB_THREEWAY].owner) {
@@ -4421,7 +4425,7 @@ void analog_delete(struct analog_pvt *doomed)
 int analog_config_complete(struct analog_pvt *p)
 {
 	/* No call waiting on non FXS channels */
-	if ((p->sig != ANALOG_SIG_FXOKS) && (p->sig != ANALOG_SIG_FXOLS) && (p->sig != ANALOG_SIG_FXOGS)) {
+	if (!IS_FXO_SIG(p)) {
 		p->permcallwaiting = 0;
 	}
 
