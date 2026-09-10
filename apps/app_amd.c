@@ -77,10 +77,10 @@
 				<para>Is the maximum time allowed for the algorithm</para>
 				<para>to decide on whether the audio represents a HUMAN, or a MACHINE</para>
 			</parameter>
-			<parameter name="miniumWordLength" required="false">
+			<parameter name="minimumWordLength" required="false">
 				<para>Is the minimum duration of Voice considered to be a word</para>
 			</parameter>
-			<parameter name="betweenWordSilence" required="false">
+			<parameter name="betweenWordsSilence" required="false">
 				<para>Is the minimum duration of silence after a word to
 				consider the audio that follows to be a new word</para>
 			</parameter>
@@ -92,7 +92,7 @@
 				<para>What is the average level of noise from 0 to 32767 which if not exceeded, should be considered silence?</para>
 			</parameter>
 			<parameter name="maximumWordLength" required="false">
-				<para>Is the maximum duration of a word to accept.</para>
+				<para>Is the maximum duration of continuous voice to accept as a single word.</para>
 				<para>If exceeded, then the result is detection as a MACHINE</para>
 			</parameter>
 			<parameter name="audioFile" required="false">
@@ -107,9 +107,11 @@
 			of outbound calls. Simply call this application after the call
 			has been answered (outbound only, of course).</para>
 			<para>When loaded, AMD reads amd.conf and uses the parameters specified as
-			default values. Those default values get overwritten when the calling AMD
-			with parameters.</para>
-			<para>This application sets the following channel variables:</para>
+			default values. Those default values get overwritten when calling AMD
+			with parameters. All durations are specified in milliseconds.</para>
+			<para>This application sets the following channel variables, unless the detection
+			could not be performed at all, in which case both variables are set to the empty
+			string:</para>
 			<variablelist>
 				<variable name="AMDSTATUS">
 					<para>This is the status of the answering machine detection</para>
@@ -119,24 +121,29 @@
 					<value name="HANGUP" />
 				</variable>
 				<variable name="AMDCAUSE">
-					<para>Indicates the cause that led to the conclusion</para>
+					<para>Indicates the cause that led to the conclusion. The measurement
+					which triggered it, and for most causes the parameter value it
+					breached, are appended to the cause name, separated by <literal>-</literal>.</para>
 					<value name="TOOLONG">
 						Total Time.
 					</value>
+					<value name="NOAUDIODATA">
+						Total Time.
+					</value>
 					<value name="INITIALSILENCE">
-						Silence Duration - Initial Silence.
+						Silence Duration - initialSilence.
 					</value>
 					<value name="HUMAN">
 						Silence Duration - afterGreetingSilence.
 					</value>
 					<value name="LONGGREETING">
-						Voice Duration - Greeting.
+						Voice Duration - greeting.
 					</value>
 					<value name="MAXWORDLENGTH">
-						Word Length - max length of a single word.
+						Consecutive Voice Duration.
 					</value>
 					<value name="MAXWORDS">
-						Word Count - maximum number of words.
+						Word Count - maximumNumberOfWords.
 					</value>
 				</variable>
 			</variablelist>
