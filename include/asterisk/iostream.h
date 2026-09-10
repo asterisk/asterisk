@@ -142,6 +142,16 @@ int ast_iostream_get_fd(struct ast_iostream *stream);
 int ast_iostream_wait_for_input(struct ast_iostream *stream, int timeout);
 
 /*!
+ * \brief Check whether the iostream read buffer contains a complete line.
+ *
+ * \param stream A pointer to an iostream
+ *
+ * \retval 0 if no complete line is buffered
+ * \retval 1 if a complete line is buffered
+ */
+int ast_iostream_has_buffered_line(struct ast_iostream *stream);
+
+/*!
  * \brief Make an iostream non-blocking.
  *
  * \param stream A pointer to an iostream
