@@ -775,6 +775,10 @@ static struct ast_jb_conf global_jbconf;
 /*! \brief Signaling types that need to use MF detection should be placed in this macro */
 #define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FGC_CAMA) || ((p)->sig == SIG_FGC_CAMAMF) || ((p)->sig == SIG_FEATB))
 
+/*! \brief Whether a channel is FXO signaled */
+#define IS_FXO_SIG(p) (((p)->sig == SIG_FXOKS) || ((p)->sig == SIG_FXOLS) || ((p)->sig == SIG_FXOGS))
+#define CHAN_IS_FXO_SIG(sig) (sig == SIG_FXOKS || sig == SIG_FXOLS || sig == SIG_FXOGS)
+
 static const char tdesc[] = "DAHDI Telephony"
 #if defined(HAVE_PRI) || defined(HAVE_SS7) || defined(HAVE_OPENR2)
 	" w/"
@@ -8050,8 +8054,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				break;
 			}
 			/* Otherwise, immediate recall */
-			if ((p->sig == SIG_FXOLS) || (p->sig == SIG_FXOKS) || (p->sig == SIG_FXOGS))
-			{
+			if (IS_FXO_SIG(p)) {
 				/* Make sure it starts ringing */
 				dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_RINGOFF);
 				dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_RING);
@@ -8164,8 +8167,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		if (p->inalarm) break;
 		if (p->oprmode < 0)
 		{
-			if ((p->sig == SIG_FXOLS) || (p->sig == SIG_FXOKS) || (p->sig == SIG_FXOGS))
-			{
+			if (IS_FXO_SIG(p)) {
 				/* Make sure it stops ringing */
 				dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_RINGOFF);
 				tone_zone_play_tone(p->oprpeer->subs[SUB_REAL].dfd, -1);
@@ -9359,7 +9361,7 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 		return -1;
 	}
 
-	if (p->sig == SIG_FXOLS || p->sig == SIG_FXOKS || p->sig == SIG_FXOGS) {
+	if (IS_FXO_SIG(p)) {
 		struct analog_pvt *analog_p = p->sig_pvt;
 		if (analog_p->callwaitingdeluxepending) {
 			unsigned int mssinceflash = ast_tvdiff_ms(ast_tvnow(), analog_p->flashtime);
@@ -9759,7 +9761,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	if (state == AST_STATE_RING)
 		ast_channel_rings_set(tmp, 1);
 	ast_channel_tech_pvt_set(tmp, i);
-	if ((i->sig == SIG_FXOKS) || (i->sig == SIG_FXOGS) || (i->sig == SIG_FXOLS)) {
+	if (IS_FXO_SIG(i)) {
 		/* Only FXO signalled stuff can be picked up */
 		ast_channel_callgroup_set(tmp, i->callgroup);
 		ast_channel_pickupgroup_set(tmp, i->pickupgroup);
@@ -13125,7 +13127,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		}
 		tmp->ringt_base = ringt_base;
 		tmp->firstradio = 0;
-		if ((chan_sig == SIG_FXOKS) || (chan_sig == SIG_FXOLS) || (chan_sig == SIG_FXOGS))
+		if (CHAN_IS_FXO_SIG(chan_sig))
 			tmp->permcallwaiting = conf->chan.callwaiting;
 		else
 			tmp->permcallwaiting = 0;
@@ -18992,7 +18994,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "group")) {
 			confp->chan.group = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "callgroup")) {
-			if (!((confp->chan.sig == SIG_FXOKS) || (confp->chan.sig == SIG_FXOGS) || (confp->chan.sig == SIG_FXOLS))) {
+			if (!CHAN_IS_FXO_SIG(confp->chan.sig)) {
 				ast_log(LOG_WARNING, "Only FXO signalled channels may belong to a call group\n");
 			}
 			if (!strcasecmp(v->value, "none"))
@@ -19000,7 +19002,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			else
 				confp->chan.callgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
-			if (!((confp->chan.sig == SIG_FXOKS) || (confp->chan.sig == SIG_FXOGS) || (confp->chan.sig == SIG_FXOLS))) {
+			if (!CHAN_IS_FXO_SIG(confp->chan.sig)) {
 				ast_log(LOG_WARNING, "Only FXO signalled channels may belong to a pickup group\n");
 			}
 			if (!strcasecmp(v->value, "none"))
@@ -19008,12 +19010,12 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			else
 				confp->chan.pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "namedcallgroup")) {
-			if (!((confp->chan.sig == SIG_FXOKS) || (confp->chan.sig == SIG_FXOGS) || (confp->chan.sig == SIG_FXOLS))) {
+			if (!CHAN_IS_FXO_SIG(confp->chan.sig)) {
 				ast_log(LOG_WARNING, "Only FXO signalled channels may belong to a named call group\n");
 			}
 			confp->chan.named_callgroups = ast_get_namedgroups(v->value);
 		} else if (!strcasecmp(v->name, "namedpickupgroup")) {
-			if (!((confp->chan.sig == SIG_FXOKS) || (confp->chan.sig == SIG_FXOGS) || (confp->chan.sig == SIG_FXOLS))) {
+			if (!CHAN_IS_FXO_SIG(confp->chan.sig)) {
 				ast_log(LOG_WARNING, "Only FXO signalled channels may belong to a named pickup group\n");
 			}
 			confp->chan.named_pickupgroups = ast_get_namedgroups(v->value);
