@@ -1692,11 +1692,16 @@ static void send_request_wrapper_destructor(void *obj)
 }
 
 static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
-	pjsip_tx_data *tdata, pj_int32_t timeout, void *token, pjsip_endpt_send_callback cb)
+	pjsip_tx_data *tdata, pj_int32_t timeout, void *token, pjsip_endpt_send_callback cb,
+	pjsip_transaction **tsx)
 {
 	struct send_request_wrapper *req_wrapper;
 	pj_status_t ret_val;
 	pjsip_endpoint *endpt = ast_sip_get_pjsip_endpoint();
+
+	if (tsx) {
+		*tsx = NULL;
+	}
 
 	if (!cb && token) {
 		/* Silly.  Without a callback we cannot do anything with token. */
@@ -1753,7 +1758,14 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	 * transaction callback is executed.
 	 */
 	ao2_ref(req_wrapper, +1);
-	ret_val = pjsip_endpt_send_request(endpt, tdata, -1, req_wrapper, endpt_send_request_cb);
+	if (tsx) {
+		ret_val = pjsip_endpt_send_request2(endpt, tdata, -1, req_wrapper,
+			endpt_send_request_cb, tsx);
+	} else {
+		ret_val = pjsip_endpt_send_request(endpt, tdata, -1, req_wrapper,
+			endpt_send_request_cb);
+	}
+
 	if (ret_val != PJ_SUCCESS) {
 		char errmsg[PJ_ERR_MSG_SIZE];
 
@@ -1870,7 +1882,7 @@ static int check_request_status(struct send_request_data *req_data, pjsip_event 
 
 	if (res) {
 		res = endpt_send_request(endpoint, tdata, -1,
-					 req_data, send_request_cb) == PJ_SUCCESS;
+					 req_data, send_request_cb, NULL) == PJ_SUCCESS;
 	}
 
 	ao2_ref(endpoint, -1);
@@ -1888,9 +1900,10 @@ static void send_request_cb(void *token, pjsip_event *e)
 		case PJSIP_EVENT_TRANSPORT_ERROR:
 		case PJSIP_EVENT_TIMER:
 			/*
-			 * Check the request status on transport error or timeout. A transport
-			 * error can occur when a TCP socket closes and that can be the result
-			 * of a 503. Also we may need to failover on a timeout (408).
+			 * Check the request status on transport error, timeout or user event
+			 * (triggered by a user cancel). A transport error can occur when a
+			 * TCP socket closes and that can be the result of a 503. Also we may
+			 * need to failover on a timeout (408).
 			 */
 			if (check_request_status(req_data, e)) {
 				return;
@@ -1921,6 +1934,14 @@ static void send_request_cb(void *token, pjsip_event *e)
 				return;
 			}
 			break;
+		case PJSIP_EVENT_USER:
+			/*
+			 * User event is triggered by a user cancel.  We don't need to do
+			 * anything here other than invoke the callback.
+			 */
+			ast_debug(3, "User event received for request to endpoint %s\n",
+				ast_sorcery_object_get_id(req_data->endpoint));
+			break;
 		default:
 			ast_log(LOG_ERROR, "Unexpected PJSIP event %u\n", e->body.tsx_state.type);
 			break;
@@ -1933,9 +1954,9 @@ static void send_request_cb(void *token, pjsip_event *e)
 	ao2_ref(req_data, -1);
 }
 
-int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
+int ast_sip_send_out_of_dialog_request_with_tsx(pjsip_tx_data *tdata,
 	struct ast_sip_endpoint *endpoint, int timeout, void *token,
-	void (*callback)(void *token, pjsip_event *e))
+	void (*callback)(void *token, pjsip_event *e), pjsip_transaction **tsx)
 {
 	struct ast_sip_supplement *supplement;
 	struct send_request_data *req_data;
@@ -1965,13 +1986,21 @@ int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
 	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT, NULL);
 	ao2_cleanup(contact);
 
-	if (endpt_send_request(endpoint, tdata, timeout, req_data, send_request_cb)
+	if (endpt_send_request(endpoint, tdata, timeout, req_data, send_request_cb, tsx)
 		!= PJ_SUCCESS) {
 		ao2_cleanup(req_data);
 		return -1;
 	}
 
 	return 0;
+}
+
+int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
+	struct ast_sip_endpoint *endpoint, int timeout, void *token,
+	void (*callback)(void *token, pjsip_event *e))
+{
+	return ast_sip_send_out_of_dialog_request_with_tsx(tdata, endpoint, timeout,
+		token, callback, NULL);
 }
 
 int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
