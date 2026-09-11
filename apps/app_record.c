@@ -490,7 +490,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	}
 
 	ioflags = ast_test_flag(&flags, OPTION_APPEND) ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
-	s = ast_writefile(tmp, ext, NULL, ioflags, 0, AST_FILE_MODE);
+	s = ast_chan_writefile(chan, tmp, ext, NULL, ioflags, 0, AST_FILE_MODE);
 
 	if (!s) {
 		ast_log(LOG_WARNING, "Could not create file %s\n", args.filename);

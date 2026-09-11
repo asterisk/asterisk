@@ -307,6 +307,24 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 struct ast_filestream *ast_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
 
 /*!
+ * \brief Same as ast_writefile, but take a handle to the channel for duplicate recording avoidance
+ * \param chan The channel running the recording
+ * \param filename the name of the file to write to
+ * \param type format of file you wish to write out to
+ * \param comment comment to go with
+ * \param flags output file flags
+ * \param check (unimplemented, hence negligible)
+ * \param mode Open mode
+ * Create an outgoing file stream.  oflags are flags for the open() command, and
+ * if check is non-zero, then it will not write a file if there are any files that
+ * start with that name and have an extension
+ * Please note, this is a blocking function.  Program execution will not return until ast_waitstream completes it's execution.
+ * \return a struct ast_filestream on success.
+ * \retval NULL on failure.
+ */
+struct ast_filestream *ast_chan_writefile(struct ast_channel *chan, const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode);
+
+/*!
  * \brief Writes a frame to a stream
  * \param fs filestream to write to
  * \param f frame to write to the filestream

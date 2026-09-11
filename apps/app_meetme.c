@@ -5322,7 +5322,7 @@ static void *recordthread(void *args)
 			break;
 		}
 		if (!s && !(ast_strlen_zero(filename_buffer)) && (filename_buffer != oldrecordingfilename)) {
-			s = ast_writefile(filename_buffer, cnf->recordingformat, NULL, flags, 0, AST_FILE_MODE);
+			s = ast_chan_writefile(cnf->lchan, filename_buffer, cnf->recordingformat, NULL, flags, 0, AST_FILE_MODE);
 			oldrecordingfilename = filename_buffer;
 		}
 

@@ -516,11 +516,14 @@ struct mixmonitor_ds {
 	 * immediately during stop_mixmonitor or channel destruction. */
 	int fs_quit;
 
+	struct ast_channel *chan; /* The channel that set up the MixMonitor, for duplicate recording avoidance */
+
 	struct ast_filestream *fs;
 	struct ast_filestream *fs_read;
 	struct ast_filestream *fs_write;
 
 	struct ast_audiohook *audiohook;
+	struct ast_datastore *datastore;
 
 	unsigned int samp_rate;
 	char *filename;
@@ -820,6 +823,9 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 
 			last_slash = strrchr(filename, '/');
 
+			/* Pass filename to ast_chan_writefile before we butcher it */
+			*fs = ast_chan_writefile(mixmonitor->mixmonitor_ds->chan, filename, *ext, NULL, *oflags, 0, 0666);
+
 			if ((*ext = strrchr(filename, '.')) && (*ext > last_slash)) {
 				**ext = '\0';
 				*ext = *ext + 1;
@@ -827,7 +833,7 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 				*ext = "raw";
 			}
 
-			if (!(*fs = ast_writefile(filename, *ext, NULL, *oflags, 0, 0666))) {
+			if (!*fs) {
 				ast_log(LOG_ERROR, "Cannot open %s.%s\n", filename, *ext);
 				*errflag = 1;
 			} else {
@@ -875,8 +881,6 @@ static void *mixmonitor_thread(void *obj)
 		ast_callid_threadassoc_add(mixmonitor->callid);
 	}
 
-	ast_verb(2, "Begin MixMonitor Recording %s\n", mixmonitor->name);
-
 	fs = &mixmonitor->mixmonitor_ds->fs;
 	fs_read = &mixmonitor->mixmonitor_ds->fs_read;
 	fs_write = &mixmonitor->mixmonitor_ds->fs_write;
@@ -887,6 +891,40 @@ static void *mixmonitor_thread(void *obj)
 	mixmonitor_save_prep(mixmonitor, mixmonitor->filename_write, fs_write, &oflags, &errflag, &fs_write_ext);
 
 	format_slin = ast_format_cache_get_slin_by_rate(mixmonitor->mixmonitor_ds->samp_rate);
+
+	if (errflag) {
+		/* Tear everything down and exit. */
+		struct ast_datastore *datastore;
+
+		mixmonitor_ds_close_fs(mixmonitor->mixmonitor_ds);
+		mixmonitor->mixmonitor_ds->audiohook = NULL;
+
+		ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+
+		ast_autochan_channel_lock(mixmonitor->autochan);
+		ast_audiohook_remove(mixmonitor->autochan->chan, &mixmonitor->audiohook);
+		ast_autochan_channel_unlock(mixmonitor->autochan);
+		ast_autochan_destroy(mixmonitor->autochan);
+
+		datastore = mixmonitor->mixmonitor_ds->datastore;
+		if (!ast_channel_datastore_remove(mixmonitor->mixmonitor_ds->chan, datastore)) {
+			ast_datastore_free(datastore);
+		}
+
+		ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
+		if (!mixmonitor->mixmonitor_ds->destruction_ok) {
+			ast_cond_wait(&mixmonitor->mixmonitor_ds->destruction_condition, &mixmonitor->mixmonitor_ds->lock);
+		}
+		ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+
+		ast_audiohook_destroy(&mixmonitor->audiohook);
+		mixmonitor_free(mixmonitor);
+
+		ast_module_unref(ast_module_info->self);
+		return NULL;
+	}
+
+	ast_verb(2, "Begin MixMonitor Recording %s\n", mixmonitor->name);
 
 	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
 
@@ -1042,6 +1080,7 @@ frame_cleanup:
 	if (!mixmonitor->mixmonitor_ds->destruction_ok) {
 		ast_cond_wait(&mixmonitor->mixmonitor_ds->destruction_condition, &mixmonitor->mixmonitor_ds->lock);
 	}
+
 	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
 
 	/* Free the translate paths */
@@ -1135,12 +1174,14 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 		ast_autochan_channel_unlock(mixmonitor->autochan);
 	}
 
+	mixmonitor_ds->chan = chan;
 	mixmonitor_ds->samp_rate = 8000;
 	mixmonitor_ds->audiohook = &mixmonitor->audiohook;
 	mixmonitor_ds->filename = ast_strdup(mixmonitor->filename);
 	if (!ast_strlen_zero(beep_id)) {
 		mixmonitor_ds->beep_id = ast_strdup(beep_id);
 	}
+	mixmonitor_ds->datastore = datastore;
 	datastore->data = mixmonitor_ds;
 
 	ast_channel_lock(chan);
