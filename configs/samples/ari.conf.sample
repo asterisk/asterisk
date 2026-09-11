@@ -10,8 +10,9 @@ enabled = yes       ; When set to no, ARI support is disabled.
 ;
 ; Default write timeout to set on websockets. This value may need to be adjusted
 ; for connections where Asterisk must write a substantial amount of data and the
-; receiving clients are slow to process the received information. Value is in
-; milliseconds; default is 100 ms.
+; receiving clients are slow to process the received information.  Outgoing WebSocket
+; connections can override this in websocket_client.conf.
+; Value is in milliseconds; default is 100 ms.
 ;websocket_write_timeout = 100
 ;
 ; Display certain channel variables every time a channel-oriented
