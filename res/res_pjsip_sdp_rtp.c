@@ -562,7 +562,17 @@ static int set_caps(struct ast_sip_session *session,
 	get_codecs(session, stream, &codecs, session_media, peer);
 
 	/* get the joint capabilities between peer and endpoint */
-	ast_format_cap_get_compatible(caps, peer, joint);
+	
+	if (session->call_direction == AST_SIP_SESSION_INCOMING_CALL){
+		if (ast_test_flag(&session->endpoint->media.incoming_call_offer_pref, AST_SIP_CALL_CODEC_PREF_REMOTE)) {
+			ast_format_cap_get_compatible(peer, caps, joint);
+		} else {
+			ast_format_cap_get_compatible(caps, peer, joint);
+		}
+	} else {
+		ast_format_cap_get_compatible(caps, peer, joint);
+	}
+
 	if (!ast_format_cap_count(joint)) {
 		struct ast_str *usbuf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 		struct ast_str *thembuf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
