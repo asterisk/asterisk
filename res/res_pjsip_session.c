@@ -3011,6 +3011,8 @@ static void session_destructor(void *obj)
 	ast_sip_session_remove_supplements(session);
 	AST_LIST_HEAD_DESTROY(&session->supplements);
 
+	/* TODO: remove rtp timeout check from scheduler */
+
 	/* remove all saved media stats */
 	AST_VECTOR_RESET(&session->media_stats, ast_free);
 	AST_VECTOR_FREE(&session->media_stats);
@@ -3178,6 +3180,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	}
 
 	session->authentication_challenge_count = 0;
+	session->rtp_timeout_sched_id = -1;
 
 	/* Fire session begin handlers */
 	handle_session_begin(session);
