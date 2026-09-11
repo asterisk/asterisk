@@ -9826,12 +9826,22 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	ast_jb_configure(tmp, &global_jbconf);
 
 	/* Set initial device state */
-	ast_copy_string(device_name, ast_channel_name(tmp), sizeof(device_name));
-	dashptr = strrchr(device_name, '-');
-	if (dashptr) {
-		*dashptr = '\0';
+	if (IS_FXO_SIG(i) && idx == SUB_REAL && state == AST_STATE_RESERVED && !startpbx && requestor) {
+		/* In the case that an analog line is receiving a call, temporarily suppress device state updates.
+		 * If we updated the device state right now, the calculated device state would be "INUSE",
+		 * even though almost instantly, it will become "RINGING". This is problematic,
+		 * because many IP phones ignore INUSE -> RINGING transitions since that's not technically possible.
+		 * To prevent such a bogus transition, if this line is about to ring and is not already in use, skip the update.
+		 * The next update will correctly start device state at RINGING so everything works as devices expect. */
+		ast_debug(3, "Suppressing immediate device state update to prevent INUSE -> RINGING transition\n");
+	} else {
+		ast_copy_string(device_name, ast_channel_name(tmp), sizeof(device_name));
+		dashptr = strrchr(device_name, '-');
+		if (dashptr) {
+			*dashptr = '\0';
+		}
+		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, device_name);
 	}
-	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, device_name);
 
 	for (v = i->vars ; v ; v = v->next)
 		pbx_builtin_setvar_helper(tmp, v->name, v->value);
