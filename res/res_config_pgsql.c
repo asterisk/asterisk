@@ -39,6 +39,7 @@
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/cli.h"
+#include "asterisk/test.h"
 
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
 AST_THREADSTORAGE(sql_buf);
@@ -46,6 +47,8 @@ AST_THREADSTORAGE(findtable_buf);
 AST_THREADSTORAGE(where_buf);
 AST_THREADSTORAGE(escapebuf_buf);
 AST_THREADSTORAGE(semibuf_buf);
+AST_THREADSTORAGE(identifierbuf_buf);
+AST_THREADSTORAGE(tablebuf_buf);
 
 #define RES_CONFIG_PGSQL_CONF "res_pgsql.conf"
 
@@ -388,12 +391,70 @@ static struct columns *find_column(struct tables *t, const char *colname)
 #define IS_SQL_LIKE_CLAUSE(x) ((x) && ast_ends_with(x, " LIKE"))
 #define ESCAPE_CLAUSE (USE_BACKSLASH_AS_STRING ? " ESCAPE '\\'" : " ESCAPE '\\\\'")
 
+/*!
+ * \brief Append a double-quoted, properly escaped SQL identifier to buf.
+ *
+ * PostgreSQL identifiers that start with a digit, contain special
+ * characters, or collide with reserved keywords must be double-quoted.
+ * Any double quote within the identifier itself must be doubled.
+ *
+ * \param buf pointer to destination ast_str
+ * \param identifier the raw (unquoted) identifier, e.g. a column or table name
+ */
+static void pgsql_append_quoted_identifier(struct ast_str **buf, const char *identifier)
+{
+	const char *chunk;
+
+	ast_str_append(buf, 0, "%s", "\"");
+	for (chunk = identifier; *chunk; chunk++) {
+		if (*chunk == '"') {
+			ast_str_append(buf, 0, "%s", "\"\"");
+		} else {
+			ast_str_append(buf, 0, "%c", *chunk);
+		}
+	}
+	ast_str_append(buf, 0, "%s", "\"");
+}
+
+/*!
+ * \brief Quote an identifier that may carry a trailing operator clause.
+ *
+ * Some callers pass "name" values of the form "colname LIKE" or
+ * "colname =" (see IS_SQL_LIKE_CLAUSE()). Only the identifier portion
+ * (up to the first space) must be quoted; any trailing " LIKE"/" ="
+ * text is copied through unquoted.
+ *
+ * \param buf pointer to destination ast_str (reset before use)
+ * \param name the raw field name, optionally followed by " LIKE" or similar
+ */
+static void pgsql_quote_identifier_clause(struct ast_str **buf, const char *name)
+{
+	const char *space = strchr(name, ' ');
+	char *identifier;
+
+	ast_str_reset(*buf);
+
+	if (!space) {
+		pgsql_append_quoted_identifier(buf, name);
+		return;
+	}
+
+	identifier = ast_alloca(space - name + 1);
+	memcpy(identifier, name, space - name);
+	identifier[space - name] = '\0';
+
+	pgsql_append_quoted_identifier(buf, identifier);
+	ast_str_append(buf, 0, "%s", space);
+}
+
 static struct ast_variable *realtime_pgsql(const char *database, const char *tablename, const struct ast_variable *fields)
 {
 	RAII_VAR(PGresult *, result, NULL, PQclear);
 	int pgresult;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100);
 	struct ast_str *escapebuf = ast_str_thread_get(&escapebuf_buf, 100);
+	struct ast_str *namebuf = ast_str_thread_get(&identifierbuf_buf, 100);
+	struct ast_str *tablebuf = ast_str_thread_get(&tablebuf_buf, 100);
 	char *stringp;
 	char *chunk;
 	char *op;
@@ -452,7 +513,10 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		return NULL;
 	}
 
-	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'%s", tablename, field->name, op, ast_str_buffer(escapebuf), escape);
+	ast_str_reset(tablebuf);
+	pgsql_append_quoted_identifier(&tablebuf, tablename);
+	pgsql_quote_identifier_clause(&namebuf, field->name);
+	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'%s", ast_str_buffer(tablebuf), ast_str_buffer(namebuf), op, ast_str_buffer(escapebuf), escape);
 	while ((field = field->next)) {
 		escape = "";
 		if (!strchr(field->name, ' ')) {
@@ -471,7 +535,8 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 			return NULL;
 		}
 
-		ast_str_append(&sql, 0, " AND %s%s '%s'%s", field->name, op, ast_str_buffer(escapebuf), escape);
+		pgsql_quote_identifier_clause(&namebuf, field->name);
+		ast_str_append(&sql, 0, " AND %s%s '%s'%s", ast_str_buffer(namebuf), op, ast_str_buffer(escapebuf), escape);
 	}
 	ast_str_append(&sql, 0, " LIMIT 1");
 
@@ -528,6 +593,8 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	int num_rows = 0, pgresult;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100);
 	struct ast_str *escapebuf = ast_str_thread_get(&escapebuf_buf, 100);
+	struct ast_str *namebuf = ast_str_thread_get(&identifierbuf_buf, 100);
+	struct ast_str *tablebuf = ast_str_thread_get(&tablebuf_buf, 100);
 	const struct ast_variable *field = fields;
 	char *initfield = NULL;
 	char *stringp;
@@ -601,7 +668,10 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		return NULL;
 	}
 
-	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'%s", table, field->name, op, ast_str_buffer(escapebuf), escape);
+	ast_str_reset(tablebuf);
+	pgsql_append_quoted_identifier(&tablebuf, table);
+	pgsql_quote_identifier_clause(&namebuf, field->name);
+	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'%s", ast_str_buffer(tablebuf), ast_str_buffer(namebuf), op, ast_str_buffer(escapebuf), escape);
 	while ((field = field->next)) {
 		escape = "";
 		if (!strchr(field->name, ' ')) {
@@ -622,11 +692,14 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 			return NULL;
 		}
 
-		ast_str_append(&sql, 0, " AND %s%s '%s'%s", field->name, op, ast_str_buffer(escapebuf), escape);
+		pgsql_quote_identifier_clause(&namebuf, field->name);
+		ast_str_append(&sql, 0, " AND %s%s '%s'%s", ast_str_buffer(namebuf), op, ast_str_buffer(escapebuf), escape);
 	}
 
 	if (initfield && order_multi_row_results_by_initial_column) {
-		ast_str_append(&sql, 0, " ORDER BY %s", initfield);
+		ast_str_reset(namebuf);
+		pgsql_append_quoted_identifier(&namebuf, initfield);
+		ast_str_append(&sql, 0, " ORDER BY %s", ast_str_buffer(namebuf));
 	}
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
@@ -707,6 +780,8 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 	const struct ast_variable *field = fields;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100);
 	struct ast_str *escapebuf = ast_str_thread_get(&escapebuf_buf, 100);
+	struct ast_str *namebuf = ast_str_thread_get(&identifierbuf_buf, 100);
+	struct ast_str *tablebuf = ast_str_thread_get(&tablebuf_buf, 100);
 	struct tables *table;
 	struct columns *column = NULL;
 
@@ -774,7 +849,11 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 		release_table(table);
 		return -1;
 	}
-	ast_str_set(&sql, 0, "UPDATE %s SET %s = '%s'", tablename, field->name, ast_str_buffer(escapebuf));
+	ast_str_reset(tablebuf);
+	pgsql_append_quoted_identifier(&tablebuf, tablename);
+	ast_str_reset(namebuf);
+	pgsql_append_quoted_identifier(&namebuf, field->name);
+	ast_str_set(&sql, 0, "UPDATE %s SET %s = '%s'", ast_str_buffer(tablebuf), ast_str_buffer(namebuf), ast_str_buffer(escapebuf));
 
 	while ((field = field->next)) {
 		if (!find_column(table, field->name)) {
@@ -790,7 +869,9 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 			return -1;
 		}
 
-		ast_str_append(&sql, 0, ", %s = '%s'", field->name, ast_str_buffer(escapebuf));
+		ast_str_reset(namebuf);
+		pgsql_append_quoted_identifier(&namebuf, field->name);
+		ast_str_append(&sql, 0, ", %s = '%s'", ast_str_buffer(namebuf), ast_str_buffer(escapebuf));
 	}
 	release_table(table);
 
@@ -801,7 +882,9 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 		return -1;
 	}
 
-	ast_str_append(&sql, 0, " WHERE %s = '%s'", keyfield, ast_str_buffer(escapebuf));
+	ast_str_reset(namebuf);
+	pgsql_append_quoted_identifier(&namebuf, keyfield);
+	ast_str_append(&sql, 0, " WHERE %s = '%s'", ast_str_buffer(namebuf), ast_str_buffer(escapebuf));
 
 	ast_debug(1, "PostgreSQL RealTime: Update SQL: %s\n", ast_str_buffer(sql));
 
@@ -849,6 +932,8 @@ static int update2_pgsql(const char *database, const char *tablename, const stru
 	const struct ast_variable *field;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100);
 	struct ast_str *where = ast_str_thread_get(&where_buf, 100);
+	struct ast_str *namebuf = ast_str_thread_get(&identifierbuf_buf, 100);
+	struct ast_str *tablebuf = ast_str_thread_get(&tablebuf_buf, 100);
 	struct tables *table;
 
 	/*
@@ -883,7 +968,9 @@ static int update2_pgsql(const char *database, const char *tablename, const stru
 		return -1;
 	}
 
-	ast_str_set(&sql, 0, "UPDATE %s SET", tablename);
+	ast_str_reset(tablebuf);
+	pgsql_append_quoted_identifier(&tablebuf, tablename);
+	ast_str_set(&sql, 0, "UPDATE %s SET", ast_str_buffer(tablebuf));
 	ast_str_set(&where, 0, " WHERE");
 
 	for (field = lookup_fields; field; field = field->next) {
@@ -901,7 +988,9 @@ static int update2_pgsql(const char *database, const char *tablename, const stru
 			release_table(table);
 			return -1;
 		}
-		ast_str_append(&where, 0, "%s %s='%s'", first ? "" : " AND", field->name, ast_str_buffer(escapebuf));
+		ast_str_reset(namebuf);
+		pgsql_append_quoted_identifier(&namebuf, field->name);
+		ast_str_append(&where, 0, "%s %s='%s'", first ? "" : " AND", ast_str_buffer(namebuf), ast_str_buffer(escapebuf));
 		first = 0;
 	}
 
@@ -934,7 +1023,9 @@ static int update2_pgsql(const char *database, const char *tablename, const stru
 			return -1;
 		}
 
-		ast_str_append(&sql, 0, "%s %s='%s'", first ? "" : ",", field->name, ast_str_buffer(escapebuf));
+		ast_str_reset(namebuf);
+		pgsql_append_quoted_identifier(&namebuf, field->name);
+		ast_str_append(&sql, 0, "%s %s='%s'", first ? "" : ",", ast_str_buffer(namebuf), ast_str_buffer(escapebuf));
 		first = 0;
 	}
 	release_table(table);
@@ -974,6 +1065,8 @@ static int store_pgsql(const char *database, const char *table, const struct ast
 	struct ast_str *buf = ast_str_thread_get(&escapebuf_buf, 256);
 	struct ast_str *sql1 = ast_str_thread_get(&sql_buf, 256);
 	struct ast_str *sql2 = ast_str_thread_get(&where_buf, 256);
+	struct ast_str *namebuf = ast_str_thread_get(&identifierbuf_buf, 100);
+	struct ast_str *tablebuf = ast_str_thread_get(&tablebuf_buf, 100);
 	int pgresult;
 	const struct ast_variable *field = fields;
 
@@ -1012,13 +1105,17 @@ static int store_pgsql(const char *database, const char *table, const struct ast
 
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
-	ESCAPE_STRING(buf, field->name);
-	ast_str_set(&sql1, 0, "INSERT INTO %s (%s", table, ast_str_buffer(buf));
+	ast_str_reset(tablebuf);
+	pgsql_append_quoted_identifier(&tablebuf, table);
+	ast_str_reset(namebuf);
+	pgsql_append_quoted_identifier(&namebuf, field->name);
+	ast_str_set(&sql1, 0, "INSERT INTO %s (%s", ast_str_buffer(tablebuf), ast_str_buffer(namebuf));
 	ESCAPE_STRING(buf, field->value);
 	ast_str_set(&sql2, 0, ") VALUES ('%s'", ast_str_buffer(buf));
 	while ((field = field->next)) {
-		ESCAPE_STRING(buf, field->name);
-		ast_str_append(&sql1, 0, ", %s", ast_str_buffer(buf));
+		ast_str_reset(namebuf);
+		pgsql_append_quoted_identifier(&namebuf, field->name);
+		ast_str_append(&sql1, 0, ", %s", ast_str_buffer(namebuf));
 		ESCAPE_STRING(buf, field->value);
 		ast_str_append(&sql2, 0, ", '%s'", ast_str_buffer(buf));
 	}
@@ -1056,7 +1153,9 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 	int numrows = 0;
 	int pgresult;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 256);
-	struct ast_str *buf1 = ast_str_thread_get(&where_buf, 60), *buf2 = ast_str_thread_get(&escapebuf_buf, 60);
+	struct ast_str *buf2 = ast_str_thread_get(&escapebuf_buf, 60);
+	struct ast_str *namebuf = ast_str_thread_get(&identifierbuf_buf, 100);
+	struct ast_str *tablebuf = ast_str_thread_get(&tablebuf_buf, 100);
 	const struct ast_variable *field;
 
 	/*
@@ -1095,13 +1194,17 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 
-	ESCAPE_STRING(buf1, keyfield);
+	ast_str_reset(tablebuf);
+	pgsql_append_quoted_identifier(&tablebuf, table);
+	ast_str_reset(namebuf);
+	pgsql_append_quoted_identifier(&namebuf, keyfield);
 	ESCAPE_STRING(buf2, lookup);
-	ast_str_set(&sql, 0, "DELETE FROM %s WHERE %s = '%s'", table, ast_str_buffer(buf1), ast_str_buffer(buf2));
+	ast_str_set(&sql, 0, "DELETE FROM %s WHERE %s = '%s'", ast_str_buffer(tablebuf), ast_str_buffer(namebuf), ast_str_buffer(buf2));
 	for (field = fields; field; field = field->next) {
-		ESCAPE_STRING(buf1, field->name);
+		ast_str_reset(namebuf);
+		pgsql_append_quoted_identifier(&namebuf, field->name);
 		ESCAPE_STRING(buf2, field->value);
-		ast_str_append(&sql, 0, " AND %s = '%s'", ast_str_buffer(buf1), ast_str_buffer(buf2));
+		ast_str_append(&sql, 0, " AND %s = '%s'", ast_str_buffer(namebuf), ast_str_buffer(buf2));
 	}
 
 	ast_debug(1, "PostgreSQL RealTime: Delete SQL: %s\n", ast_str_buffer(sql));
@@ -1139,6 +1242,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 	struct ast_variable *new_v;
 	struct ast_category *cur_cat = NULL;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100);
+	struct ast_str *tablebuf = ast_str_thread_get(&tablebuf_buf, 100);
 	char last[80];
 	int last_cat_metric = 0;
 
@@ -1155,9 +1259,11 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 		return NULL;
 	}
 
+	ast_str_reset(tablebuf);
+	pgsql_append_quoted_identifier(&tablebuf, table);
 	ast_str_set(&sql, 0, "SELECT category, var_name, var_val, cat_metric FROM %s "
 			"WHERE filename='%s' and commented=0 "
-			"ORDER BY cat_metric DESC, var_metric ASC, category, var_name ", table, file);
+			"ORDER BY cat_metric DESC, var_metric ASC, category, var_name ", ast_str_buffer(tablebuf), file);
 
 	ast_debug(1, "PostgreSQL RealTime: Static SQL: %s\n", ast_str_buffer(sql));
 
@@ -1318,7 +1424,16 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 					ast_free(sql);
 					continue;
 				}
-				ast_str_set(&sql, 0, "ALTER TABLE %s ADD COLUMN %s %s", tablename, elm, fieldtype);
+				{
+					struct ast_str *tablebuf = ast_str_create(100);
+					struct ast_str *namebuf = ast_str_create(100);
+
+					pgsql_append_quoted_identifier(&tablebuf, tablename);
+					pgsql_append_quoted_identifier(&namebuf, elm);
+					ast_str_set(&sql, 0, "ALTER TABLE %s ADD COLUMN %s %s", ast_str_buffer(tablebuf), ast_str_buffer(namebuf), fieldtype);
+					ast_free(tablebuf);
+					ast_free(namebuf);
+				}
 				ast_debug(1, "About to lock pgsql_lock (running alter on table '%s' to add column '%s')\n", tablename, elm);
 
 				ast_mutex_lock(&pgsql_lock);
@@ -1387,6 +1502,74 @@ static struct ast_config_engine pgsql_engine = {
 	.unload_func = unload_pgsql,
 };
 
+#ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_pgsql_quote_identifier)
+{
+	struct ast_str *buf;
+	int res = AST_TEST_PASS;
+	int i;
+	struct {
+		const char *input;
+		const char *expected;
+	} identifier_cases[] = {
+		{ "webrtc", "\"webrtc\"" },
+		{ "100rel", "\"100rel\"" },
+		{ "direct_media", "\"direct_media\"" },
+		{ "col\"with\"quotes", "\"col\"\"with\"\"quotes\"" },
+	};
+	struct {
+		const char *input;
+		const char *expected;
+	} clause_cases[] = {
+		{ "100rel", "\"100rel\"" },
+		{ "100rel LIKE", "\"100rel\" LIKE" },
+		{ "webrtc =", "\"webrtc\" =" },
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "test_pgsql_quote_identifier";
+		info->category = "/res/res_config_pgsql/";
+		info->summary = "Test PostgreSQL RealTime identifier quoting";
+		info->description =
+			"Verify that column/table identifiers that start with a digit, "
+			"contain special characters, or carry a trailing operator clause "
+			"are correctly double-quoted for PostgreSQL queries.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(buf = ast_str_create(64))) {
+		ast_test_status_update(test, "Failed to allocate ast_str\n");
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(identifier_cases); i++) {
+		ast_str_reset(buf);
+		pgsql_append_quoted_identifier(&buf, identifier_cases[i].input);
+		if (strcmp(ast_str_buffer(buf), identifier_cases[i].expected)) {
+			ast_test_status_update(test, "Identifier '%s': expected '%s', got '%s'\n",
+				identifier_cases[i].input, identifier_cases[i].expected, ast_str_buffer(buf));
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	for (i = 0; i < ARRAY_LEN(clause_cases); i++) {
+		pgsql_quote_identifier_clause(&buf, clause_cases[i].input);
+		if (strcmp(ast_str_buffer(buf), clause_cases[i].expected)) {
+			ast_test_status_update(test, "Clause '%s': expected '%s', got '%s'\n",
+				clause_cases[i].input, clause_cases[i].expected, ast_str_buffer(buf));
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	ast_free(buf);
+
+	return res;
+}
+#endif
+
 static int load_module(void)
 {
 	if(!parse_config(0))
@@ -1396,12 +1579,17 @@ static int load_module(void)
 
 	ast_cli_register_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
 
+	AST_TEST_REGISTER(test_pgsql_quote_identifier);
+
 	return 0;
 }
 
 static int unload_module(void)
 {
 	struct tables *table;
+
+	AST_TEST_UNREGISTER(test_pgsql_quote_identifier);
+
 	/* Acquire control before doing anything to the module itself. */
 	ast_mutex_lock(&pgsql_lock);
 
