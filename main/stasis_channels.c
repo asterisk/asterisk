@@ -1630,6 +1630,20 @@ static struct ast_json *tone_detect_to_json(struct stasis_message *message,
 	return channel_blob_to_json(message, "ChannelToneDetected", sanitize);
 }
 
+static struct ast_json *message_delivery_status_to_json(
+	struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
+{
+	return channel_blob_to_json(message, "ChannelMessageDeliveryStatus", sanitize);
+}
+
+static struct ast_json *message_received_to_json(
+	struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
+{
+	return channel_blob_to_json(message, "ChannelMessageReceived", sanitize);
+}
+
 static struct ast_json *unhold_to_json(struct stasis_message *message,
 	const struct stasis_message_sanitizer *sanitize)
 {
@@ -1880,6 +1894,12 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_talking_stop,
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_tone_detect,
 	.to_json = tone_detect_to_json,
 	);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_message_delivery_status_type,
+	.to_json = message_delivery_status_to_json,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_message_received_type,
+	.to_json = message_received_to_json,
+	);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_transfer_request_type,
 	.to_json = ari_transfer_to_json,
 	);
@@ -1920,6 +1940,8 @@ static void stasis_channels_cleanup(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_talking_start);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_talking_stop);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_tone_detect);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_message_delivery_status_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_message_received_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_transfer_request_type);
 }
 
@@ -1973,6 +1995,8 @@ int ast_stasis_channels_init(void)
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_talking_start);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_talking_stop);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_tone_detect);
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_message_delivery_status_type);
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_message_received_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_transfer_request_type);
 
 	return res;

@@ -52,12 +52,16 @@
 #include "asterisk/test.h"
 #include "asterisk/stream.h"
 #include "asterisk/vector.h"
+#include "asterisk/message.h"
 
 #include "res_pjsip_session/pjsip_session.h"
 
 #define SDP_HANDLER_BUCKETS 11
 
 #define MOD_DATA_ON_RESPONSE "on_response"
+
+AST_RWLOCK_DEFINE_STATIC(message_tracker_lock);
+static struct ast_sip_session_message_tracker *message_tracker;
 
 /* Most common case is one audio and one video stream */
 #define DEFAULT_NUM_SESSION_MEDIA 2
@@ -2900,6 +2904,204 @@ static pjsip_module session_reinvite_module = {
 	.priority = PJSIP_MOD_PRIORITY_UA_PROXY_LAYER - 1,
 	.on_rx_request = session_reinvite_on_rx_request,
 };
+
+int ast_sip_session_register_message_tracker_with_module(struct ast_module *module,
+	struct ast_sip_session_message_tracker *tracker)
+{
+	if (!tracker || (!tracker->request_prepared && !tracker->send_failed)) {
+		return -1;
+	}
+
+	ast_rwlock_wrlock(&message_tracker_lock);
+	if (message_tracker && message_tracker != tracker) {
+		ast_log(LOG_WARNING, "In-dialog MESSAGE tracker already registered\n");
+		ast_rwlock_unlock(&message_tracker_lock);
+		return -1;
+	}
+
+	tracker->module = module;
+	message_tracker = tracker;
+	ast_rwlock_unlock(&message_tracker_lock);
+
+	return 0;
+}
+
+void ast_sip_session_unregister_message_tracker(struct ast_sip_session_message_tracker *tracker)
+{
+	ast_rwlock_wrlock(&message_tracker_lock);
+	if (message_tracker == tracker) {
+		message_tracker = NULL;
+		tracker->module = NULL;
+	}
+	ast_rwlock_unlock(&message_tracker_lock);
+}
+
+static int message_tracker_request_prepared(struct ast_sip_session *session,
+	struct ast_msg_data *msg, pjsip_tx_data *tdata)
+{
+	struct ast_sip_session_message_tracker *tracker;
+	struct ast_module *module = NULL;
+	int (*request_prepared)(struct ast_sip_session *session,
+		struct ast_msg_data *msg, struct pjsip_tx_data *tdata) = NULL;
+	int res = 0;
+
+	ast_rwlock_rdlock(&message_tracker_lock);
+	tracker = message_tracker;
+	if (tracker && tracker->request_prepared) {
+		module = ast_module_ref(tracker->module);
+		request_prepared = tracker->request_prepared;
+	}
+	ast_rwlock_unlock(&message_tracker_lock);
+
+	if (request_prepared) {
+		res = request_prepared(session, msg, tdata);
+		ast_module_unref(module);
+	}
+
+	return res;
+}
+
+static void message_tracker_send_failed(struct ast_sip_session *session,
+	struct ast_msg_data *msg, int sip_status_code, const char *reason)
+{
+	struct ast_sip_session_message_tracker *tracker;
+	struct ast_module *module = NULL;
+	void (*send_failed)(struct ast_sip_session *session,
+		struct ast_msg_data *msg, int sip_status_code, const char *reason) = NULL;
+
+	ast_rwlock_rdlock(&message_tracker_lock);
+	tracker = message_tracker;
+	if (tracker && tracker->send_failed) {
+		module = ast_module_ref(tracker->module);
+		send_failed = tracker->send_failed;
+	}
+	ast_rwlock_unlock(&message_tracker_lock);
+
+	if (send_failed) {
+		send_failed(session, msg, sip_status_code, reason);
+		ast_module_unref(module);
+	}
+}
+
+static void update_message_display_names(pjsip_tx_data *tdata,
+	const char *to, const char *from)
+{
+	pjsip_from_hdr *hdr;
+	pjsip_name_addr *name_addr;
+	int invalidate_tdata = 0;
+
+	if (!ast_strlen_zero(from)) {
+		hdr = PJSIP_MSG_FROM_HDR(tdata->msg);
+		name_addr = (pjsip_name_addr *) hdr->uri;
+		pj_strdup2(tdata->pool, &name_addr->display, from);
+		invalidate_tdata = 1;
+	}
+
+	if (!ast_strlen_zero(to)) {
+		hdr = PJSIP_MSG_TO_HDR(tdata->msg);
+		name_addr = (pjsip_name_addr *) hdr->uri;
+		pj_strdup2(tdata->pool, &name_addr->display, to);
+		invalidate_tdata = 1;
+	}
+
+	if (invalidate_tdata) {
+		pjsip_tx_data_invalidate_msg(tdata);
+	}
+}
+
+static void update_message_content_type(pjsip_tx_data *tdata,
+	const char *content_type, struct ast_sip_body *body)
+{
+	static const pj_str_t CONTENT_TYPE = { "Content-Type", sizeof("Content-Type") - 1 };
+	pjsip_ctype_hdr *parsed;
+	pj_str_t type;
+	pj_str_t subtype;
+
+	if (ast_strlen_zero(content_type)) {
+		return;
+	}
+
+	parsed = pjsip_parse_hdr(tdata->pool, &CONTENT_TYPE, ast_strdupa(content_type),
+		strlen(content_type), NULL);
+	if (!parsed) {
+		ast_log(LOG_WARNING, "Failed to parse '%s' as a content type. Using text/plain\n",
+			content_type);
+		return;
+	}
+
+	pj_strdup_with_null(tdata->pool, &type, &parsed->media.type);
+	pj_strdup_with_null(tdata->pool, &subtype, &parsed->media.subtype);
+
+	if (type.slen == 0 || subtype.slen == 0) {
+		ast_log(LOG_WARNING, "Malformed content type '%s'. Using text/plain\n", content_type);
+		body->type = "text";
+		body->subtype = "plain";
+		return;
+	}
+
+	body->type = pj_strbuf(&type);
+	body->subtype = pj_strbuf(&subtype);
+}
+
+int ast_sip_session_send_message(struct ast_sip_session *session, struct ast_msg_data *msg)
+{
+	pjsip_tx_data *tdata;
+	const char *to;
+	const char *from;
+	const char *body_text;
+	const char *content_type;
+	struct ast_sip_body body;
+
+	if (!session || !session->channel || !session->inv_session || !msg) {
+		return -1;
+	}
+
+	to = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_TO);
+	from = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_FROM);
+	body_text = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY);
+	content_type = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
+
+	body.type = "text";
+	body.subtype = "plain";
+	body.body_text = body_text;
+
+	if (session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		char reason[256];
+		const pj_str_t *status_text;
+
+		status_text = pjsip_get_status_text(session->inv_session->cause);
+		ast_copy_pj_str(reason, status_text, sizeof(reason));
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			session->inv_session->cause, reason);
+		message_tracker_send_failed(session, msg, session->inv_session->cause, reason);
+		return -1;
+	}
+
+	if (ast_sip_create_request("MESSAGE", session->inv_session->dlg,
+		session->endpoint, NULL, NULL, &tdata)) {
+		message_tracker_send_failed(session, msg, 0,
+			"Unable to create in-dialog MESSAGE request");
+		return -1;
+	}
+
+	update_message_content_type(tdata, content_type, &body);
+	update_message_display_names(tdata, to, from);
+
+	if (ast_sip_add_body(tdata, &body)) {
+		pjsip_tx_data_dec_ref(tdata);
+		message_tracker_send_failed(session, msg, 0,
+			"Unable to add body to in-dialog MESSAGE request");
+		return -1;
+	}
+
+	if (message_tracker_request_prepared(session, msg, tdata)) {
+		ast_log(LOG_WARNING, "Message tracker setup failed; sending without tracking\n");
+	}
+
+	ast_sip_session_send_request(session, tdata);
+
+	return 0;
+}
 
 void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip_tx_data *tdata,
 		ast_sip_session_response_cb on_response)
