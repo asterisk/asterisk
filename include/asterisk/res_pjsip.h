@@ -809,6 +809,21 @@ struct ast_sip_timer_options {
 };
 
 /*!
+ * \brief Session timer refresher preference
+ *
+ * Used to control which side refreshes the session when the remote party
+ * sends a Session-Expires header without a refresher parameter.
+ */
+enum ast_sip_timer_refresher {
+	/*! Do not force a refresher; use the normal negotiation */
+	AST_SIP_TIMER_REFRESHER_AUTO,
+	/*! This side (the UAS on an inbound call leg) refreshes the session */
+	AST_SIP_TIMER_REFRESHER_UAS,
+	/*! The remote side (the UAC) refreshes the session */
+	AST_SIP_TIMER_REFRESHER_UAC,
+};
+
+/*!
  * \brief Endpoint configuration for SIP extensions.
  *
  * SIP extensions, in this case refers to features
@@ -819,6 +834,8 @@ struct ast_sip_endpoint_extensions {
 	unsigned int flags;
 	/*! Timer options */
 	struct ast_sip_timer_options timer;
+	/*! Session timer refresher preference for inbound (UAS) call legs */
+	enum ast_sip_timer_refresher refresher;
 };
 
 /*!
