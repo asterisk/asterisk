@@ -1,8 +1,13 @@
 aclocal.m4
 autoconfig.h
+autoconfig.h.in
 cmenuselect
+config.guess
 config.log
 config.status
+config.sub
+configure
 menuselect
+missing
 gmenuselect
 nmenuselect
