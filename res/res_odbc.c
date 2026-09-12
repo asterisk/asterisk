@@ -45,11 +45,226 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<configInfo name="res_odbc" language="en_US">
+		<synopsis>ODBC resource manager</synopsis>
+		<configFile name="res_odbc.conf">
+			<configObject name="env">
+				<since>
+					<version>1.6.0</version>
+				</since>
+				<synopsis>Environment variable injection</synopsis>
+				<description>
+					<para>The <literal>[ENV]</literal> section is special: every name/value pair
+					in it is pushed into the process environment via <literal>setenv()</literal>
+					before any DSN is opened. This is useful for passing site-specific tunables
+					(for example <literal>PGCONNECT_TIMEOUT</literal>) to the underlying ODBC
+					driver without having to set them in the shell that launches Asterisk.</para>
+					<para>Variable names are not validated; anything you put in this section becomes
+					an environment variable.</para>
+				</description>
+			</configObject>
+			<configObject name="class">
+				<since>
+					<version>1.6.0</version>
+				</since>
+				<synopsis>One ODBC connection class (a named DSN with its connection pool)</synopsis>
+				<description>
+					<para>Each non-<literal>[ENV]</literal> section in <filename>res_odbc.conf</filename>
+					defines an ODBC class. The section name is the identifier consumers
+					(<literal>func_odbc</literal>, <literal>res_config_odbc</literal>,
+					<literal>cdr_adaptive_odbc</literal>, etc.) use to refer to this connection.</para>
+				</description>
+				<configOption name="enabled" default="yes">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Whether this class is loaded</synopsis>
+					<description>
+						<para>Set to <literal>no</literal> to leave the class defined in the
+						file but not registered. Useful for staging DSN changes without removing
+						the section.</para>
+					</description>
+				</configOption>
+				<configOption name="dsn" default="">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Name of the DSN to look up in <filename>/etc/odbc.ini</filename></synopsis>
+					<description>
+						<para>Required. If empty, the class is silently skipped at load time.</para>
+					</description>
+				</configOption>
+				<configOption name="username" default="">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Username passed to the ODBC driver at connect time</synopsis>
+				</configOption>
+				<configOption name="password" default="">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Password passed to the ODBC driver at connect time</synopsis>
+				</configOption>
+				<configOption name="sanitysql" default="">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>SQL fragment to run before reusing a pooled connection</synopsis>
+					<description>
+						<para>If set, the connection is validated by running this SQL each time
+						it is reused. A typical value is <literal>SELECT 1</literal>. Connections
+						whose sanity check fails are closed and reopened.</para>
+					</description>
+				</configOption>
+				<configOption name="pre-connect" default="no">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Open one connection at module load time</synopsis>
+					<description>
+						<para>If <literal>yes</literal>, one connection is opened immediately at
+						module load (or reload) so the first request does not pay the connect
+						cost. The remainder of the pool is filled lazily as load demands.</para>
+					</description>
+				</configOption>
+				<configOption name="max_connections" default="1">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Maximum size of the connection pool</synopsis>
+					<description>
+						<para>Hard upper bound on simultaneous open ODBC connections for this
+						class. Requests beyond this limit block waiting for a connection to be
+						released. Must be a positive integer; values below 1 are coerced to 1
+						with a warning.</para>
+					</description>
+				</configOption>
+				<configOption name="connect_timeout" default="10">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Per-connect timeout in seconds</synopsis>
+					<description>
+						<para>Maximum time the underlying <literal>SQLConnect</literal> may take
+						before being abandoned. Must be a positive integer; values below 1 are
+						coerced to 10 with a warning.</para>
+					</description>
+				</configOption>
+				<configOption name="negative_connection_cache" default="0">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Seconds to suppress reconnect attempts after a failure</synopsis>
+					<description>
+						<para>When a connect attempt fails, further attempts to that DSN are
+						short-circuited for this many seconds (fractional values accepted) so
+						a flapping database does not turn into a tight reconnect loop. Must be
+						a non-negative number; bad input falls back to 300 seconds with a
+						warning.</para>
+					</description>
+				</configOption>
+				<configOption name="forcecommit" default="no">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Auto-commit dangling transactions on connection release</synopsis>
+					<description>
+						<para>If <literal>yes</literal>, an uncommitted transaction is committed
+						(rather than rolled back) when the connection is released back to the
+						pool. Defaults to rollback because committing a transaction the caller
+						forgot to finish is usually worse than dropping its work.</para>
+					</description>
+				</configOption>
+				<configOption name="isolation" default="read_committed">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Default transaction isolation level</synopsis>
+					<description>
+						<para>Accepted values: <literal>read_committed</literal>,
+						<literal>read_uncommitted</literal>, <literal>repeatable_read</literal>,
+						<literal>serializable</literal>. Matching is case-insensitive and
+						loose-prefix; for example <literal>ser</literal> selects serializable.</para>
+					</description>
+				</configOption>
+				<configOption name="backslash_is_escape" default="yes">
+					<since>
+						<version>1.6.0</version>
+					</since>
+					<synopsis>Whether the database treats <literal>\</literal> as a SQL escape</synopsis>
+					<description>
+						<para>Affects how <literal>res_config_odbc</literal>,
+						<literal>cdr_adaptive_odbc</literal> and <literal>cel_odbc</literal>
+						quote LIKE-pattern values. Set to <literal>no</literal> for engines like
+						PostgreSQL that need an explicit <literal>ESCAPE</literal> clause.</para>
+					</description>
+				</configOption>
+				<configOption name="logging" default="no">
+					<since>
+						<version>13.0.0</version>
+					</since>
+					<synopsis>Track per-class query/prepare counters and slow queries</synopsis>
+					<description>
+						<para>When enabled, <literal>odbc show</literal> reports the number of
+						prepares and queries executed and tracks the longest-running query
+						observed. Mostly useful for diagnostics; carries a small per-query
+						overhead.</para>
+					</description>
+				</configOption>
+				<configOption name="slow_query_limit" default="5000">
+					<since>
+						<version>13.0.0</version>
+					</since>
+					<synopsis>Threshold in milliseconds for slow-query reporting</synopsis>
+					<description>
+						<para>Only consulted when <literal>logging</literal> is enabled. Queries
+						that exceed this duration are recorded as the longest-running query for
+						the class and reported by <literal>odbc show</literal>.</para>
+					</description>
+				</configOption>
+				<configOption name="cache_type" default="stack">
+					<since>
+						<version>11.0.0</version>
+					</since>
+					<synopsis>How the connection pool reuses idle connections</synopsis>
+					<description>
+						<para>Accepted values:</para>
+						<enumlist>
+							<enum name="stack">
+								<para>LIFO — the most-recently-released connection is reused
+								first. Concentrates work on a small number of connections,
+								letting idle ones drop out of the cache.</para>
+							</enum>
+							<enum name="queue"><para>FIFO round-robin (alias: <literal>roundrobin</literal>,
+							<literal>rr</literal>). Spreads work evenly across the whole pool.</para>
+							</enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="cache_size" default="-1">
+					<since>
+						<version>11.0.0</version>
+					</since>
+					<synopsis>Maximum number of cached idle connections</synopsis>
+					<description>
+						<para>When more than this many connections are idle, the oldest is closed.
+						The special value <literal>-1</literal> means uncapped (every connection
+						up to <literal>max_connections</literal> is cached).</para>
+					</description>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+ ***/
+
 #include "asterisk.h"
 
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
+#include "asterisk/config_options.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/cli.h"
@@ -59,6 +274,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/app.h"
 #include "asterisk/strings.h"
+#include "asterisk/stringfields.h"
 #include "asterisk/threadstorage.h"
 
 struct odbc_class
@@ -74,6 +290,7 @@ struct odbc_class
 	unsigned int backslash_is_escape:1;  /*!< On this database, the backslash is a native escape sequence */
 	unsigned int forcecommit:1;          /*!< Should uncommitted transactions be auto-committed on handle release? */
 	unsigned int cache_is_queue:1;       /*!< Connection cache should be a queue (round-robin use) rather than a stack (last release, first re-use) */
+	unsigned int preconnect:1;           /*!< Open one connection immediately when registering this class */
 	unsigned int isolation;              /*!< Flags for how the DB should deal with data in other, uncommitted transactions */
 	unsigned int conntimeout;            /*!< Maximum time the connection process should take */
 	unsigned int maxconnections;         /*!< Maximum number of allowed connections */
@@ -109,11 +326,51 @@ struct odbc_class
 
 static struct ao2_container *class_container;
 
+static struct ao2_container *odbc_class_container_alloc(void)
+{
+	return ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, ao2_match_by_addr);
+}
+
+/*! \brief Parser-only config object for one [class] section in res_odbc.conf.
+ *
+ * Populated by the config_options framework (one instance per category)
+ * and consumed by odbc_apply_config() to build the runtime odbc_class
+ * in class_container. Released once the config snapshot has been
+ * applied.
+ */
+struct odbc_class_cfg {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(name);
+		AST_STRING_FIELD(dsn);
+		AST_STRING_FIELD(username);
+		AST_STRING_FIELD(password);
+		AST_STRING_FIELD(sanitysql);
+	);
+	int enabled;
+	int preconnect;
+	int backslash_is_escape;
+	int forcecommit;
+	int cache_is_queue;
+	int logging;
+	unsigned int isolation;
+	unsigned int conntimeout;
+	unsigned int maxconnections;
+	unsigned int slowquerylimit;
+	unsigned int max_cache_size;
+	struct timeval negative_connection_cache;
+};
+
+/*! \brief Snapshot of the parsed res_odbc.conf — held by aco's global obj. */
+struct odbc_config {
+	struct ao2_container *classes;
+};
+
+static AO2_GLOBAL_OBJ_STATIC(odbc_global_cfg);
+
 static AST_RWLIST_HEAD_STATIC(odbc_tables, odbc_cache_tables);
 
 static odbc_status odbc_obj_connect(struct odbc_obj *obj);
 static odbc_status odbc_obj_disconnect(struct odbc_obj *obj);
-static void odbc_register_class(struct odbc_class *class, int connect);
 
 AST_THREADSTORAGE(errors_buf);
 
@@ -557,173 +814,620 @@ const char *ast_odbc_class_get_name(struct odbc_class *class)
 	return class->name;
 }
 
+/*! \internal \brief Destroy a parsed odbc_class_cfg item. */
+static void odbc_class_cfg_destructor(void *obj)
+{
+	struct odbc_class_cfg *cfg = obj;
+	ast_string_field_free_memory(cfg);
+}
+
+/*! \internal \brief Allocate a parsed odbc_class_cfg item for category \a cat. */
+static void *odbc_class_cfg_alloc(const char *cat)
+{
+	struct odbc_class_cfg *cfg;
+
+	cfg = ao2_alloc(sizeof(*cfg), odbc_class_cfg_destructor);
+	if (!cfg) {
+		return NULL;
+	}
+	if (ast_string_field_init(cfg, 256)) {
+		ao2_ref(cfg, -1);
+		return NULL;
+	}
+	ast_string_field_set(cfg, name, cat);
+	return cfg;
+}
+
+static int odbc_class_cfg_hash(const void *obj, int flags)
+{
+	const struct odbc_class_cfg *cfg;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		cfg = obj;
+		key = cfg->name;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_case_hash(key);
+}
+
+static int odbc_class_cfg_cmp(void *obj, void *arg, int flags)
+{
+	const struct odbc_class_cfg *cfg = obj;
+	const struct odbc_class_cfg *other;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = arg;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		other = arg;
+		key = other->name;
+		break;
+	default:
+		return CMP_STOP;
+	}
+	return strcasecmp(cfg->name, key) ? 0 : CMP_MATCH;
+}
+
+/*! \internal \brief aco item_find callback: look up a cfg by category name. */
+static void *odbc_class_cfg_find(struct ao2_container *container, const char *cat)
+{
+	return ao2_find(container, cat, OBJ_SEARCH_KEY);
+}
+
+/*! \internal \brief Free a snapshot of the whole config (called by ao2). */
+static void odbc_config_destructor(void *obj)
+{
+	struct odbc_config *cfg = obj;
+	ao2_cleanup(cfg->classes);
+}
+
+/*! \internal \brief Snapshot allocator (used by aco). */
+static void *odbc_config_alloc(void)
+{
+	struct odbc_config *cfg;
+
+	cfg = ao2_alloc(sizeof(*cfg), odbc_config_destructor);
+	if (!cfg) {
+		return NULL;
+	}
+	cfg->classes = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 11,
+		odbc_class_cfg_hash, NULL, odbc_class_cfg_cmp);
+	if (!cfg->classes) {
+		ao2_ref(cfg, -1);
+		return NULL;
+	}
+	return cfg;
+}
+
+/*! \internal \brief Custom handler: isolation level (text → SQL_TXN_* enum).
+ *
+ * Performs the loose-prefix matching documented in res_odbc.conf.sample
+ * (e.g. 'serpent' → SERIALIZABLE, 'reptile' → REPEATABLE_READ) via
+ * ast_odbc_text2isolation. Unrecognized input logs LOG_ERROR and the
+ * field is left at READ_COMMITTED so the rest of the class still
+ * registers; rejecting the parse for a single bad value would take the
+ * whole DSN offline, which is worse than running with a default.
+ */
+static int isolation_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct odbc_class_cfg *cfg = obj;
+	int iso = ast_odbc_text2isolation(var->value);
+	if (iso == 0) {
+		ast_log(LOG_ERROR, "Unrecognized value for 'isolation': '%s' in section '%s'\n",
+			var->value, cfg->name);
+		cfg->isolation = SQL_TXN_READ_COMMITTED;
+		return 0;
+	}
+	cfg->isolation = iso;
+	return 0;
+}
+
+/*! \internal \brief Custom handler: cache_type (text → bool cache_is_queue). */
+static int cache_type_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct odbc_class_cfg *cfg = obj;
+	cfg->cache_is_queue = !strcasecmp(var->value, "rr") ||
+		!strcasecmp(var->value, "roundrobin") ||
+		!strcasecmp(var->value, "queue");
+	return 0;
+}
+
+/*! \internal \brief Custom handler: cache_size with "-1" → UINT_MAX. */
+static int cache_size_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct odbc_class_cfg *cfg = obj;
+	if (!strcasecmp(var->value, "-1")) {
+		cfg->max_cache_size = UINT_MAX;
+		return 0;
+	}
+	if (sscanf(var->value, "%u", &cfg->max_cache_size) != 1) {
+		ast_log(LOG_WARNING, "cache_size must be a non-negative integer or -1 (infinite)\n");
+	}
+	return 0;
+}
+
+/*! \internal \brief Custom handler: negative_connection_cache (double seconds → struct timeval).
+ *
+ * Bad input logs a WARNING and the field falls back to 5 minutes —
+ * permissive on unparseable input rather than failing the parse,
+ * because a misconfigured negative-cache value is not severe enough
+ * to take a working DSN offline.
+ */
+static int negative_connection_cache_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct odbc_class_cfg *cfg = obj;
+	double dncache;
+
+	if (sscanf(var->value, "%lf", &dncache) != 1 || dncache < 0) {
+		ast_log(LOG_WARNING, "negative_connection_cache must be a non-negative integer\n");
+		cfg->negative_connection_cache.tv_sec = 300;
+		cfg->negative_connection_cache.tv_usec = 0;
+		return 0;
+	}
+	cfg->negative_connection_cache.tv_sec = (int)dncache;
+	cfg->negative_connection_cache.tv_usec =
+		(dncache - cfg->negative_connection_cache.tv_sec) * 1000000;
+	return 0;
+}
+
+/*! \internal \brief Catch-all for unrecognized option names.
+ *
+ * aco's default for an unrecognized option is LOG_ERROR plus a failed
+ * parse for the whole category — strict enough to break a class
+ * registration on a typo. This handler is registered with an
+ * empty-prefix ACO_PREFIX so it matches anything aco's exact-match
+ * lookup did not. It accepts the line and discards the value so the
+ * rest of the class still parses.
+ *
+ * The four obsolete pool-related names (pooling, share*, limit,
+ * idlecheck) were replaced by max_connections years ago; they get a
+ * specific warning pointing at the replacement. Anything else gets a
+ * generic "unknown option" warning so operator typos are visible in
+ * the log instead of being silently dropped (the legacy parser had
+ * neither a typo warning nor an obsolete-name warning beyond the four
+ * pool names).
+ */
+static int unknown_option_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct odbc_class_cfg *cfg = obj;
+
+	if (!strcasecmp(var->name, "pooling") ||
+			!strncasecmp(var->name, "share", 5) ||
+			!strcasecmp(var->name, "limit") ||
+			!strcasecmp(var->name, "idlecheck")) {
+		ast_log(LOG_WARNING,
+			"The 'pooling', 'shared_connections', 'limit', and 'idlecheck' options "
+			"were replaced by 'max_connections'.  See res_odbc.conf.sample.\n");
+	} else {
+		ast_log(LOG_WARNING,
+			"Unknown option '%s' in section '%s' of res_odbc.conf — ignoring.\n",
+			var->name, cfg->name);
+	}
+	return 0;
+}
+
+static struct aco_type odbc_class_aco_type = {
+	.type = ACO_ITEM,
+	.name = "class",
+	/* Match every category except [ENV]; the env_ignore_type below
+	 * matches and ignores [ENV]. odbc_apply_env_section() does the
+	 * actual setenv() work for [ENV] before aco runs. */
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "ENV",
+	.item_alloc = odbc_class_cfg_alloc,
+	.item_find = odbc_class_cfg_find,
+	.item_offset = offsetof(struct odbc_config, classes),
+};
+
+static struct aco_type env_ignore_type = {
+	.type = ACO_IGNORE,
+	.name = "env",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "ENV",
+};
+
+static struct aco_type *odbc_class_aco_types[] = ACO_TYPES(&odbc_class_aco_type);
+
+static struct aco_file res_odbc_conf_file = {
+	.filename = "res_odbc.conf",
+	.types = ACO_TYPES(&odbc_class_aco_type, &env_ignore_type),
+};
+
+static void odbc_apply_config(void);
+
+CONFIG_INFO_STANDARD(odbc_cfg_info, odbc_global_cfg, odbc_config_alloc,
+	.files = ACO_FILES(&res_odbc_conf_file),
+	.post_apply_config = odbc_apply_config,
+);
+
+/*! \internal \brief Build a new odbc_class from a parsed cfg item.
+ * \retval NULL allocation or env-handle setup failed (already logged).
+ */
+static struct odbc_class *odbc_class_build(const struct odbc_class_cfg *cfg)
+{
+	struct odbc_class *class;
+	int res;
+
+	class = ao2_alloc(sizeof(*class), odbc_class_destructor);
+	if (!class) {
+		return NULL;
+	}
+
+	SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &class->env);
+	res = SQLSetEnvAttr(class->env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
+	if (!SQL_SUCCEEDED(res)) {
+		ast_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
+		ao2_ref(class, -1);
+		return NULL;
+	}
+
+	ast_copy_string(class->name, cfg->name, sizeof(class->name));
+	ast_copy_string(class->dsn, cfg->dsn, sizeof(class->dsn));
+	if (!ast_strlen_zero(cfg->username) && !(class->username = ast_strdup(cfg->username))) {
+		ao2_ref(class, -1);
+		return NULL;
+	}
+	if (!ast_strlen_zero(cfg->password) && !(class->password = ast_strdup(cfg->password))) {
+		ao2_ref(class, -1);
+		return NULL;
+	}
+	if (!ast_strlen_zero(cfg->sanitysql) && !(class->sanitysql = ast_strdup(cfg->sanitysql))) {
+		ao2_ref(class, -1);
+		return NULL;
+	}
+
+	class->backslash_is_escape = cfg->backslash_is_escape ? 1 : 0;
+	class->forcecommit = cfg->forcecommit ? 1 : 0;
+	class->cache_is_queue = cfg->cache_is_queue ? 1 : 0;
+	class->preconnect = cfg->preconnect ? 1 : 0;
+	class->isolation = cfg->isolation;
+	class->conntimeout = cfg->conntimeout;
+	class->maxconnections = cfg->maxconnections;
+	class->negative_connection_cache = cfg->negative_connection_cache;
+	class->logging = cfg->logging;
+	class->slowquerylimit = cfg->slowquerylimit;
+	class->max_cache_size = cfg->max_cache_size;
+	class->cur_cache = 0;
+
+	ast_mutex_init(&class->lock);
+	ast_cond_init(&class->cond, NULL);
+
+	return class;
+}
+
+static void odbc_preconnect_class(struct odbc_class *class)
+{
+	struct odbc_obj *obj;
+
+	if (!class->preconnect) {
+		return;
+	}
+
+	/* Request and release builds a connection. */
+	obj = ast_odbc_request_obj(class->name, 0);
+	if (obj) {
+		ast_odbc_release_obj(obj);
+	}
+}
+
+static int odbc_class_is_new(void *obj, void *arg, int flags)
+{
+	struct odbc_class *class = obj;
+	struct ao2_container *new_classes = arg;
+	RAII_VAR(struct odbc_class *, found, ao2_find(new_classes, class, OBJ_POINTER), ao2_cleanup);
+
+	return found ? CMP_MATCH : 0;
+}
+
+static int odbc_class_mark_old(void *obj, void *arg, int flags)
+{
+	struct odbc_class *class = obj;
+	struct ao2_container *new_classes = arg;
+
+	if (!odbc_class_is_new(class, new_classes, 0)) {
+		ast_mutex_lock(&class->lock);
+		class->delme = 1;
+		ast_mutex_unlock(&class->lock);
+	}
+
+	return 0;
+}
+
+static int odbc_class_unlink_delme(void *obj, void *arg, int flags)
+{
+	struct odbc_class *class = obj;
+
+	return class->delme ? CMP_MATCH : 0;
+}
+
+/*! \internal \brief Build runtime classes from the parsed cfg snapshot.
+ *
+ * The aco snapshot in odbc_global_cfg holds the parsed config;
+ * class_container holds the runtime state (env handles, connection
+ * pools, counters).
+ */
+static int odbc_reconcile_config(void)
+{
+	RAII_VAR(struct odbc_config *, cfg, ao2_global_obj_ref(odbc_global_cfg), ao2_cleanup);
+	RAII_VAR(struct ao2_container *, new_classes, NULL, ao2_cleanup);
+	struct ao2_iterator iter;
+	struct odbc_class_cfg *class_cfg;
+	struct odbc_class *class;
+	struct odbc_cache_tables *table;
+	int res = 0;
+
+	if (!cfg || !cfg->classes) {
+		return 0;
+	}
+
+	new_classes = odbc_class_container_alloc();
+	if (!new_classes) {
+		return -1;
+	}
+
+	iter = ao2_iterator_init(cfg->classes, 0);
+	while ((class_cfg = ao2_iterator_next(&iter))) {
+		if (!class_cfg->enabled || ast_strlen_zero(class_cfg->dsn)) {
+			ao2_ref(class_cfg, -1);
+			continue;
+		}
+
+		class = odbc_class_build(class_cfg);
+		if (!class) {
+			res = -1;
+			ao2_ref(class_cfg, -1);
+			break;
+		}
+
+		if (!ao2_link(new_classes, class)) {
+			res = -1;
+			ao2_ref(class, -1);
+			ao2_ref(class_cfg, -1);
+			break;
+		}
+		ao2_ref(class, -1);
+		ao2_ref(class_cfg, -1);
+	}
+	ao2_iterator_destroy(&iter);
+
+	if (res) {
+		return res;
+	}
+
+	iter = ao2_iterator_init(new_classes, 0);
+	while ((class = ao2_iterator_next(&iter))) {
+		if (!ao2_link(class_container, class)) {
+			res = -1;
+			ao2_ref(class, -1);
+			break;
+		}
+		ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n",
+			class->name, class->dsn);
+		ao2_ref(class, -1);
+	}
+	ao2_iterator_destroy(&iter);
+
+	if (res) {
+		iter = ao2_iterator_init(new_classes, 0);
+		while ((class = ao2_iterator_next(&iter))) {
+			ao2_unlink(class_container, class);
+			ao2_ref(class, -1);
+		}
+		ao2_iterator_destroy(&iter);
+		return res;
+	}
+
+	ao2_callback(class_container, OBJ_NODATA | OBJ_MULTIPLE, odbc_class_mark_old, new_classes);
+
+	iter = ao2_iterator_init(new_classes, 0);
+	while ((class = ao2_iterator_next(&iter))) {
+		odbc_preconnect_class(class);
+		ao2_ref(class, -1);
+	}
+	ao2_iterator_destroy(&iter);
+
+	/* Reap classes whose section was removed, disabled, or replaced. */
+	ao2_callback(class_container, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE,
+		odbc_class_unlink_delme, NULL);
+
+	/* Empty the table cache; rebuilt lazily on next access. */
+	AST_RWLIST_WRLOCK(&odbc_tables);
+	while ((table = AST_RWLIST_REMOVE_HEAD(&odbc_tables, list))) {
+		destroy_table_cache(table);
+	}
+	AST_RWLIST_UNLOCK(&odbc_tables);
+
+	return 0;
+}
+
+static void odbc_apply_config(void)
+{
+	if (odbc_reconcile_config()) {
+		ast_log(LOG_WARNING, "Errors applying res_odbc.conf; runtime classes were left unchanged\n");
+	}
+}
+
+/*! \internal \brief Register every res_odbc.conf option with aco. */
+static void odbc_register_options(void)
+{
+	struct aco_type **types = odbc_class_aco_types;
+	struct aco_info *info = &odbc_cfg_info;
+
+	aco_option_register(info, "enabled", ACO_EXACT, types,
+		"yes", OPT_BOOL_T, 1, FLDSET(struct odbc_class_cfg, enabled));
+	aco_option_register(info, "pre-connect", ACO_EXACT, types,
+		"no", OPT_BOOL_T, 1, FLDSET(struct odbc_class_cfg, preconnect));
+	aco_option_register(info, "dsn", ACO_EXACT, types,
+		"", OPT_STRINGFIELD_T, 0, STRFLDSET(struct odbc_class_cfg, dsn));
+	aco_option_register(info, "username", ACO_EXACT, types,
+		"", OPT_STRINGFIELD_T, 0, STRFLDSET(struct odbc_class_cfg, username));
+	aco_option_register(info, "password", ACO_EXACT, types,
+		"", OPT_STRINGFIELD_T, 0, STRFLDSET(struct odbc_class_cfg, password));
+	aco_option_register(info, "sanitysql", ACO_EXACT, types,
+		"", OPT_STRINGFIELD_T, 0, STRFLDSET(struct odbc_class_cfg, sanitysql));
+	aco_option_register(info, "backslash_is_escape", ACO_EXACT, types,
+		"yes", OPT_BOOL_T, 1, FLDSET(struct odbc_class_cfg, backslash_is_escape));
+	aco_option_register(info, "forcecommit", ACO_EXACT, types,
+		"no", OPT_BOOL_T, 1, FLDSET(struct odbc_class_cfg, forcecommit));
+	aco_option_register(info, "logging", ACO_EXACT, types,
+		"no", OPT_BOOL_T, 1, FLDSET(struct odbc_class_cfg, logging));
+	aco_option_register(info, "connect_timeout", ACO_EXACT, types,
+		"10", OPT_UINT_T, PARSE_DEFAULT | PARSE_IN_RANGE,
+		FLDSET(struct odbc_class_cfg, conntimeout), 10, 1, INT_MAX);
+	aco_option_register(info, "max_connections", ACO_EXACT, types,
+		"1", OPT_UINT_T, PARSE_DEFAULT | PARSE_IN_RANGE,
+		FLDSET(struct odbc_class_cfg, maxconnections), 1, 1, INT_MAX);
+	aco_option_register(info, "slow_query_limit", ACO_EXACT, types,
+		"5000", OPT_UINT_T, PARSE_DEFAULT,
+		FLDSET(struct odbc_class_cfg, slowquerylimit), 5000);
+	aco_option_register_custom(info, "isolation", ACO_EXACT, types,
+		"read_committed", isolation_handler, 0);
+	aco_option_register_custom(info, "cache_type", ACO_EXACT, types,
+		"stack", cache_type_handler, 0);
+	aco_option_register_custom(info, "cache_size", ACO_EXACT, types,
+		"-1", cache_size_handler, 0);
+	aco_option_register_custom(info, "negative_connection_cache", ACO_EXACT, types,
+		"0", negative_connection_cache_handler, 0);
+	/* Empty-prefix catch-all so anything aco's exact-match lookup did
+	 * not resolve still parses (the four obsolete pool-related names
+	 * get a specific warning; everything else gets a generic
+	 * unknown-option warning) instead of taking down the whole class
+	 * registration on a typo. */
+	aco_option_register_custom_nodoc(info, "", ACO_PREFIX, types,
+		"", unknown_option_handler, 0);
+}
+
+/*! \internal \brief Apply [ENV] section vars to the process environment.
+ *
+ * The config_options framework has no native concept of "any variable
+ * in this section, just push it to setenv()", so this is handled
+ * manually before aco runs. The [ENV] category is excluded from aco's
+ * type matching via odbc_class_aco_type.category_match.
+ */
+static void odbc_apply_env_section(struct ast_config *config)
+{
+	char *cat;
+	struct ast_variable *v;
+
+	for (cat = ast_category_browse(config, NULL); cat; cat = ast_category_browse(config, cat)) {
+		if (strcasecmp(cat, "ENV")) {
+			continue;
+		}
+
+		for (v = ast_variable_browse(config, cat); v; v = v->next) {
+			setenv(v->name, v->value, 1);
+			ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
+		}
+	}
+}
+
 static int load_odbc_config(void)
 {
-	static char *cfg = "res_odbc.conf";
-	struct ast_config *config;
-	struct ast_variable *v;
-	char *cat;
-	const char *dsn, *username, *password, *sanitysql;
-	int enabled, bse, conntimeout, forcecommit, isolation, maxconnections, logging, slowquerylimit;
-	struct timeval ncache = { 0, 0 };
-	int preconnect = 0, res = 0, cache_is_queue = 0;
 	struct ast_flags config_flags = { 0 };
-	unsigned int max_cache_size;
+	struct ast_config *config;
+	enum aco_process_status status;
 
-	struct odbc_class *new;
-
-	config = ast_config_load(cfg, config_flags);
+	config = ast_config_load("res_odbc.conf", config_flags);
 	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Unable to load config file res_odbc.conf\n");
 		return -1;
 	}
-	for (cat = ast_category_browse(config, NULL); cat; cat=ast_category_browse(config, cat)) {
-		if (!strcasecmp(cat, "ENV")) {
-			for (v = ast_variable_browse(config, cat); v; v = v->next) {
-				setenv(v->name, v->value, 1);
-				ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
-			}
-		} else {
-			/* Reset all to defaults for each class of odbc connections */
-			dsn = username = password = sanitysql = NULL;
-			enabled = 1;
-			preconnect = 0;
-			bse = 1;
-			conntimeout = 10;
-			forcecommit = 0;
-			isolation = SQL_TXN_READ_COMMITTED;
-			maxconnections = 1;
-			logging = 0;
-			slowquerylimit = 5000;
-			cache_is_queue = 0;
-			max_cache_size = UINT_MAX;
-			for (v = ast_variable_browse(config, cat); v; v = v->next) {
-				if (!strcasecmp(v->name, "pooling") ||
-						!strncasecmp(v->name, "share", 5) ||
-						!strcasecmp(v->name, "limit") ||
-						!strcasecmp(v->name, "idlecheck")) {
-					ast_log(LOG_WARNING, "The 'pooling', 'shared_connections', 'limit', and 'idlecheck' options were replaced by 'max_connections'.  See res_odbc.conf.sample.\n");
-				} else if (!strcasecmp(v->name, "enabled")) {
-					enabled = ast_true(v->value);
-				} else if (!strcasecmp(v->name, "pre-connect")) {
-					preconnect = ast_true(v->value);
-				} else if (!strcasecmp(v->name, "dsn")) {
-					dsn = v->value;
-				} else if (!strcasecmp(v->name, "username")) {
-					username = v->value;
-				} else if (!strcasecmp(v->name, "password")) {
-					password = v->value;
-				} else if (!strcasecmp(v->name, "sanitysql")) {
-					sanitysql = v->value;
-				} else if (!strcasecmp(v->name, "backslash_is_escape")) {
-					bse = ast_true(v->value);
-				} else if (!strcasecmp(v->name, "connect_timeout")) {
-					if (sscanf(v->value, "%d", &conntimeout) != 1 || conntimeout < 1) {
-						ast_log(LOG_WARNING, "connect_timeout must be a positive integer\n");
-						conntimeout = 10;
-					}
-				} else if (!strcasecmp(v->name, "negative_connection_cache")) {
-					double dncache;
-					if (sscanf(v->value, "%lf", &dncache) != 1 || dncache < 0) {
-						ast_log(LOG_WARNING, "negative_connection_cache must be a non-negative integer\n");
-						/* 5 minutes sounds like a reasonable default */
-						ncache.tv_sec = 300;
-						ncache.tv_usec = 0;
-					} else {
-						ncache.tv_sec = (int)dncache;
-						ncache.tv_usec = (dncache - ncache.tv_sec) * 1000000;
-					}
-				} else if (!strcasecmp(v->name, "forcecommit")) {
-					forcecommit = ast_true(v->value);
-				} else if (!strcasecmp(v->name, "isolation")) {
-					if ((isolation = ast_odbc_text2isolation(v->value)) == 0) {
-						ast_log(LOG_ERROR, "Unrecognized value for 'isolation': '%s' in section '%s'\n", v->value, cat);
-						isolation = SQL_TXN_READ_COMMITTED;
-					}
-				} else if (!strcasecmp(v->name, "max_connections")) {
-					if (sscanf(v->value, "%30d", &maxconnections) != 1 || maxconnections < 1) {
-						ast_log(LOG_WARNING, "max_connections must be a positive integer\n");
-						maxconnections = 1;
-                                        }
-				} else if (!strcasecmp(v->name, "logging")) {
-					logging = ast_true(v->value);
-				} else if (!strcasecmp(v->name, "slow_query_limit")) {
-					if (sscanf(v->value, "%30d", &slowquerylimit) != 1) {
-						ast_log(LOG_WARNING, "slow_query_limit must be a positive integer\n");
-						slowquerylimit = 5000;
-					}
-				} else if (!strcasecmp(v->name, "cache_type")) {
-					cache_is_queue = !strcasecmp(v->value, "rr") ||
-						!strcasecmp(v->value, "roundrobin") ||
-						!strcasecmp(v->value, "queue");
-				} else if (!strcasecmp(v->name, "cache_size")) {
-					if (!strcasecmp(v->value, "-1")) {
-						max_cache_size = UINT_MAX;
-					} else if (sscanf(v->value, "%u", &max_cache_size) != 1) {
-						ast_log(LOG_WARNING, "cache_size must be a non-negative integer or -1 (infinite)\n");
-					}
-				}
-			}
+	odbc_apply_env_section(config);
 
-			if (enabled && !ast_strlen_zero(dsn)) {
-				new = ao2_alloc(sizeof(*new), odbc_class_destructor);
-
-				if (!new) {
-					res = -1;
-					break;
-				}
-
-				SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &new->env);
-				res = SQLSetEnvAttr(new->env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
-
-				if (!SQL_SUCCEEDED(res)) {
-					ast_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
-					ao2_ref(new, -1);
-					return res;
-				}
-
-				new->backslash_is_escape = bse ? 1 : 0;
-				new->forcecommit = forcecommit ? 1 : 0;
-				new->isolation = isolation;
-				new->conntimeout = conntimeout;
-				new->negative_connection_cache = ncache;
-				new->maxconnections = maxconnections;
-				new->logging = logging;
-				new->slowquerylimit = slowquerylimit;
-				new->cache_is_queue = cache_is_queue;
-				new->max_cache_size = max_cache_size;
-				new->cur_cache = 0;
-
-				if (cat)
-					ast_copy_string(new->name, cat, sizeof(new->name));
-				if (dsn)
-					ast_copy_string(new->dsn, dsn, sizeof(new->dsn));
-				if (username && !(new->username = ast_strdup(username))) {
-					ao2_ref(new, -1);
-					break;
-				}
-				if (password && !(new->password = ast_strdup(password))) {
-					ao2_ref(new, -1);
-					break;
-				}
-				if (sanitysql && !(new->sanitysql = ast_strdup(sanitysql))) {
-					ao2_ref(new, -1);
-					break;
-				}
-
-				ast_mutex_init(&new->lock);
-				ast_cond_init(&new->cond, NULL);
-
-				odbc_register_class(new, preconnect);
-				ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n", cat, dsn);
-				ao2_ref(new, -1);
-				new = NULL;
-			}
-		}
-	}
+	status = aco_process_ast_config(&odbc_cfg_info, &res_odbc_conf_file, config);
 	ast_config_destroy(config);
+
+	if (status == ACO_PROCESS_ERROR) {
+		ast_log(LOG_WARNING, "Errors processing res_odbc.conf; some classes may not be available\n");
+		return -1;
+	}
+
+	/* aco_process_ast_config does not invoke post_apply_config (only
+	 * aco_process_config does). Drive reconciliation manually so the
+	 * runtime container reflects the freshly-installed snapshot. */
+	return odbc_reconcile_config();
+}
+
+#ifdef TEST_FRAMEWORK
+static void odbc_test_copy_class_config(struct ast_odbc_test_class_config *out,
+	const struct odbc_class_cfg *cfg)
+{
+	ast_copy_string(out->name, cfg->name, sizeof(out->name));
+	ast_copy_string(out->dsn, cfg->dsn, sizeof(out->dsn));
+	ast_copy_string(out->username, cfg->username, sizeof(out->username));
+	ast_copy_string(out->password, cfg->password, sizeof(out->password));
+	ast_copy_string(out->sanitysql, cfg->sanitysql, sizeof(out->sanitysql));
+	out->enabled = cfg->enabled;
+	out->preconnect = cfg->preconnect;
+	out->backslash_is_escape = cfg->backslash_is_escape;
+	out->forcecommit = cfg->forcecommit;
+	out->cache_is_queue = cfg->cache_is_queue;
+	out->logging = cfg->logging;
+	out->isolation = cfg->isolation;
+	out->conntimeout = cfg->conntimeout;
+	out->maxconnections = cfg->maxconnections;
+	out->slowquerylimit = cfg->slowquerylimit;
+	out->max_cache_size = cfg->max_cache_size;
+	out->negative_connection_cache_sec = cfg->negative_connection_cache.tv_sec;
+	out->negative_connection_cache_usec = cfg->negative_connection_cache.tv_usec;
+}
+
+int ast_odbc_test_parse_ast_config(struct ast_config *config, const char *class_name,
+	struct ast_odbc_test_class_config *out)
+{
+	RAII_VAR(struct odbc_config *, old_cfg, ao2_global_obj_ref(odbc_global_cfg), ao2_cleanup);
+	RAII_VAR(struct odbc_config *, parsed_cfg, NULL, ao2_cleanup);
+	RAII_VAR(struct odbc_class_cfg *, class_cfg, NULL, ao2_cleanup);
+	enum aco_process_status status;
+	int res = -1;
+
+	if (!config || ast_strlen_zero(class_name) || !out) {
+		return -1;
+	}
+
+	memset(out, 0, sizeof(*out));
+	odbc_apply_env_section(config);
+
+	status = aco_process_ast_config(&odbc_cfg_info, &res_odbc_conf_file, config);
+	if (status == ACO_PROCESS_ERROR) {
+		goto done;
+	}
+
+	parsed_cfg = ao2_global_obj_ref(odbc_global_cfg);
+	if (!parsed_cfg || !parsed_cfg->classes) {
+		goto done;
+	}
+
+	class_cfg = ao2_find(parsed_cfg->classes, class_name, OBJ_SEARCH_KEY);
+	if (!class_cfg) {
+		res = 1;
+		goto done;
+	}
+
+	odbc_test_copy_class_config(out, class_cfg);
+	res = 0;
+
+done:
+	ao2_global_obj_replace_unref(odbc_global_cfg, old_cfg);
 	return res;
 }
+#endif
+
 
 static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -805,26 +1509,6 @@ static struct ast_cli_entry cli_odbc[] = {
 	AST_CLI_DEFINE(handle_cli_odbc_show, "List ODBC DSN(s)")
 };
 
-static void odbc_register_class(struct odbc_class *class, int preconnect)
-{
-	struct odbc_obj *obj;
-
-	ao2_link(class_container, class);
-	/* I still have a reference in the caller, so a deref is NOT missing here. */
-
-	if (!preconnect) {
-		return;
-	}
-
-	/* Request and release builds a connection */
-	obj = ast_odbc_request_obj(class->name, 0);
-	if (obj) {
-		ast_odbc_release_obj(obj);
-	}
-
-	return;
-}
-
 void ast_odbc_release_obj(struct odbc_obj *obj)
 {
 	struct odbc_class *class = obj->parent;
@@ -886,6 +1570,15 @@ int ast_odbc_backslash_is_escape(struct odbc_obj *obj)
 	return obj->parent->backslash_is_escape;
 }
 
+/*!
+ * \internal
+ * \brief ao2 matcher used by request paths to look up a class by name.
+ *
+ * Filters out classes that have been marked for removal so the lookup
+ * only returns live, in-service classes. odbc_reconcile_config() links
+ * replacements before marking old classes delme=1, so a lookup can
+ * continue past an old marked class and find its replacement.
+ */
 static int aoro2_class_cb(void *obj, void *arg, int flags)
 {
 	struct odbc_class *class = obj;
@@ -896,12 +1589,28 @@ static int aoro2_class_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Find an active odbc_class by name.
+ *
+ * Returns the matched class with its ao2 reference incremented;
+ * caller must ao2_ref(class, -1) when done.
+ *
+ * \param name Class name to look up.
+ * \retval NULL no live class with that name in the container.
+ * \retval non-NULL the matching class (refcount bumped).
+ */
+static struct odbc_class *odbc_class_find(const char *name)
+{
+	return ao2_callback(class_container, 0, aoro2_class_cb, (char *) name);
+}
+
 unsigned int ast_odbc_get_max_connections(const char *name)
 {
 	struct odbc_class *class;
 	unsigned int max_connections;
 
-	class = ao2_callback(class_container, 0, aoro2_class_cb, (char *) name);
+	class = odbc_class_find(name);
 	if (!class) {
 		return 0;
 	}
@@ -961,7 +1670,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 	struct odbc_obj *obj = NULL;
 	struct odbc_class *class;
 
-	if (!(class = ao2_callback(class_container, 0, aoro2_class_cb, (char *) name))) {
+	if (!(class = odbc_class_find(name))) {
 		ast_debug(1, "Class '%s' not found!\n", name);
 		return NULL;
 	}
@@ -1152,40 +1861,13 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 
 static int reload(void)
 {
-	struct odbc_cache_tables *table;
-	struct odbc_class *class;
-	struct ao2_iterator aoi = ao2_iterator_init(class_container, 0);
-
-	/* First, mark all to be purged */
-	while ((class = ao2_iterator_next(&aoi))) {
-		class->delme = 1;
-		ao2_ref(class, -1);
-	}
-	ao2_iterator_destroy(&aoi);
-
-	load_odbc_config();
-
-	aoi = ao2_iterator_init(class_container, 0);
-	while ((class = ao2_iterator_next(&aoi))) {
-		if (class->delme) {
-			ao2_unlink(class_container, class);
-		}
-		ao2_ref(class, -1);
-	}
-	ao2_iterator_destroy(&aoi);
-
-	/* Empty the cache; it will get rebuilt the next time the tables are needed. */
-	AST_RWLIST_WRLOCK(&odbc_tables);
-	while ((table = AST_RWLIST_REMOVE_HEAD(&odbc_tables, list))) {
-		destroy_table_cache(table);
-	}
-	AST_RWLIST_UNLOCK(&odbc_tables);
-
-	return 0;
+	return load_odbc_config();
 }
 
 static int unload_module(void)
 {
+	aco_info_destroy(&odbc_cfg_info);
+	ao2_global_obj_release(odbc_global_cfg);
 	ao2_cleanup(class_container);
 	ast_cli_unregister_multiple(cli_odbc, ARRAY_LEN(cli_odbc));
 
@@ -1194,12 +1876,24 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	class_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, ao2_match_by_addr);
+	class_container = odbc_class_container_alloc();
 	if (!class_container) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	if (aco_info_init(&odbc_cfg_info)) {
+		ao2_cleanup(class_container);
+		class_container = NULL;
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	odbc_register_options();
+
 	if (load_odbc_config() == -1) {
+		aco_info_destroy(&odbc_cfg_info);
+		ao2_global_obj_release(odbc_global_cfg);
+		ao2_cleanup(class_container);
+		class_container = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
