@@ -1156,8 +1156,21 @@ static pjsip_dialog *create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 		char err[PJ_ERR_MSG_SIZE];
 
 		pj_strerror(*status, err, sizeof(err));
-		ast_log(LOG_ERROR, "Could not create dialog with endpoint %s. %s\n",
-				ast_sorcery_object_get_id(endpoint), err);
+		if (*status == PJ_EEXISTS) {
+			/*
+			 * A dialog already exists for this request, which means the request
+			 * is a retransmission of one we are already processing. Callers
+			 * treat PJ_EEXISTS as an expected condition and silently discard
+			 * the duplicate rather than responding with an error, so logging
+			 * this at ERROR level misreports normal operation as a fault.
+			 */
+			ast_debug(3, "Endpoint '%s': A dialog already exists for this request; "
+					"treating it as a retransmission. %s\n",
+					ast_sorcery_object_get_id(endpoint), err);
+		} else {
+			ast_log(LOG_ERROR, "Could not create dialog with endpoint %s. %s\n",
+					ast_sorcery_object_get_id(endpoint), err);
+		}
 		ast_sip_tpselector_unref(&selector);
 		return NULL;
 	}
