@@ -44,6 +44,9 @@
 
 #define MAX_CONNECT_TIMEOUT_MSEC 2000
 
+/*! \brief Maximum consecutive idle polls tolerated before a header read yields. */
+#define IDLE_POLL_MAX 4
+
 /*!
  * \internal
  * \brief Attempt to complete the audiosocket connection.
@@ -288,6 +291,7 @@ struct ast_frame *ast_audiosocket_receive_frame_with_hangup(const int svc,
 	int *const hangup)
 {
 	int i = 0, n = 0, ret = 0;
+	unsigned int idle_polls = 0;
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
 		.src = "AudioSocket",
@@ -312,6 +316,9 @@ struct ast_frame *ast_audiosocket_receive_frame_with_hangup(const int svc,
 					continue;
 				} else if (poll_result == 0) {
 					ast_debug(1, "Poll timed out while waiting for header data\n");
+					if (i == 0 && ++idle_polls > IDLE_POLL_MAX) {
+						return &ast_null_frame;
+					}
 					continue;
 				} else {
 					ast_log(LOG_WARNING, "Poll error: %s\n", strerror(errno));
@@ -324,6 +331,7 @@ struct ast_frame *ast_audiosocket_receive_frame_with_hangup(const int svc,
 		if (n == 0) {
 			break;
 		}
+		idle_polls = 0;
 		i += n;
 	}
 
