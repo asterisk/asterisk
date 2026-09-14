@@ -144,6 +144,9 @@
 			<parameter name="offset">
 				<para>Maybe specified as any number. If negative, <replaceable>offset</replaceable> specifies the number
 				of bytes back from the end of the file.</para>
+				<note>
+					<para>Line offsets begin at 0, not 1.</para>
+				</note>
 			</parameter>
 			<parameter name="length">
 				<para>If specified, will limit the length of the data read to that size. If negative,
@@ -173,13 +176,13 @@
 				used to delimit the type of line terminators in line mode.</para>
 				<optionlist>
 					<option name="u">
-						<para>Unix newline format.</para>
+						<para>Unix newline format (LF).</para>
 					</option>
 					<option name="d">
-						<para>DOS newline format.</para>
+						<para>DOS newline format (CR LF).</para>
 					</option>
 					<option name="m">
-						<para>Macintosh newline format.</para>
+						<para>Macintosh newline format (CR).</para>
 					</option>
 				</optionlist>
 			</parameter>
@@ -547,9 +550,9 @@ static int file_count_line(struct ast_channel *chan, const char *cmd, char *data
 #define LINE_COUNTER(cptr, term, counter) \
 	if (*cptr == '\n' && term == FF_UNIX) { \
 		counter++; \
-	} else if (*cptr == '\n' && term == FF_DOS && dos_state == 0) { \
+	} else if (*cptr == '\r' && term == FF_DOS && dos_state == 0) { \
 		dos_state = 1; \
-	} else if (*cptr == '\r' && term == FF_DOS && dos_state == 1) { \
+	} else if (*cptr == '\n' && term == FF_DOS && dos_state == 1) { \
 		dos_state = 0; \
 		counter++; \
 	} else if (*cptr == '\r' && term == FF_MAC) { \
