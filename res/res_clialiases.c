@@ -128,25 +128,29 @@ static char *cli_alias_passthrough(struct ast_cli_entry *e, int cmd, struct ast_
 	}
 
 	/* If they gave us extra arguments we need to construct a string to pass in */
-	if (a->argc != e->args) {
-		struct ast_str *real_cmd = ast_str_alloca(2048);
-		int i;
+	{
+		int res;
 
-		ast_str_append(&real_cmd, 0, "%s", alias->real_cmd);
+		if (a->argc != e->args) {
+			struct ast_str *real_cmd = ast_str_alloca(2048);
+			int i;
 
-		/* Add the additional arguments that have been passed in */
-		for (i = e->args + 1; i <= a->argc; i++) {
-			ast_str_append(&real_cmd, 0, " %s", a->argv[i - 1]);
+			ast_str_append(&real_cmd, 0, "%s", alias->real_cmd);
+
+			/* Add the additional arguments that have been passed in */
+			for (i = e->args + 1; i <= a->argc; i++) {
+				ast_str_append(&real_cmd, 0, " %s", a->argv[i - 1]);
+			}
+
+			res = ast_cli_command(a->fd, ast_str_buffer(real_cmd));
+		} else {
+			res = ast_cli_command(a->fd, alias->real_cmd);
 		}
 
-		ast_cli_command(a->fd, ast_str_buffer(real_cmd));
-	} else {
-		ast_cli_command(a->fd, alias->real_cmd);
+		ao2_ref(alias, -1);
+
+		return res == RESULT_SUCCESS ? CLI_SUCCESS : CLI_FAILURE;
 	}
-
-	ao2_ref(alias, -1);
-
-	return CLI_SUCCESS;
 }
 
 /*! \brief CLI Command to display CLI Aliases */

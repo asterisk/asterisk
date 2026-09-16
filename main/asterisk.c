@@ -1475,7 +1475,34 @@ static void *netconsole(void *vconsole)
 			}
 			/* XXX This will only work if it is the first command, and I'm not sure fixing it is worth the effort. */
 			if (strncmp(inbuf, "cli quit after ", 15) == 0) {
-				ast_cli_command_multiple_full(con->uid, con->gid, con->fd, bytes_read - 15, inbuf + 15);
+				int cli_res = RESULT_SUCCESS;
+				const char *cmds = inbuf + 15;
+				size_t remaining = bytes_read - 15;
+				size_t off = 0;
+				char status_buf[64];
+				int status_len;
+
+				while (off < remaining) {
+					int r = ast_cli_command_full(con->uid, con->gid, con->fd, cmds + off);
+
+					if (r != RESULT_SUCCESS) {
+						cli_res = r;
+					}
+					off += strlen(cmds + off) + 1;
+				}
+				/*
+				 * Remote -rx clients look for this line to set process exit status.
+				 * Keep the marker out of normal CLI output consumers.
+				 */
+				status_len = snprintf(status_buf, sizeof(status_buf),
+					"__ASTERISK_CLI_RESULT__=%d\n",
+					cli_res == RESULT_SUCCESS ? 0 : 1);
+				if (status_len > 0) {
+					if (write(con->fd, status_buf, status_len) < 0) {
+						ast_log(LOG_WARNING, "Failed to write CLI result status: %s\n",
+							strerror(errno));
+					}
+				}
 				break;
 			}
 			/* ast_cli_command_multiple_full will only process individual commands terminated by a
@@ -3255,7 +3282,7 @@ static void ast_el_write_default_histfile(void)
 	process_histfile(ast_el_write_history);
 }
 
-static void ast_remotecontrol(char *data)
+static int ast_remotecontrol(char *data)
 {
 	char buf[256] = "";
 	int res;
@@ -3264,6 +3291,7 @@ static void ast_remotecontrol(char *data)
 	char *version;
 	int pid;
 	char *stringp = NULL;
+	int exec_result = 0;
 
 	char *ebuf;
 	int num = 0;
@@ -3279,7 +3307,7 @@ static void ast_remotecontrol(char *data)
 
 	if (read(ast_consock, buf, sizeof(buf) - 1) < 0) {
 		ast_log(LOG_ERROR, "read() failed: %s\n", strerror(errno));
-		return;
+		return 1;
 	}
 	if (data) {
 		char prefix[] = "cli quit after ";
@@ -3288,7 +3316,7 @@ static void ast_remotecontrol(char *data)
 		if (write(ast_consock, tmp, strlen(tmp) + 1) < 0) {
 			ast_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
 			if (sig_flags.need_quit || sig_flags.need_quit_handler || sig_flags.need_el_end) {
-				return;
+				return 1;
 			}
 		}
 	}
@@ -3337,6 +3365,14 @@ static void ast_remotecontrol(char *data)
 					nextline = strchr(curline, '\0');
 				}
 
+				if (!strncmp(curline, "__ASTERISK_CLI_RESULT__=", 24)) {
+					exec_result = atoi(curline + 24);
+					prev_line_verbose = 0;
+					not_written = 0;
+					curline = nextline;
+					continue;
+				}
+
 				/* Skip verbose lines */
 				/* Prev line full? | Line is verbose | Last line verbose? | Print
 				 * TRUE            | TRUE*           | TRUE               | FALSE
@@ -3365,7 +3401,7 @@ static void ast_remotecontrol(char *data)
 				break;
 			}
 		}
-		return;
+		return exec_result;
 	}
 
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
@@ -3401,6 +3437,7 @@ static void ast_remotecontrol(char *data)
 		}
 	}
 	printf("\nDisconnected from Asterisk server\n");
+	return 0;
 }
 
 static int show_version(void)
@@ -4081,9 +4118,14 @@ int main(int argc, char *argv[])
 		if (ast_opt_remote) {
 			multi_thread_safe = 1;
 			if (ast_opt_exec) {
-				ast_remotecontrol(xarg);
-				quit_handler(0, SHUTDOWN_FAST, 0);
-				exit(0);
+				int exec_res = ast_remotecontrol(xarg);
+				/* quit_handler ends in exit(0); preserve CLI status instead. */
+				if (ast_consock > -1) {
+					close(ast_consock);
+					ast_consock = -1;
+				}
+				printf("%s", term_quit());
+				exit(exec_res ? 1 : 0);
 			}
 			ast_term_init();
 			printf("%s", term_end());
