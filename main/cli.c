@@ -240,6 +240,11 @@ static int cli_has_permissions(int uid, int gid, const char *command)
 
 static AST_RWLIST_HEAD_STATIC(helpers, ast_cli_entry);
 
+static int module_reload_succeeded(enum ast_module_reload_result result)
+{
+	return result == AST_MODULE_RELOAD_SUCCESS || result == AST_MODULE_RELOAD_QUEUED;
+}
+
 static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	/* "module load <mod>" */
@@ -271,6 +276,7 @@ static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int x;
+	char *retval = CLI_SUCCESS;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -285,8 +291,7 @@ static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_RELOAD);
 	}
 	if (a->argc == e->args) {
-		ast_module_reload(NULL);
-		return CLI_SUCCESS;
+		return module_reload_succeeded(ast_module_reload(NULL)) ? CLI_SUCCESS : CLI_FAILURE;
 	}
 	for (x = e->args; x < a->argc; x++) {
 		enum ast_module_reload_result res = ast_module_reload(a->argv[x]);
@@ -315,8 +320,11 @@ static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			ast_cli(a->fd, "Module '%s' reloaded successfully.\n", a->argv[x]);
 			break;
 		}
+		if (!module_reload_succeeded(res)) {
+			retval = CLI_FAILURE;
+		}
 	}
-	return CLI_SUCCESS;
+	return retval;
 }
 
 static char *handle_core_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -337,9 +345,7 @@ static char *handle_core_reload(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_module_reload(NULL);
-
-	return CLI_SUCCESS;
+	return module_reload_succeeded(ast_module_reload(NULL)) ? CLI_SUCCESS : CLI_FAILURE;
 }
 
 /*!
@@ -3120,21 +3126,36 @@ done:
 	return retval == CLI_SUCCESS ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
-int ast_cli_command_multiple_full(int uid, int gid, int fd, size_t size, const char *s)
+int ast_cli_command_multiple_full_result(int uid, int gid, int fd, size_t size,
+	const char *s, int *result)
 {
 	char cmd[512];
 	int x, y = 0, count = 0;
+	int command_result = RESULT_FAILURE;
 
 	for (x = 0; x < size; x++) {
 		cmd[y] = s[x];
 		y++;
 		if (s[x] == '\0') {
-			ast_cli_command_full(uid, gid, fd, cmd);
+			if (!count) {
+				command_result = RESULT_SUCCESS;
+			}
+			if (ast_cli_command_full(uid, gid, fd, cmd) != RESULT_SUCCESS) {
+				command_result = RESULT_FAILURE;
+			}
 			y = 0;
 			count++;
 		}
 	}
+	if (result) {
+		*result = command_result;
+	}
 	return count;
+}
+
+int ast_cli_command_multiple_full(int uid, int gid, int fd, size_t size, const char *s)
+{
+	return ast_cli_command_multiple_full_result(uid, gid, fd, size, s, NULL);
 }
 
 void ast_cli_print_timestr_fromseconds(int fd, int seconds, const char *prefix)
