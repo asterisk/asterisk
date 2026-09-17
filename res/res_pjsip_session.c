@@ -3178,6 +3178,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	}
 
 	session->authentication_challenge_count = 0;
+	session->rtp_timeout_sched_id = -1;
 
 	/* Fire session begin handlers */
 	handle_session_begin(session);
@@ -3447,6 +3448,12 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 
 	if (!response) {
 		response = 603;
+	}
+
+	if (session->rtp_timeout_sched_task) {
+		ast_sip_sched_task_cancel(session->rtp_timeout_sched_task);
+		ao2_ref(session->rtp_timeout_sched_task, -1);
+		session->rtp_timeout_sched_task = NULL;
 	}
 
 	/* The media sessions need to exist for the lifetime of the underlying channel
