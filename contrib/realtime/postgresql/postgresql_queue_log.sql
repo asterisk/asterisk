@@ -25,5 +25,9 @@ CREATE TABLE queue_log (
 
 INSERT INTO alembic_version (version_num) VALUES ('4105ee839f58') RETURNING alembic_version.version_num;
 
+-- Running upgrade 4105ee839f58 -> 8e6a9c2f4b17
+
+UPDATE alembic_version SET version_num='8e6a9c2f4b17' WHERE alembic_version.version_num = '4105ee839f58';
+
 COMMIT;
 

@@ -23,3 +23,9 @@ CREATE TABLE queue_log (
 
 INSERT INTO alembic_version (version_num) VALUES ('4105ee839f58');
 
+-- Running upgrade 4105ee839f58 -> 8e6a9c2f4b17
+
+ALTER TABLE queue_log CHANGE time time DATETIME(6) NULL;
+
+UPDATE alembic_version SET version_num='8e6a9c2f4b17' WHERE alembic_version.version_num = '4105ee839f58';
+
