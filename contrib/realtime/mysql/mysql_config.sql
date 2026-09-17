@@ -1769,3 +1769,38 @@ ALTER TABLE ps_transports ADD COLUMN external_signaling_hostname VARCHAR(40);
 
 UPDATE alembic_version SET version_num='2285f2ace275' WHERE alembic_version.version_num = 'e89e30cee53f';
 
+-- Running upgrade 2285f2ace275 -> 2b45fd748a4f
+
+CREATE TABLE geoloc_location (
+    id VARCHAR(80) NOT NULL, 
+    format ENUM('<none>','civicAddress','GML','URI'), 
+    location_info TEXT, 
+    location_source TEXT, 
+    confidence TEXT, 
+    method TEXT, 
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE geoloc_profile (
+    id VARCHAR(80) NOT NULL, 
+    pidf_element ENUM('<none>','tuple','device','person'), 
+    pidf_element_id TEXT, 
+    device_id TEXT, 
+    location_reference TEXT, 
+    location_info_refinement TEXT, 
+    location_variables TEXT, 
+    usage_rules TEXT, 
+    notes TEXT, 
+    allow_routing_use ENUM('0','1','off','on','false','true','no','yes'), 
+    suppress_empty_ca_elements ENUM('0','1','off','on','false','true','no','yes'), 
+    profile_precedence ENUM('prefer_incoming','prefer_config','discard_incoming','discard_config'), 
+    format ENUM('<none>','civicAddress','GML','URI'), 
+    location_info TEXT, 
+    location_source TEXT, 
+    confidence TEXT, 
+    method TEXT, 
+    PRIMARY KEY (id)
+);
+
+UPDATE alembic_version SET version_num='2b45fd748a4f' WHERE alembic_version.version_num = '2285f2ace275';
+
