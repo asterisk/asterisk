@@ -5115,6 +5115,332 @@ ari_validator ast_ari_validate_channel_left_bridge_fn(void)
 	return ast_ari_validate_channel_left_bridge;
 }
 
+int ast_ari_validate_channel_message_delivery_status(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_timestamp = 0;
+	int has_channel = 0;
+	int has_request_id = 0;
+	int has_status = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("body", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field body failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel = 1;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field channel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("content_type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field content_type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("from", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field from failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("reason", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field reason failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("request_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_request_id = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field request_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("sip_status_code", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field sip_status_code failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("status", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_status = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field status failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("to", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus field to failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ChannelMessageDeliveryStatus has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus missing required field timestamp\n");
+		res = 0;
+	}
+
+	if (!has_channel) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus missing required field channel\n");
+		res = 0;
+	}
+
+	if (!has_request_id) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus missing required field request_id\n");
+		res = 0;
+	}
+
+	if (!has_status) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageDeliveryStatus missing required field status\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_channel_message_delivery_status_fn(void)
+{
+	return ast_ari_validate_channel_message_delivery_status;
+}
+
+int ast_ari_validate_channel_message_received(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_timestamp = 0;
+	int has_body = 0;
+	int has_channel = 0;
+	int has_content_type = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageReceived field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageReceived field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageReceived field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageReceived field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("body", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_body = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageReceived field body failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel = 1;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageReceived field channel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("content_type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_content_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageReceived field content_type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("from", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageReceived field from failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("to", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelMessageReceived field to failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ChannelMessageReceived has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageReceived missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageReceived missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageReceived missing required field timestamp\n");
+		res = 0;
+	}
+
+	if (!has_body) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageReceived missing required field body\n");
+		res = 0;
+	}
+
+	if (!has_channel) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageReceived missing required field channel\n");
+		res = 0;
+	}
+
+	if (!has_content_type) {
+		ast_log(LOG_ERROR, "ARI ChannelMessageReceived missing required field content_type\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_channel_message_received_fn(void)
+{
+	return ast_ari_validate_channel_message_received;
+}
+
 int ast_ari_validate_channel_state_change(struct ast_json *json)
 {
 	int res = 1;
@@ -6595,6 +6921,12 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("ChannelLeftBridge", discriminator) == 0) {
 		return ast_ari_validate_channel_left_bridge(json);
 	} else
+	if (strcmp("ChannelMessageDeliveryStatus", discriminator) == 0) {
+		return ast_ari_validate_channel_message_delivery_status(json);
+	} else
+	if (strcmp("ChannelMessageReceived", discriminator) == 0) {
+		return ast_ari_validate_channel_message_received(json);
+	} else
 	if (strcmp("ChannelStateChange", discriminator) == 0) {
 		return ast_ari_validate_channel_state_change(json);
 	} else
@@ -6822,6 +7154,12 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("ChannelLeftBridge", discriminator) == 0) {
 		return ast_ari_validate_channel_left_bridge(json);
+	} else
+	if (strcmp("ChannelMessageDeliveryStatus", discriminator) == 0) {
+		return ast_ari_validate_channel_message_delivery_status(json);
+	} else
+	if (strcmp("ChannelMessageReceived", discriminator) == 0) {
+		return ast_ari_validate_channel_message_received(json);
 	} else
 	if (strcmp("ChannelStateChange", discriminator) == 0) {
 		return ast_ari_validate_channel_state_change(json);

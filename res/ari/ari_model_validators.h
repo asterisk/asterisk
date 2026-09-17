@@ -960,6 +960,38 @@ int ast_ari_validate_channel_left_bridge(struct ast_json *json);
 ari_validator ast_ari_validate_channel_left_bridge_fn(void);
 
 /*!
+ * \brief Validator for ChannelMessageDeliveryStatus.
+ *
+ * Final delivery status for an outbound in-dialog MESSAGE request.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_channel_message_delivery_status(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_message_delivery_status().
+ */
+ari_validator ast_ari_validate_channel_message_delivery_status_fn(void);
+
+/*!
+ * \brief Validator for ChannelMessageReceived.
+ *
+ * Inbound in-dialog SIP MESSAGE received on a channel.
+ *
+ * \param json JSON object to validate.
+ * \retval True (non-zero) if valid.
+ * \retval False (zero) if invalid.
+ */
+int ast_ari_validate_channel_message_received(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_message_received().
+ */
+ari_validator ast_ari_validate_channel_message_received_fn(void);
+
+/*!
  * \brief Validator for ChannelStateChange.
  *
  * Notification of a channel's state change.
@@ -1860,6 +1892,30 @@ ari_validator ast_ari_validate_application_fn(void);
  * - timestamp: Date (required)
  * - bridge: Bridge (required)
  * - channel: Channel (required)
+ * ChannelMessageDeliveryStatus
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * - body: string
+ * - channel: Channel (required)
+ * - content_type: string
+ * - from: string
+ * - reason: string
+ * - request_id: string (required)
+ * - sip_status_code: int
+ * - status: string (required)
+ * - to: string
+ * ChannelMessageReceived
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date (required)
+ * - body: string (required)
+ * - channel: Channel (required)
+ * - content_type: string (required)
+ * - from: string
+ * - to: string
  * ChannelStateChange
  * - asterisk_id: string
  * - type: string (required)
