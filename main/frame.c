@@ -136,6 +136,7 @@ static void __frame_free(struct ast_frame *fr, int cache)
 		if (frames && frames->size < FRAME_CACHE_MAX_SIZE) {
 			if (fr->frametype == AST_FRAME_VOICE
 				|| fr->frametype == AST_FRAME_VIDEO
+				|| fr->frametype == AST_FRAME_TEXT
 				|| fr->frametype == AST_FRAME_IMAGE) {
 				ao2_cleanup(fr->subclass.format);
 			} else if (fr->frametype == AST_FRAME_CONTROL && fr->subclass.integer == AST_CONTROL_ANSWER) {
@@ -160,6 +161,7 @@ static void __frame_free(struct ast_frame *fr, int cache)
 	if (fr->mallocd & AST_MALLOCD_HDR) {
 		if (fr->frametype == AST_FRAME_VOICE
 			|| fr->frametype == AST_FRAME_VIDEO
+			|| fr->frametype == AST_FRAME_TEXT
 			|| fr->frametype == AST_FRAME_IMAGE) {
 			ao2_cleanup(fr->subclass.format);
 		} else if (fr->frametype == AST_FRAME_CONTROL && fr->subclass.integer == AST_CONTROL_ANSWER) {
@@ -220,7 +222,7 @@ struct ast_frame *__ast_frisolate(struct ast_frame *fr, const char *file, int li
 		out->frametype = fr->frametype;
 		out->subclass = fr->subclass;
 		if ((fr->frametype == AST_FRAME_VOICE) || (fr->frametype == AST_FRAME_VIDEO) ||
-			(fr->frametype == AST_FRAME_IMAGE)) {
+			(fr->frametype == AST_FRAME_TEXT) || (fr->frametype == AST_FRAME_IMAGE)) {
 			ao2_bump(out->subclass.format);
 		} else if (fr->frametype == AST_FRAME_VOICE && fr->subclass.integer == AST_CONTROL_ANSWER) {
 			ao2_bump(out->subclass.topology);
@@ -352,7 +354,7 @@ struct ast_frame *__ast_frdup(const struct ast_frame *f, const char *file, int l
 	out->frametype = f->frametype;
 	out->subclass = f->subclass;
 	if ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_VIDEO) ||
-		(f->frametype == AST_FRAME_IMAGE)) {
+		(f->frametype == AST_FRAME_TEXT) || (f->frametype == AST_FRAME_IMAGE)) {
 		ao2_bump(out->subclass.format);
 	} else if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_ANSWER) {
 		ao2_bump(out->subclass.topology);
@@ -756,6 +758,9 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 		return;
 	}
 	if (f->frametype == AST_FRAME_VIDEO) {
+		return;
+	}
+	if (f->frametype == AST_FRAME_TEXT) {
 		return;
 	}
 	if (f->frametype == AST_FRAME_RTCP) {
