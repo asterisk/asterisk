@@ -268,4 +268,32 @@ const char *ast_odbc_isolation2text(int iso);
  */
 unsigned int ast_odbc_get_max_connections(const char *name);
 
+#ifdef TEST_FRAMEWORK
+struct ast_config;
+
+struct ast_odbc_test_class_config {
+	char name[80];
+	char dsn[80];
+	char username[80];
+	char password[80];
+	char sanitysql[80];
+	int enabled;
+	int preconnect;
+	int backslash_is_escape;
+	int forcecommit;
+	int cache_is_queue;
+	int logging;
+	unsigned int isolation;
+	unsigned int conntimeout;
+	unsigned int maxconnections;
+	unsigned int slowquerylimit;
+	unsigned int max_cache_size;
+	long negative_connection_cache_sec;
+	long negative_connection_cache_usec;
+};
+
+int ast_odbc_test_parse_ast_config(struct ast_config *config, const char *class_name,
+	struct ast_odbc_test_class_config *out);
+#endif
+
 #endif /* _ASTERISK_RES_ODBC_H */
