@@ -33,6 +33,20 @@ dsn => asterisk
 ; Build a connection at startup?
 pre-connect => yes
 ;
+; On a reload that replaces this class (i.e. the dsn, username, password, or
+; sanitysql in res_odbc.conf was changed), pre-warm the entire connection pool
+; on the new class BEFORE publishing it. This eliminates the post-reload
+; thundering-herd of fresh SQLConnects under load by doing those connects up
+; front while the existing class continues to serve traffic. If pre-warm fails
+; (new DSN unreachable, bad credentials) the new configuration is rejected and
+; the previous class continues serving requests uninterrupted. This option has
+; NO effect at initial module load or on reloads that do not change a
+; connection-affecting field. Trade-off when triggered: reload latency
+; increases by max_connections * connect_latency for the affected class, and
+; the database briefly sees double the connection count for the affected class
+; during the swap. Defaults to no.
+;prewarm_pool => no
+;
 ; What should we execute to ensure that our connection is still alive?  The
 ; statement should return a non-zero value in the first field of its first
 ; record.  The default is "select 1".
