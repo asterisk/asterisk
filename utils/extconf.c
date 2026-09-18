@@ -675,7 +675,7 @@ struct ast_flags {  /* stolen from utils.h */
 	unsigned int flags;
 };
 #if __BYTE_ORDER == __BIG_ENDIAN
-#define SWAP64_32(flags) (((uint64_t)flags << 32) | ((uint64_t)flags >> 32))
+#define SWAP64_32(flags) (((uint64_t)(flags) << 32) | ((uint64_t)(flags) >> 32))
 #else
 #define SWAP64_32(flags) (flags)
 #endif
