@@ -42,6 +42,7 @@
 #include "asterisk/framehook.h"
 #include "asterisk/timing.h"
 #include "asterisk/test.h"
+#include "asterisk/poll-compat.h"
 
 #define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*!< Tolerance in milliseconds for audiohooks synchronization */
 #define AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE 100 /*!< When small queue is enabled, this is the maximum amount of audio that can remain queued at a time. */
@@ -53,6 +54,8 @@
 	((interval) < AST_WHISPER_TIMER_INTERVAL_MIN ? AST_WHISPER_TIMER_INTERVAL_MIN : \
 	((interval) > AST_WHISPER_TIMER_INTERVAL_MAX ? AST_WHISPER_TIMER_INTERVAL_MAX : (interval)))
 #define AST_WHISPER_TIMER_SRC "audiohook whisper timer"
+/*! \brief Most expirations acknowledged in one go, so a badly behaved timer cannot loop us */
+#define AST_WHISPER_TIMER_ACK_MAX 64
 
 #define DEFAULT_INTERNAL_SAMPLE_RATE 8000
 
@@ -119,6 +122,42 @@ static void whisper_framehook_destroy_cb(void *data)
 	ast_free(data);
 }
 
+/*!
+ * \brief Acknowledge every expiration the whisper timer has pending
+ * \param hook_data The whisper framehook data holding the timer
+ * \return The number of expirations acknowledged
+ *
+ * The timer fd is level triggered, so it stays readable until it is acknowledged,
+ * and the DAHDI and pthread timing modules only clear a single expiration per ack.
+ * The ack is guarded by a zero timeout poll because the timing modules open their
+ * fds blocking (timerfd_create() without TFD_NONBLOCK), so acknowledging a timer
+ * that has not fired would block until it does.
+ */
+static int whisper_framehook_timer_ack(struct whisper_framehook_data *hook_data)
+{
+	int acked;
+
+	if (!hook_data->timer || hook_data->timer_fd < 0) {
+		return 0;
+	}
+
+	for (acked = 0; acked < AST_WHISPER_TIMER_ACK_MAX; acked++) {
+		struct pollfd pfd = {
+			.fd = hook_data->timer_fd,
+			.events = POLLIN | POLLPRI,
+		};
+
+		if (ast_poll(&pfd, 1, 0) < 1) {
+			break;
+		}
+		if (ast_timer_ack(hook_data->timer, 1) < 0) {
+			break;
+		}
+	}
+
+	return acked;
+}
+
 static struct ast_frame *whisper_framehook_event_cb(struct ast_channel *chan,
 	struct ast_frame *frame,
 	enum ast_framehook_event event,
@@ -141,10 +180,21 @@ static struct ast_frame *whisper_framehook_event_cb(struct ast_channel *chan,
 
 	switch (event) {
 	case AST_FRAMEHOOK_EVENT_READ:
-		/* We only care about timer driven READ events */
-		if (ast_channel_fdno(chan) != hook_data->timer_fd_slot
-			|| !hook_data->timer
-			|| ast_timer_ack(hook_data->timer, 1) < 0) {
+		/*
+		 * Acknowledge the timer on any read event, not only on a read this channel
+		 * attributed to our own fd. ast_waitfor_nandfds() records a single fd per
+		 * channel per wakeup and lets later channels override earlier ones, so a
+		 * caller waiting on several channels routinely reads this one with
+		 * ast_channel_fdno() pointing somewhere else while our timer is also ready.
+		 * Since the timer fd is level triggered, skipping the ack leaves it readable
+		 * forever: every later ast_waitfor() on this channel then returns immediately
+		 * and the caller spins at 100% CPU.
+		 */
+		if (!whisper_framehook_timer_ack(hook_data)) {
+			return frame;
+		}
+		/* Only a read driven by our own fd should inject a frame */
+		if (ast_channel_fdno(chan) != hook_data->timer_fd_slot) {
 			return frame;
 		}
 		break;
@@ -238,11 +288,20 @@ static struct ast_frame *whisper_framehook_event_cb(struct ast_channel *chan,
 	write_res = ast_write(chan, dup);
 	ast_channel_lock(chan);
 
-	if (write_res < 0) {
-		ast_frfree(dup);
+	/* ast_write() never takes ownership of the frame it is handed */
+	ast_frfree(dup);
+
+	if (write_res) {
+		ast_debug(1, "Failed to write whisper timer frame to %s\n", ast_channel_name(chan));
 	}
 
-	return &ast_null_frame;
+	/*
+	 * Return the frame we were given. Handing back a different frame makes this
+	 * callback responsible for freeing the original, which framehook_list_push_event()
+	 * does not do for us, and the frame may be a real read frame that the whisper
+	 * audiohooks have already been mixed into.
+	 */
+	return frame;
 }
 
 static int whisper_framehook_attach(struct ast_channel *chan, struct ast_audiohook_list *audiohook_list)
