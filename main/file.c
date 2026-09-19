@@ -122,6 +122,17 @@ static int publish_format_update(const struct ast_format_def *f, struct stasis_m
 	return 0;
 }
 
+/*!
+ * \brief Space required to store the longest extension from all registered file formats
+ *
+ * Stores the length, in bytes, of the longest extension from all registered file formats
+ * (<tt>struct ast_format_def</tt>). This is only updated during registration because it
+ * was easier to implement this way and only wastes a few bytes in the worst case.
+ *
+ * \note Protected by the \c formats list lock.
+ */
+static unsigned maximum_extension_length;
+
 int __ast_format_def_register(const struct ast_format_def *f, struct ast_module *mod)
 {
 	struct ast_format_def *tmp;
@@ -151,6 +162,17 @@ int __ast_format_def_register(const struct ast_format_def *f, struct ast_module 
 	}
 
 	memset(&tmp->list, 0, sizeof(tmp->list));
+
+	/* Calculate the maximum extension length */
+	{
+		char *storage = ast_strdupa(tmp->exts);
+		char *stringp = storage;
+		const char *ext;
+
+		while ((ext = strsep(&stringp, "|"))) {
+			maximum_extension_length = MAX(maximum_extension_length, strlen(ext));
+		}
+	}
 
 	AST_RWLIST_INSERT_HEAD(&formats, tmp, list);
 	AST_RWLIST_UNLOCK(&formats);
@@ -352,27 +374,74 @@ static int copy(const char *infile, const char *outfile)
 }
 
 /*!
+ * \internal
+ * \brief Allocate a filename template with room for all registered extensions
+ *
+ * \note You must hold the \c formats list lock when calling this function
+ *
+ * \param[in] filename The name of the file, which may be an absolute path
+ * \param[out] extension_start On return, points to the memory offset within the returned
+ * string where candidate extensions should be stored
+ *
+ * \retval An allocated string large enough to accommodate all registered filename
+ * extensions which must be freed by the caller, or \c NULL on allocation failure
+ */
+static char *build_filename_template(const char *filename, char **extension_start)
+{
+	char *fn;
+	int prefix_length;
+	int res;
+
+	if (filename[0] == '/') {
+		res = ast_asprintf(&fn, "%s.%n%*s",
+			filename, &prefix_length, maximum_extension_length, "");
+	} else {
+		res = ast_asprintf(&fn, "%s/sounds/%s.%n%*s",
+			ast_config_AST_DATA_DIR,
+			filename, &prefix_length, maximum_extension_length, "");
+	}
+
+	if (res == -1) {
+		return NULL;
+	}
+
+	*extension_start = fn + prefix_length;
+	return fn;
+}
+
+/*!
+ * \internal
+ * \brief Perform filename extension translation if necessary
+ *
+ * \note The length of any translated extension must be less than or equal to the length
+ * of the extension it is replacing.
+ */
+static const char *translate_extension(const char *extension)
+{
+	/* The wav49 -> WAV translation is duplicated in apps/app_mixmonitor.c, so
+	   if you change it here you need to change it there as well */
+	if (!strcmp(extension, "wav49")) {
+		return "WAV";
+	}
+	return extension;
+}
+
+/*!
  * \brief construct a filename. Absolute pathnames are preserved,
  * relative names are prefixed by the sounds/ directory.
- * The wav49 suffix is replaced by 'WAV'.
  * Returns a malloc'ed string to be freed by the caller.
  */
 static char *build_filename(const char *filename, const char *ext)
 {
 	char *fn = NULL;
 
-	/* The wav49 -> WAV translation is duplicated in apps/app_mixmonitor.c, so
-	   if you change it here you need to change it there as well */
-	if (!strcmp(ext, "wav49"))
-		ext = "WAV";
-
 	if (filename[0] == '/') {
-		if (ast_asprintf(&fn, "%s.%s", filename, ext) < 0) {
+		if (ast_asprintf(&fn, "%s.%s", filename, translate_extension(ext)) < 0) {
 			fn = NULL;
 		}
 	} else {
 		if (ast_asprintf(&fn, "%s/sounds/%s.%s",
-			     ast_config_AST_DATA_DIR, filename, ext) < 0) {
+				ast_config_AST_DATA_DIR, filename, translate_extension(ext)) < 0) {
 			fn = NULL;
 		}
 	}
@@ -562,7 +631,17 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 	struct ast_format_def *f;
 	int res = (action == ACTION_EXISTS) ? 0 : -1;
 
+	char *extension_start;
+	char *fn;
+
 	AST_RWLIST_RDLOCK(&formats);
+
+	fn = build_filename_template(filename, &extension_start);
+	if (!fn) {
+		AST_RWLIST_UNLOCK(&formats);
+		return res;
+	}
+
 	/* Check for a specific format */
 	AST_RWLIST_TRAVERSE(&formats, f, list) {
 		char *ext = NULL;
@@ -580,13 +659,11 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 		stringp = storage;
 		while ( (ext = strsep(&stringp, "|")) ) {
 			struct stat st;
-			char *fn = build_filename(filename, ext);
 
-			if (fn == NULL)
-				continue;
+			/* Append the extension to our template */
+			strcpy(extension_start, translate_extension(ext));
 
 			if ( stat(fn, &st) ) { /* file not existent */
-				ast_free(fn);
 				continue;
 			}
 			/* for 'OPEN' we need to be sure that the format matches
@@ -601,23 +678,19 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 				     !(((ast_format_get_type(f->format) == AST_MEDIA_TYPE_AUDIO) && fmt) ||
 					  ((ast_format_get_type(f->format) == AST_MEDIA_TYPE_VIDEO) && fmt))) {
 					ast_debug(3, "File %s format is not compatible with the channel\n", fn);
-					ast_free(fn);
 					continue;	/* not a supported format */
 				}
 				if ( (bfile = fopen(fn, "r")) == NULL) {
 					ast_log(LOG_WARNING, "Failed to open file %s due to: %s\n", fn, strerror(errno));
-					ast_free(fn);
 					continue;	/* cannot open file */
 				}
 				s = get_filestream(f, bfile);
 				if (!s) {
 					ast_log(LOG_WARNING, "Failed to open file %s due to: file stream creation failure\n", fn);
 					fclose(bfile);
-					ast_free(fn);	/* cannot allocate descriptor */
-					continue;
+					continue;	/* cannot allocate descriptor */
 				}
 				if (open_wrapper(s)) {
-					ast_free(fn);
 					ast_closestream(s);
 					continue;	/* cannot run open on file */
 				}
@@ -639,7 +712,6 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 						ast_closestream(ast_channel_vstream(chan));
 					ast_channel_vstream_set(chan, s);
 				}
-				ast_free(fn);
 				break;
 			}
 			switch (action) {
@@ -679,7 +751,6 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 			default:
 				ast_log(LOG_WARNING, "Unknown helper %u\n", action);
 			}
-			ast_free(fn);
 		}
 
 		/* If we have successfully opened a file, we are done. */
@@ -688,6 +759,7 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 		}
 	}
 	AST_RWLIST_UNLOCK(&formats);
+	ast_free(fn);
 	return res;
 }
 
