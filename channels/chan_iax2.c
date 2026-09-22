@@ -9019,36 +9019,36 @@ static int iax2_append_register(const char *hostname, const char *username,
 static int iax2_register(const char *value, int lineno)
 {
 	char copy[256];
-	char *username, *hostname, *secret;
-	char *porta;
-	char *stringp=NULL;
+	char *userpart, *hostpart;
+	char *username, *secret;
+	char *host, *port;
+	char *stringp = NULL;
 
 	if (!value)
 		return -1;
 
 	ast_copy_string(copy, value, sizeof(copy));
 	stringp = copy;
-	username = strsep(&stringp, "@");
-	hostname = strsep(&stringp, "@");
+	userpart = strsep(&stringp, "@");
+	hostpart = strsep(&stringp, "@");
 
-	if (!hostname) {
+	if (!hostpart) {
 		ast_log(LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d\n", lineno);
 		return -1;
 	}
 
-	stringp = username;
+	stringp = userpart;
 	username = strsep(&stringp, ":");
 	secret = strsep(&stringp, ":");
-	stringp = hostname;
-	hostname = strsep(&stringp, ":");
-	porta = strsep(&stringp, ":");
 
-	if (porta && !atoi(porta)) {
-		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
+	ast_sockaddr_split_hostport(hostpart, &host, &port, 0);
+
+	if (port && !atoi(port)) {
+		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", port, lineno);
 		return -1;
 	}
 
-	return iax2_append_register(hostname, username, secret, porta);
+	return iax2_append_register(host, username, secret, port);
 }
 
 
