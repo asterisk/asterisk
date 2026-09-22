@@ -1801,7 +1801,7 @@ int ast_sip_for_each_channel_snapshot(
 	const struct ast_endpoint_snapshot *endpoint_snapshot,
 	ao2_callback_fn on_channel_snapshot, void *arg)
 {
-	int num, num_channels = endpoint_snapshot->num_channels;
+	int num, num_channels = endpoint_snapshot ? endpoint_snapshot->num_channels : 0;
 
 	if (!on_channel_snapshot || !num_channels) {
 		return 0;
@@ -2163,7 +2163,7 @@ static int cli_endpoint_print_body(void *obj, void *arg, int flags)
 		indent, "Endpoint",
 		flexwidth, flexwidth, print_name ? print_name : id,
 		ast_sip_get_device_state(endpoint),
-		endpoint_snapshot->num_channels,
+		endpoint_snapshot ? endpoint_snapshot->num_channels : 0,
 		(double) endpoint->devicestate_busy_at ? endpoint->devicestate_busy_at :
 														INFINITY
 														);
