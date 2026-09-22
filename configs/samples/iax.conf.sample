@@ -312,6 +312,10 @@ encryption=yes
 ;
 ;register => marko:[torkey]@tormenta.linux-support.net
 ;
+; Register sean at an IPv6 enabled host
+;
+;register => sean:secure@[2001:0db8::42]:4570
+;
 ; Through the use of the res_stun_monitor module, Asterisk has the ability to detect when the
 ; perceived external network address has changed.  When the stun_monitor is installed and
 ; configured, chan_iax will renew all outbound registrations when the monitor detects any sort
