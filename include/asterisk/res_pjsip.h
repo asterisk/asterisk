@@ -3381,7 +3381,7 @@ const char *ast_sip_get_device_state(const struct ast_sip_endpoint *endpoint);
  * \brief For every channel snapshot on an endpoint snapshot call the given
  *        'on_channel_snapshot' handler.
  *
- * \param endpoint_snapshot snapshot of an endpoint
+ * \param endpoint_snapshot snapshot of an endpoint, may be NULL
  * \param on_channel_snapshot callback for each channel snapshot
  * \param arg user data passed to handler
  * \retval 0 Success, non-zero on failure
