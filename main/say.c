@@ -59,6 +59,7 @@
 #include "asterisk/cli.h" /* use ESS */
 
 /* Forward declaration */
+static const char *find_first_and(const char *lang);
 static int wait_file(struct ast_channel *chan, const char *ints, const char *file, const char *lang);
 
 struct ast_str* ast_get_character_str(const char *str, const char *lang, enum ast_say_case_sensitivity sensitivity) {
@@ -414,7 +415,7 @@ static struct ast_str* ast_get_money_en_dollars_str(const char *str, const char 
 
 		/* If dollars and cents, add "and" in the middle */
 		if (cents > 0) {
-			ast_str_append(&filenames, 0, "&%s", "and");
+			ast_str_append(&filenames, 0, "&%s", find_first_and(lang));
 		}
 	}
 
@@ -873,6 +874,17 @@ static int wait_file(struct ast_channel *chan, const char *ints, const char *fil
 	return res;
 }
 
+static const char *find_first_and(const char *language)
+{
+	if (ast_fileexists("digits/and", NULL, language)) {
+		return "digits/and";
+	} else if (ast_fileexists("and", NULL, language)) {
+		return "and";
+	} else {
+		return "vm-and";
+	}
+}
+
 /*! \brief  ast_say_number_full: call language-specific functions
      \note Called from AGI */
 static int say_number_full(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
@@ -1113,7 +1125,7 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (playa) {
-			ast_copy_string(fn, "digits/and", sizeof(fn));
+			ast_copy_string(fn, find_first_and(language), sizeof(fn));
 			playa = 0;
 		} else if (num == 1 && cn == -1) {
 			ast_copy_string(fn, "digits/1N", sizeof(fn));
@@ -1493,7 +1505,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (playa) {
-			ast_copy_string(fn, "vm-and", sizeof(fn));
+			ast_copy_string(fn, find_first_and(language), sizeof(fn));
 			playa = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -1655,7 +1667,7 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 				num = 0;
 			}
 		} else if (playa) {
-			ast_copy_string(fn, "digits/and", sizeof(fn));
+			ast_copy_string(fn, find_first_and(language), sizeof(fn));
 			playa = 0;
 		} else if (num == 1) {
 			if (mf < 0)
@@ -2109,7 +2121,7 @@ static int ast_say_number_full_is(struct ast_channel *chan, int num, const char 
 				ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (playa) {
-			ast_copy_string(fn, "digits/and", sizeof(fn));
+			ast_copy_string(fn, find_first_and(language), sizeof(fn));
 			playa = 0;
 		} else if (num < 5 && cn == 2) {
 			snprintf(fn, sizeof(fn), "digits/%dkvk", num);
@@ -2476,7 +2488,7 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (playa) {
-			ast_copy_string(fn, "digits/and", sizeof(fn));
+			ast_copy_string(fn, find_first_and(language), sizeof(fn));
 			playa = 0;
 		} else if (num == 1 && cn == -1) {
 			ast_copy_string(fn, "digits/1N", sizeof(fn));
@@ -3826,7 +3838,7 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 				num = 0;
 			}
 		} else if (num < 100 && t) {
-			ast_copy_string(fn, "digits/and", sizeof(fn));
+			ast_copy_string(fn, find_first_and(language), sizeof(fn));
 			t = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/h-%d%s", num, gender);
@@ -3989,7 +4001,7 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 				num = 0;
 			}
 		} else if (num < 100 && t) {
-			ast_copy_string(fn, "digits/and", sizeof(fn));
+			ast_copy_string(fn, find_first_and(language), sizeof(fn));
 			t = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/h-%d%s", num, gender);
@@ -4240,7 +4252,7 @@ static int ast_say_enumeration_full_is(struct ast_channel *chan, int num, const 
 				num = 0;
 			}
 		} else if (num < 100 && t) {
-			ast_copy_string(fn, "digits/and", sizeof(fn));
+			ast_copy_string(fn, find_first_and(language), sizeof(fn));
 			t = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/h-%d%s", num, gender);
@@ -4254,7 +4266,7 @@ static int ast_say_enumeration_full_is(struct ast_channel *chan, int num, const 
 				t++;
 			}
 			else if (t) {
-				snprintf(fn, sizeof(fn), "digits/and");
+				ast_copy_string(fn, find_first_and(language), sizeof(fn));
 				t = 0;
 			}
 			else {
@@ -5283,7 +5295,7 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t t, const char *
 				break;
 			case 'S':
 				/* Seconds */
-				res = wait_file(chan, ints, "digits/and", lang);
+				res = wait_file(chan, ints, find_first_and(lang), lang);
 				if (!res) {
 					res = ast_say_number(chan, tm.tm_sec, ints, lang, "f");
 					if (!res) {
@@ -5492,7 +5504,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t t, const char *
 				break;
 			case 'S':
 				/* Seconds */
-				res = wait_file(chan, ints, "digits/and", lang);
+				res = wait_file(chan, ints, find_first_and(lang), lang);
 				if (!res) {
 					res = ast_say_number(chan, tm.tm_sec, ints, lang, "f");
 					if (!res) {
@@ -5701,7 +5713,7 @@ int ast_say_date_with_format_is(struct ast_channel *chan, time_t t, const char *
 				break;
 			case 'S':
 				/* Seconds */
-				res = wait_file(chan, ints, "digits/and", lang);
+				res = wait_file(chan, ints, find_first_and(lang), lang);
 				if (!res) {
 					res = ast_say_number(chan, tm.tm_sec, ints, lang, "f");
 					/* Say minute/minutes depending on whether seconds end in 1 */
@@ -7063,7 +7075,7 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 				break;
 			case 'S':
 				/* Seconds */
-				res = wait_file(chan, ints, "digits/and", lang);
+				res = wait_file(chan, ints, find_first_and(lang), lang);
 				if (!res) {
 					if (tm.tm_sec == 1) {
 						res = wait_file(chan, ints, "digits/1z", lang);
