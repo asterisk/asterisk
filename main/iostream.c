@@ -87,6 +87,11 @@ int ast_iostream_get_fd(struct ast_iostream *stream)
 	return stream->fd;
 }
 
+int ast_iostream_has_buffered_line(struct ast_iostream *stream)
+{
+	return stream->rbuflen && memchr(stream->rbufhead, '\n', stream->rbuflen) != NULL;
+}
+
 int ast_iostream_wait_for_input(struct ast_iostream *stream, int timeout)
 {
 #if defined(DO_SSL)
