@@ -539,7 +539,6 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Entity ID:                   %s\n", eid_str);
 	ast_cli(a->fd, "  PBX UUID:                    %s\n", pbx_uuid);
 	ast_cli(a->fd, "  Default language:            %s\n", ast_defaultlanguage);
-	ast_cli(a->fd, "  Language prefix:             %s\n", ast_language_is_prefix ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  User name and group:         %s/%s\n", ast_config_AST_RUN_USER, ast_config_AST_RUN_GROUP);
 #if defined(HAVE_EACCESS) || defined(HAVE_EUIDACCESS)
 #if defined(HAVE_EUIDACCESS) && !defined(HAVE_EACCESS)
@@ -3876,10 +3875,6 @@ int main(int argc, char *argv[])
 		for (x = 1; x < argc; x++) {
 			argv[x] = argv[0] + 10;
 		}
-	}
-
-	if (!ast_language_is_prefix && !ast_opt_remote) {
-		fprintf(stderr, "The 'languageprefix' option in asterisk.conf is deprecated; in a future release it will be removed, and your sound files will need to be organized in the 'new style' language layout.\n");
 	}
 
 	if (ast_opt_always_fork && (ast_opt_remote || ast_opt_console)) {
