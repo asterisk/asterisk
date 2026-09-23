@@ -421,8 +421,6 @@ void load_asterisk_conf(void)
 					ast_log(LOG_ERROR, "Cannot obtain hostname for this system.  Using '%s' instead.\n", ast_config_AST_SYSTEM_NAME);
 				}
 			}
-		} else if (!strcasecmp(v->name, "languageprefix")) {
-			ast_language_is_prefix = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "defaultlanguage")) {
 			ast_copy_string(ast_defaultlanguage, v->value, MAX_LANGUAGE);
 		} else if (!strcasecmp(v->name, "lockmode")) {
@@ -480,6 +478,12 @@ void load_asterisk_conf(void)
 			internal_channel_set_current_storage_driver(v->value);
 		} else if (!strcasecmp(v->name, "disable_remote_console_shell")) {
 			ast_option_disable_remote_console_shell = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "documentation_language")) {
+			/* This is handled in xmldoc.c, but we don't want to emit a warning */
+		} else {
+			ast_log(LOG_WARNING,
+				"Unrecognized setting '%s' in [options] section of %s",
+				v->name, ast_config_AST_CONFIG_FILE);
 		}
 	}
 	if (!ast_opt_remote) {
