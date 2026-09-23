@@ -40,83 +40,117 @@
 /* Portions of the conversion code are by guido@sienanet.it */
 /*! \todo Check this buf size estimate, it may be totally wrong for large frame video */
 
+#define BUF_SIZE	4096	/* Two Real h264 Frames */
 #define FRAME_ENDED	0x8000
 
-#define BUF_SIZE	4096	/* Two Real h264 Frames */
 struct h264_desc {
 	unsigned int lastts;
 };
 
-static int h264_open(struct ast_filestream *s)
+static int h264_open(struct ast_filestream *fs)
 {
 	unsigned int ts;
-	if (fread(&ts, 1, sizeof(ts), s->f) != sizeof(ts)) {
+	struct h264_desc *desc = (struct h264_desc *) fs->_private;
+
+	if (fread(&ts, 1, sizeof(ts), fs->f) != sizeof(ts)) {
 		ast_log(LOG_WARNING, "Empty file!\n");
 		return -1;
 	}
+
+	desc->lastts = ntohl(ts);
 	return 0;
 }
 
-static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
+static struct ast_frame *h264_read(struct ast_filestream *fs, int *whennext)
 {
 	size_t res;
-	int mark = 0;
-	unsigned short len;
 	unsigned int ts;
-	struct h264_desc *fs = (struct h264_desc *)s->_private;
+	unsigned short mark;
+	unsigned short len;
+	struct h264_desc *desc = (struct h264_desc *) fs->_private;
 
 	/* Send a frame from the file to the appropriate channel */
-	if ((res = fread(&len, 1, sizeof(len), s->f)) != sizeof(len))
+	if (fread(&len, 1, sizeof(len), fs->f) != sizeof(len)) {
 		return NULL;
+	}
+
 	len = ntohs(len);
-	mark = (len & FRAME_ENDED) ? 1 : 0;
-	len &= 0x7fff;
+	mark = len & FRAME_ENDED;
+	len &= ~FRAME_ENDED;
+
 	if (len > BUF_SIZE) {
 		ast_log(LOG_WARNING, "Length %d is too long\n", len);
-		len = BUF_SIZE;	/* XXX truncate */
-	}
-	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
-	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
-		if (res) {
-			ast_log(LOG_WARNING, "Short read of %s data (expected %d bytes, read %zu): %s\n",
-					ast_format_get_name(s->fr.subclass.format), s->fr.datalen, res,
-					strerror(errno));
-		}
 		return NULL;
 	}
-	s->fr.samples = fs->lastts;
-	s->fr.datalen = len;
-	s->fr.subclass.frame_ending = mark;
-	if ((res = fread(&ts, 1, sizeof(ts), s->f)) == sizeof(ts)) {
-		fs->lastts = ntohl(ts);
-		*whennext = fs->lastts * 4/45;
-	} else
-		*whennext = 0;
-	return &s->fr;
+
+	fs->fr.datalen = len;
+	fs->fr.subclass.frame_ending = mark ? 1 : 0;
+	AST_FRAME_SET_BUFFER(&fs->fr, fs->buf, AST_FRIENDLY_OFFSET, len);
+
+	if ((res = fread(fs->fr.data.ptr, 1, fs->fr.datalen, fs->f)) != fs->fr.datalen) {
+		ast_log(LOG_WARNING, "Short read of %s data (expected %d bytes, read %zu): %s\n",
+			ast_format_get_name(fs->fr.subclass.format), fs->fr.datalen, res,
+			strerror(errno));
+		return NULL;
+	}
+
+	ast_set_flag(&fs->fr, AST_FRFLAG_HAS_TIMING_INFO);
+	fs->fr.ts = desc->lastts;
+
+	if (fread(&ts, 1, sizeof(ts), fs->f) == sizeof(ts)) {
+		ts = ntohl(ts);
+
+		if (ts != desc->lastts) {
+			*whennext = ts - desc->lastts;
+
+			/* The timestamp probably won't exactly match the expected sample rate
+			 * increment due to scheduling jitter inside the phone and the use of
+			 * wall-clock time. If it looks roughly like 30fps adjust it to that. */
+			if (*whennext >= 27 && *whennext <= 40) {
+				*whennext = 33;
+			}
+
+			/* We want to be scheduled to just before the actual timeout */
+			*whennext -= 1;
+			desc->lastts = ts;
+		}
+	}
+
+	return &fs->fr;
 }
 
-static int h264_write(struct ast_filestream *s, struct ast_frame *f)
+static int h264_write(struct ast_filestream *fs, struct ast_frame *fr)
 {
-	int res;
+	size_t res;
 	unsigned int ts;
+	unsigned short mark;
 	unsigned short len;
-	int mark;
 
-	mark = f->subclass.frame_ending ? FRAME_ENDED : 0;
-	ts = htonl(f->samples);
-	if ((res = fwrite(&ts, 1, sizeof(ts), s->f)) != sizeof(ts)) {
-		ast_log(LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
+	if (fr->len > BUF_SIZE) {
+		ast_log(LOG_WARNING, "Length %ld is too long\n", fr->len);
 		return -1;
 	}
-	len = htons(f->datalen | mark);
-	if ((res = fwrite(&len, 1, sizeof(len), s->f)) != sizeof(len)) {
-		ast_log(LOG_WARNING, "Bad write (%d/2): %s\n", res, strerror(errno));
+
+	ts = htonl(fr->ts);
+
+	if ((res = fwrite(&ts, 1, sizeof(ts), fs->f)) != sizeof(ts)) {
+		ast_log(LOG_WARNING, "Bad write (%zu/4): %s\n", res, strerror(errno));
 		return -1;
 	}
-	if ((res = fwrite(f->data.ptr, 1, f->datalen, s->f)) != f->datalen) {
-		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+
+	mark = fr->subclass.frame_ending ? FRAME_ENDED : 0;
+	len = htons(fr->datalen | mark);
+
+	if ((res = fwrite(&len, 1, sizeof(len), fs->f)) != sizeof(len)) {
+		ast_log(LOG_WARNING, "Bad write (%zu/2): %s\n", res, strerror(errno));
 		return -1;
 	}
+
+	if ((res = fwrite(fr->data.ptr, 1, fr->datalen, fs->f)) != fr->datalen) {
+		ast_log(LOG_WARNING, "Bad write (%zu/%d): %s\n", res, fr->datalen, strerror(errno));
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -135,18 +169,21 @@ static int h264_trunc(struct ast_filestream *fs)
 		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for h264 filestream %p: %s\n", fs, strerror(errno));
 		return -1;
 	}
+
 	if ((cur = ftello(fs->f)) < 0) {
 		ast_log(AST_LOG_WARNING, "Unable to determine current position in h264 filestream %p: %s\n", fs, strerror(errno));
 		return -1;
 	}
+
 	/* Truncate file to current length */
 	return ftruncate(fd, cur);
 }
 
 static off_t h264_tell(struct ast_filestream *fs)
 {
-	off_t offset = ftell(fs->f);
-	return offset; /* XXX totally bogus, needs fixing */
+	off_t off = ftello(fs->f);
+
+	return off; /* XXX totally bogus, needs fixing */
 }
 
 static struct ast_format_def h264_f = {
@@ -165,8 +202,11 @@ static struct ast_format_def h264_f = {
 static int load_module(void)
 {
 	h264_f.format = ast_format_h264;
-	if (ast_format_def_register(&h264_f))
+
+	if (ast_format_def_register(&h264_f)) {
 		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
