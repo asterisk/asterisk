@@ -55,18 +55,6 @@
 #include "asterisk/stasis_system.h"
 #include "asterisk/media_cache.h"
 
-/*! \brief
- * The following variable controls the layout of localized sound files.
- * If 0, use the historical layout with prefix just before the filename
- * (i.e. digits/en/1.gsm , digits/it/1.gsm or default to digits/1.gsm),
- * if 1 put the prefix at the beginning of the filename
- * (i.e. en/digits/1.gsm, it/digits/1.gsm or default to digits/1.gsm).
- * The latter permits a language to be entirely in one directory.
- *
- * This is settable in asterisk.conf.
- */
-int ast_language_is_prefix = 1;
-
 static AST_RWLIST_HEAD_STATIC(formats, ast_format_def);
 
 STASIS_MESSAGE_TYPE_DEFN(ast_format_register_type);
@@ -790,13 +778,13 @@ static int fileexists_test(const char *filename, const char *fmt, const char *la
 		return filehelper(buf, result_cap, NULL, ACTION_EXISTS);
 	}
 
-	if (ast_language_is_prefix && !is_absolute_path(filename)) { /* new layout */
+	if (!is_absolute_path(filename)) {
 		if (lang) {
 			snprintf(buf, buflen, "%s/%s", lang, filename);
 		} else {
 			snprintf(buf, buflen, "%s", filename);
 		}
-	} else { /* old layout */
+	} else {
 		strcpy(buf, filename);	/* first copy the full string */
 		if (lang) {
 			/* insert the language and suffix if needed */
