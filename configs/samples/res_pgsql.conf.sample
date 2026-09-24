@@ -34,3 +34,12 @@ requirements=warn
 ; that from occuring, set order_multi_row_results_by_initial_column to 'no'.
 ;
 ;order_multi_row_results_by_initial_column=no
+
+; Table and column names that cannot be used unquoted in PostgreSQL, such as
+; names starting with a digit ("100rel"), are always double-quoted. Other names
+; are sent unquoted so PostgreSQL keeps folding them to lower case. Set
+; quote_identifiers to 'yes' to double-quote every name, which also handles
+; reserved keywords. Quoted names are case-sensitive, so tables and columns
+; must then match the case used by the realtime configuration.
+;
+;quote_identifiers=yes
