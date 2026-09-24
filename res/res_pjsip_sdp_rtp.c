@@ -1829,6 +1829,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	int min_packet_size = 0, max_packet_size = 0;
 	int rtp_code;
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+	struct ast_rtp_codecs *codecs;
 	enum ast_media_type media_type = session_media->type;
 	struct ast_sip_session_media *session_media_transport;
 	pj_sockaddr ip;
@@ -1986,8 +1987,27 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create caps\n");
 	}
 
+	codecs = ast_rtp_instance_get_codecs(session_media->rtp);
 	if (direct_media_enabled) {
-		ast_format_cap_get_compatible(session->endpoint->media.codecs, session->direct_media_cap, caps);
+		RAII_VAR(struct ast_format_cap *, common, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
+		int common_noncodec;
+
+		if (!common || !session_media->direct_media_payloads) {
+			SCOPE_EXIT_RTN_VALUE(-1, "No direct media payload mappings\n");
+		}
+		codecs = session_media->direct_media_payloads;
+		ast_rtp_codecs_payload_formats(codecs, common, &common_noncodec);
+		noncodec &= common_noncodec;
+		for (index = 0; index < ast_format_cap_count(common); ++index) {
+			struct ast_format *format = ast_format_cap_get_format(common, index);
+
+			if (ast_format_cap_iscompatible_format(session->endpoint->media.codecs, format) != AST_FORMAT_CMP_NOT_EQUAL
+				&& ast_format_cap_iscompatible_format(session->direct_media_cap, format) != AST_FORMAT_CMP_NOT_EQUAL) {
+				ast_format_cap_append(caps, format, 0);
+			}
+			ao2_ref(format, -1);
+		}
+		ast_rtp_codecs_payloads_xover(codecs, ast_rtp_instance_get_codecs(session_media->rtp), session_media->rtp);
 	} else {
 		ast_format_cap_append_from_cap(caps, ast_stream_get_formats(stream), media_type);
 	}
@@ -1996,6 +2016,18 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	if (AST_VECTOR_INIT(&sample_rates, 1)) {
 		ast_log(LOG_ERROR, "Unable to add dtmf formats to SDP!\n");
 		build_dtmf_sample_rates = 0;
+	}
+
+	if (direct_media_enabled && build_dtmf_sample_rates) {
+		/* Use all common telephone-event rates, not defaults inferred from audio codecs. */
+		for (index = 0; index < AST_RTP_MAX_PT; ++index) {
+			struct ast_rtp_payload_type *type = ast_rtp_codecs_get_payload(codecs, index);
+
+			if (type && !type->asterisk_format && type->rtp_code == AST_RTP_DTMF) {
+				AST_VECTOR_APPEND(&sample_rates, type->sample_rate);
+			}
+			ao2_cleanup(type);
+		}
 	}
 
 	for (index = 0; index < ast_format_cap_count(caps); ++index) {
@@ -2019,7 +2051,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		/* If this stream is not a transport we need to use the transport codecs structure for payload management to prevent
 		 * conflicts.
 		 */
-		if (session_media_transport != session_media) {
+		if (!direct_media_enabled && session_media_transport != session_media) {
 			if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media_transport->rtp), 1, format, 0)) == -1) {
 				ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
 				ao2_ref(format, -1);
@@ -2028,7 +2060,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			/* Our instance has to match the payload number though */
 			ast_rtp_codecs_payload_set_rx(ast_rtp_instance_get_codecs(session_media->rtp), rtp_code, format);
 		} else {
-			if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, format, 0)) == -1) {
+			if ((rtp_code = ast_rtp_codecs_payload_code(codecs, 1, format, 0)) == -1) {
 				ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
 				ao2_ref(format, -1);
 				continue;
@@ -2038,7 +2070,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 1, format, 0))) {
 			int i, added = 0;
 			int newrate = ast_rtp_lookup_sample_rate2(1, format, 0);
-			if (build_dtmf_sample_rates) {
+			if (build_dtmf_sample_rates && !direct_media_enabled) {
 				for (i = 0; i < AST_VECTOR_SIZE(&sample_rates); i++) {
 					/* Only add if we haven't already processed this sample rate. For instance
 						A-law and u-law 'share' one 8K DTMF payload type. */
@@ -2079,8 +2111,9 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			}
 
 			if (index != AST_RTP_DTMF) {
-				rtp_code = ast_rtp_codecs_payload_code(
-								ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index);
+				rtp_code = direct_media_enabled
+					? ast_rtp_codecs_payload_code_tx(codecs, 0, NULL, index)
+					: ast_rtp_codecs_payload_code(codecs, 0, NULL, index);
 				if (rtp_code == -1) {
 					continue;
 				} else if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 0, NULL, index))) {
@@ -2092,9 +2125,11 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				 * attributes.
 				 */
 				int i, found_default_offer = 0;
-				for (i = 0; i < AST_VECTOR_SIZE(&sample_rates); i++) {
-					rtp_code = ast_rtp_codecs_payload_code_sample_rate(
-									ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index, AST_VECTOR_GET(&sample_rates, i));
+				for (i = 0; i < AST_VECTOR_SIZE(&sample_rates)
+					&& media->desc.fmt_count < PJMEDIA_MAX_SDP_FMT; i++) {
+					rtp_code = direct_media_enabled
+						? ast_rtp_codecs_payload_code_tx_sample_rate(codecs, 0, NULL, index, AST_VECTOR_GET(&sample_rates, i))
+						: ast_rtp_codecs_payload_code_sample_rate(codecs, 0, NULL, index, AST_VECTOR_GET(&sample_rates, i));
 
 					if (rtp_code == -1) {
 						continue;
@@ -2116,7 +2151,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				/* If we weren't able to add any matching RFC 2833/4733, assume this endpoint is using a
 				 * mismatched 8K offer and try to add one as a fall-back/default.
 				 */
-				if (!found_default_offer) {
+				if (!found_default_offer && !direct_media_enabled) {
 					rtp_code = ast_rtp_codecs_payload_code_sample_rate(
 									ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index, DEFAULT_DTMF_SAMPLE_RATE_MS);
 
