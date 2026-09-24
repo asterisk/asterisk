@@ -91,8 +91,6 @@ struct ast_sip_session_media {
 	pj_str_t transport;
 	/*! \brief Scheduler ID for RTP keepalive */
 	int keepalive_sched_id;
-	/*! \brief Scheduler ID for RTP timeout */
-	int timeout_sched_id;
 	/*! \brief Stream is on hold by remote side */
 	unsigned int remotely_held:1;
 	/*! \brief Stream is held by remote side changed during this negotiation*/
@@ -237,6 +235,8 @@ struct ast_sip_session {
 	unsigned int early_confirmed:1;
 	/*! Delayed BYE is waiting behind a UAC INVITE with a fallback timeout */
 	unsigned int terminate_on_invite_timeout:1;
+	/*! \brief The RTP timeout scheduler task for this session */
+	struct ast_sip_sched_task *rtp_timeout_sched_task;
 	/*! DTMF mode to use with this session, from endpoint but can change */
 	enum ast_sip_dtmf_mode dtmf;
 	/*! Initial incoming INVITE Request-URI.  NULL otherwise. */
