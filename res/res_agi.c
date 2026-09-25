@@ -3109,7 +3109,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	if (res) {
 		ast_agi_send(agi->fd, chan, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
 	} else {
-		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, AST_FILE_MODE);
+		fs = ast_chan_writefile(chan, argv[2], argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, AST_FILE_MODE);
 		if (!fs) {
 			res = -1;
 			ast_agi_send(agi->fd, chan, "200 result=%d (writefile)\n", res);

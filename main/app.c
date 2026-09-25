@@ -1826,7 +1826,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 
 	end = start = time(NULL);  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x = 0; x < fmtcnt; x++) {
-		others[x] = ast_writefile(prepend ? prependfile : recordfile, sfmt[x], comment, ioflags, 0, AST_FILE_MODE);
+		others[x] = ast_chan_writefile(chan, prepend ? prependfile : recordfile, sfmt[x], comment, ioflags, 0, AST_FILE_MODE);
 		ast_trace(-1, "x=%d, open writing:  %s format: %s, %p\n", x, prepend ? prependfile : recordfile, sfmt[x], others[x]);
 
 		if (!others[x]) {
