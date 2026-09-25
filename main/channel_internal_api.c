@@ -1096,12 +1096,21 @@ char *ast_channel_internal_ari_reportable_vars_remove(
 int ast_channel_fd_add(struct ast_channel *chan, int value)
 {
 	int pos = AST_EXTENDED_FDS;
+	int gap;
 
 	while (ast_channel_fd_isset(chan, pos)) {
 		pos += 1;
 	}
 
-	AST_VECTOR_REPLACE(&chan->fds, pos, value);
+	/* Unused slots must not become descriptors (in particular, stdin). */
+	for (gap = AST_VECTOR_SIZE(&chan->fds); gap < pos; ++gap) {
+		if (AST_VECTOR_REPLACE(&chan->fds, gap, -1)) {
+			return -1;
+		}
+	}
+	if (AST_VECTOR_REPLACE(&chan->fds, pos, value)) {
+		return -1;
+	}
 
 	return pos;
 }
