@@ -843,6 +843,12 @@ static int load_module(void)
 	int res = 0;
 	struct ast_db_entry *db_entry, *db_tree;
 
+	/* The CustomPresence provider must be registered before populating the
+	 * cache as entries with a not_set state result in the provider being queried
+	 * for the state (which will be not_set anyway in this case).
+	 */
+	res |= ast_presence_state_prov_add("CustomPresence", custom_presence_callback);
+
 	/* Populate the presence state cache on the system with all of the currently
 	 * known custom presence states. */
 	db_entry = db_tree = ast_db_gettree(astdb_family, NULL);
@@ -863,7 +869,6 @@ static int load_module(void)
 	db_tree = NULL;
 
 	res |= ast_custom_function_register(&presence_function);
-	res |= ast_presence_state_prov_add("CustomPresence", custom_presence_callback);
 	res |= ast_cli_register_multiple(cli_funcpresencestate, ARRAY_LEN(cli_funcpresencestate));
 #ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(test_valid_parse_data);

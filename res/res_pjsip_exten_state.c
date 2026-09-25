@@ -526,9 +526,17 @@ static struct ast_sip_exten_state_data *exten_state_data_alloc(struct ast_sip_su
 
 	exten_state_data->exten = exten_state_sub->exten;
 	presence_state = ast_hint_presence_state(NULL, exten_state_sub->context, exten_state_sub->exten, &subtype, &message);
-	if (presence_state  == -1 || presence_state == AST_PRESENCE_INVALID) {
+	if (presence_state == -1) {
 		ao2_cleanup(exten_state_data);
 		return NULL;
+	}
+	/* If the presence state is invalid default it to not set so that the initial NOTIFY is still sent */
+	if (presence_state == AST_PRESENCE_INVALID) {
+		presence_state = AST_PRESENCE_NOT_SET;
+		ast_free(subtype);
+		ast_free(message);
+		subtype = NULL;
+		message = NULL;
 	}
 	exten_state_data->presence_state = presence_state;
 	exten_state_data->presence_subtype = subtype;
