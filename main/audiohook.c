@@ -119,6 +119,100 @@ static void whisper_framehook_destroy_cb(void *data)
 	ast_free(data);
 }
 
+static void whisper_framehook_clear_fd(struct ast_channel *chan,
+	struct whisper_framehook_data *hook_data)
+{
+	/* A masquerade may have replaced this slot with another descriptor. */
+	if (hook_data->timer_fd_slot >= 0
+		&& ast_channel_fd(chan, hook_data->timer_fd_slot) == hook_data->timer_fd) {
+		ast_channel_set_fd(chan, hook_data->timer_fd_slot, -1);
+	}
+}
+
+static void whisper_framehook_timer_stop(struct ast_channel *chan,
+	struct whisper_framehook_data *hook_data)
+{
+	whisper_framehook_clear_fd(chan, hook_data);
+	if (hook_data->timer) {
+		ast_timer_close(hook_data->timer);
+		hook_data->timer = NULL;
+	}
+	hook_data->timer_fd = -1;
+	hook_data->timer_fd_slot = -1;
+}
+
+static void whisper_framehook_timer_start(struct ast_channel *chan,
+	struct whisper_framehook_data *hook_data)
+{
+	/*
+	 * The timer is optional. Without it, whisper audio is still mixed into
+	 * outbound media, but nothing is sent while the channel has none.
+	 */
+	hook_data->timer = ast_timer_open();
+	if (!hook_data->timer) {
+		ast_log(LOG_WARNING, "Unable to open whisper timer on %s\n",
+			ast_channel_name(chan));
+		return;
+	}
+	hook_data->timer_fd = ast_timer_fd(hook_data->timer);
+	hook_data->timer_fd_slot = ast_channel_fd_add(chan, hook_data->timer_fd);
+	if (hook_data->timer_fd_slot < 0
+		|| ast_timer_set_rate(hook_data->timer, 1000 / hook_data->timer_interval)) {
+		whisper_framehook_timer_stop(chan, hook_data);
+		ast_log(LOG_WARNING, "Unable to start whisper timer on %s\n",
+			ast_channel_name(chan));
+	}
+}
+
+static void whisper_framehook_stop(struct ast_channel *chan,
+	struct whisper_framehook_data *hook_data)
+{
+	struct ast_audiohook_list *audiohook_list = ast_channel_audiohooks(chan);
+
+	whisper_framehook_timer_stop(chan, hook_data);
+	/* Only remove the framehook if the channel's list still refers to it. */
+	if (audiohook_list && audiohook_list->whisper_framehook_data == hook_data) {
+		audiohook_list->whisper_framehook_id = -1;
+		audiohook_list->whisper_framehook_data = NULL;
+	}
+}
+
+static void whisper_framehook_fixup(void *data, int framehook_id,
+	struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	struct whisper_framehook_data *hook_data = data;
+
+	/*
+	 * The descriptors have already been copied, but the audiohooks have not
+	 * moved yet. Retire this inherited framehook on both channels. Moving the
+	 * audiohooks will attach a new one if the destination needs it.
+	 */
+	whisper_framehook_clear_fd(new_chan, hook_data);
+	whisper_framehook_stop(old_chan, hook_data);
+	ast_framehook_detach(new_chan, framehook_id);
+}
+
+static void whisper_framehook_breakdown(void *data, int framehook_id,
+	struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	struct whisper_framehook_data *hook_data = data;
+
+	/* The destination's original descriptor array has been overwritten. */
+	if (!hook_data->timer) {
+		return;
+	}
+	hook_data->timer_fd_slot = ast_channel_fd_add(new_chan, hook_data->timer_fd);
+	if (hook_data->timer_fd_slot < 0) {
+		/*
+		 * Keep the framehook attached so that the whisper audiohooks still
+		 * have one.
+		 */
+		whisper_framehook_timer_stop(new_chan, hook_data);
+		ast_log(LOG_WARNING, "Unable to register whisper timer on %s after masquerade\n",
+			ast_channel_name(new_chan));
+	}
+}
+
 static struct ast_frame *whisper_framehook_event_cb(struct ast_channel *chan,
 	struct ast_frame *frame,
 	enum ast_framehook_event event,
@@ -128,7 +222,6 @@ static struct ast_frame *whisper_framehook_event_cb(struct ast_channel *chan,
 	struct ast_audiohook_list *audiohook_list;
 	int rate;
 	int samples;
-	int write_res;
 	short buf[AST_WHISPER_TIMER_INTERVAL_MAX * 48];
 	struct ast_frame tmp_frame = {
 		.frametype = AST_FRAME_VOICE,
@@ -159,34 +252,9 @@ static struct ast_frame *whisper_framehook_event_cb(struct ast_channel *chan,
 		}
 		return frame;
 	case AST_FRAMEHOOK_EVENT_ATTACHED:
-		/* Initialize the timer */
-		if (!hook_data->timer) {
-			hook_data->timer = ast_timer_open();
-			if (!hook_data->timer) {
-				return frame;
-			}
-			hook_data->timer_fd = ast_timer_fd(hook_data->timer);
-			hook_data->timer_fd_slot = ast_channel_fd_add(chan, hook_data->timer_fd);
-			if (hook_data->timer_fd_slot < 0) {
-				ast_timer_close(hook_data->timer);
-				hook_data->timer = NULL;
-				hook_data->timer_fd = -1;
-				return frame;
-			}
-			ast_timer_set_rate(hook_data->timer, 1000 / hook_data->timer_interval);
-		}
 		return frame;
 	case AST_FRAMEHOOK_EVENT_DETACHED:
-		/* Clean up the timer */
-		if (hook_data->timer_fd_slot >= 0) {
-			ast_channel_set_fd(chan, hook_data->timer_fd_slot, -1);
-		}
-		if (hook_data->timer) {
-			ast_timer_close(hook_data->timer);
-		}
-		hook_data->timer = NULL;
-		hook_data->timer_fd = -1;
-		hook_data->timer_fd_slot = -1;
+		whisper_framehook_stop(chan, hook_data);
 		return frame;
 	}
 
@@ -235,14 +303,14 @@ static struct ast_frame *whisper_framehook_event_cb(struct ast_channel *chan,
 	 * audio from the whisper audiohook list.
 	 */
 	ast_channel_unlock(chan);
-	write_res = ast_write(chan, dup);
+	ast_write(chan, dup);
 	ast_channel_lock(chan);
 
-	if (write_res < 0) {
-		ast_frfree(dup);
-	}
+	/* ast_write does not consume the frame, even when the write succeeds. */
+	ast_frfree(dup);
 
-	return &ast_null_frame;
+	/* The timer may have coincided with a queued media or control frame. */
+	return frame;
 }
 
 static int whisper_framehook_attach(struct ast_channel *chan, struct ast_audiohook_list *audiohook_list)
@@ -251,6 +319,8 @@ static int whisper_framehook_attach(struct ast_channel *chan, struct ast_audioho
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = whisper_framehook_event_cb,
 		.destroy_cb = whisper_framehook_destroy_cb,
+		.chan_fixup_cb = whisper_framehook_fixup,
+		.chan_breakdown_cb = whisper_framehook_breakdown,
 	};
 	struct whisper_framehook_data *hook_data;
 	int framehook_id;
@@ -266,10 +336,12 @@ static int whisper_framehook_attach(struct ast_channel *chan, struct ast_audioho
 	hook_data->timer_fd = -1;
 	hook_data->timer_fd_slot = -1;
 	hook_data->timer_interval = AST_WHISPER_TIMER_INTERVAL;
+	whisper_framehook_timer_start(chan, hook_data);
 
 	interface.data = hook_data;
 	framehook_id = ast_framehook_attach(chan, &interface);
 	if (framehook_id < 0) {
+		whisper_framehook_timer_stop(chan, hook_data);
 		ast_free(hook_data);
 		return -1;
 	}
@@ -287,6 +359,8 @@ static void whisper_framehook_detach(struct ast_channel *chan, struct ast_audioh
 	}
 
 	ast_framehook_detach(chan, audiohook_list->whisper_framehook_id);
+	/* Detachment is deferred, but the timer must stop before its slot is reused. */
+	whisper_framehook_timer_stop(chan, audiohook_list->whisper_framehook_data);
 	audiohook_list->whisper_framehook_id = -1;
 	audiohook_list->whisper_framehook_data = NULL;
 }
@@ -918,9 +992,17 @@ static void audiohook_move(struct ast_channel *old_chan, struct ast_channel *new
 	oldstatus = audiohook->status;
 
 	ast_audiohook_remove(old_chan, audiohook);
-	ast_audiohook_attach(new_chan, audiohook);
-
-	audiohook->status = oldstatus;
+	if (ast_audiohook_attach(new_chan, audiohook)) {
+		/*
+		 * The audiohook is no longer on either channel. Leave it set to
+		 * AST_AUDIOHOOK_STATUS_DONE as set by ast_audiohook_remove(), so
+		 * that its owner does not wait forever.
+		 */
+		ast_log(LOG_WARNING, "Unable to move audiohook '%s' to %s\n",
+			audiohook->source, ast_channel_name(new_chan));
+	} else {
+		audiohook->status = oldstatus;
+	}
 	ast_audiohook_unlock(audiohook);
 }
 
@@ -1331,6 +1413,9 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 
 	/* Before returning, if an audiohook got removed, reset samplerate compatibility */
 	if (removed) {
+		if (AST_LIST_EMPTY(&audiohook_list->whisper_list)) {
+			whisper_framehook_detach(chan, audiohook_list);
+		}
 		audiohook_list_set_samplerate_compatibility(audiohook_list);
 	} else {
 		/*
