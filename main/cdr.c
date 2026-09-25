@@ -2283,9 +2283,14 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 				continue;
 			}
 			if (dial_changes_ignored) {
-				/* Set the disposition, and do nothing else. */
-				it_cdr->disposition = dial_status_to_disposition(dial_status);
-				CDR_DEBUG("%p - Setting disposition and that's it (%s)\n", it_cdr, dial_status);
+				/*
+				 * Once a dial has been answered, later non-answer Dial End events
+				 * must not downgrade the CDR disposition.
+				 */
+				if (it_cdr->disposition != AST_CDR_ANSWERED) {
+					it_cdr->disposition = dial_status_to_disposition(dial_status);
+				}
+				CDR_DEBUG("%p - Handling disposition only (%s)\n", it_cdr, dial_status);
 				continue;
 			}
 			CDR_DEBUG("%p - Processing Dial End message for channel %s, peer %s\n",
