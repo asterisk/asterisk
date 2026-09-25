@@ -1333,6 +1333,65 @@ struct ast_extension_state_device_snapshot *ast_extension_state_get_latest_devic
 	return device_snapshot;
 }
 
+/*!
+ * \internal
+ * \brief Refresh the presence snapshot of an extension state if it is invalid
+ *
+ * \param state The extension state to refresh
+ *
+ * \pre The extension state must be locked by the caller before calling this function.
+ *
+ * This function checks whether the cached presence snapshot of the extension state is invalid
+ * and if so attempts to retrieve the latest presence state. If a valid presence state is
+ * retrieved then the snapshot is updated and an update message is published to any subscribers.
+ */
+static void extension_state_presence_snapshot_refresh(struct extension_state *state)
+{
+	enum ast_presence_state presence_state_new;
+	char *presence_subtype;
+	char *presence_message;
+
+	/*
+	 * If the cached presence state is invalid it may be because the presence state provider
+	 * was unable to be reached when it was last queried, or because the resulting update was
+	 * ignored. Since a caller is explicitly requesting the presence state we make another
+	 * attempt to retrieve it and if it has changed update it and notify any subscribers.
+	 */
+	if (state->presence_snapshot->presence_state != AST_PRESENCE_INVALID || !state->presence_sources_string) {
+		return;
+	}
+
+	presence_state_new = ast_presence_state(state->presence_sources_string, &presence_subtype, &presence_message);
+	if (presence_state_new != AST_PRESENCE_INVALID) {
+		struct ast_extension_state_presence_snapshot *new_presence_snapshot;
+
+		new_presence_snapshot = extension_state_presence_snapshot_create(presence_state_new, presence_subtype,
+			presence_message);
+		if (new_presence_snapshot) {
+			struct ast_extension_state_update_message *update_message;
+
+			update_message = extension_state_update_message_create(state->dialplan_context, state->dialplan_extension,
+				state->device_snapshot, state->device_snapshot, state->presence_snapshot, new_presence_snapshot);
+			ao2_replace(state->presence_snapshot, new_presence_snapshot);
+			ao2_ref(new_presence_snapshot, -1);
+
+			if (update_message) {
+				struct stasis_message *message = stasis_message_create(ast_extension_state_update_message_type(), update_message);
+
+				if (message) {
+					stasis_publish(state->extension_state_topic, message);
+					ao2_ref(message, -1);
+				}
+
+				ao2_ref(update_message, -1);
+			}
+		}
+	}
+
+	ast_free(presence_subtype);
+	ast_free(presence_message);
+}
+
 struct ast_extension_state_presence_snapshot *ast_extension_state_get_latest_presence_snapshot(struct ast_channel *chan,
 	const char *exten, const char *context)
 {
@@ -1345,6 +1404,7 @@ struct ast_extension_state_presence_snapshot *ast_extension_state_get_latest_pre
 	}
 
 	ao2_lock(state);
+	extension_state_presence_snapshot_refresh(state);
 	presence_snapshot = ao2_bump(state->presence_snapshot);
 	ao2_unlock(state);
 	ao2_ref(state, -1);
