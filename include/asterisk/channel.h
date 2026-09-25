@@ -4411,6 +4411,7 @@ int ast_channel_fd_count(const struct ast_channel *chan);
  * \pre chan is locked
  *
  * \return The position of the file descriptor
+ * \retval -1 on allocation failure
  */
 int ast_channel_fd_add(struct ast_channel *chan, int value);
 
