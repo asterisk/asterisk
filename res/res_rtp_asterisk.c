@@ -879,6 +879,15 @@ static int ice_candidate_cmp(void *obj, void *arg, int flags)
 	return CMP_MATCH | CMP_STOP;
 }
 
+static int ice_rtp_source_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_rtp_engine_ice_candidate *candidate = obj;
+	struct ast_sockaddr *source = arg;
+
+	return candidate->id == AST_RTP_ICE_COMPONENT_RTP
+		&& !ast_sockaddr_cmp(&candidate->address, source) ? CMP_MATCH | CMP_STOP : 0;
+}
+
 /*! \pre instance is locked */
 static void ast_rtp_ice_add_remote_candidate(struct ast_rtp_instance *instance, const struct ast_rtp_engine_ice_candidate *candidate)
 {
@@ -7996,6 +8005,32 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		return &ast_null_frame;
 	}
 
+#ifdef HAVE_PJPROJECT
+	/* Only authenticated SRTP from a negotiated ICE candidate may move
+	 * a closed Strict RTP source. Do not use buffered packets to decide:
+	 * their packet source may differ from remote_address.
+	 */
+	if (res_srtp && srtp && strictrtp && rtp->strict_rtp_state == STRICT_RTP_CLOSED
+		&& ast_sockaddr_cmp(&rtp->strict_rtp_address, remote_address)) {
+		struct ast_rtp_instance *transport = rtp->bundled ? rtp->bundled : instance;
+		struct ast_rtp *transport_rtp = ast_rtp_instance_get_data(transport);
+		struct ast_rtp_engine_ice_candidate *candidate = NULL;
+
+		if (transport_rtp->ice && transport_rtp->ice_media_started
+			&& transport_rtp->ice_active_remote_candidates
+			&& read_area == transport_rtp->rawdata + AST_FRIENDLY_OFFSET) {
+			candidate = ao2_callback(transport_rtp->ice_active_remote_candidates, 0,
+				ice_rtp_source_cmp, (void *)remote_address);
+		}
+		if (candidate) {
+			ast_verb(4, "%p -- Strict RTP switching to authenticated ICE candidate %s\n",
+				rtp, ast_sockaddr_stringify(remote_address));
+			ast_sockaddr_copy(&rtp->strict_rtp_address, remote_address);
+			ao2_ref(candidate, -1);
+		}
+	}
+#endif
+
 	/* If we are currently sending DTMF to the remote party send a continuation packet */
 	if (rtp->sending_digit) {
 		ast_rtp_dtmf_continuation(instance);
@@ -8420,6 +8455,9 @@ static int should_drop_packets(struct ast_sockaddr *addr)
 static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtcp)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+#ifdef HAVE_PJPROJECT
+	struct ast_rtp *transport_rtp = rtp;
+#endif
 	struct ast_srtp *srtp;
 	RAII_VAR(struct ast_rtp_instance *, child, NULL, rtp_instance_unlock);
 	struct ast_sockaddr addr;
@@ -8667,10 +8705,27 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 * interfering with the RTP stream after the learning period.
 		 * An attacker could manage to get an RTCP packet redirected to
 		 * them which can contain the SSRC value.
+		 * Negotiated ICE RTP candidates are the exception below.
 		 */
 		if (!ast_sockaddr_cmp(&rtp->strict_rtp_address, &addr)) {
 			break;
 		}
+#ifdef HAVE_PJPROJECT
+		if (res_srtp && srtp && transport_rtp->ice && transport_rtp->ice_media_started
+			&& transport_rtp->ice_active_remote_candidates) {
+			struct ast_rtp_engine_ice_candidate *candidate;
+
+			candidate = ao2_callback(transport_rtp->ice_active_remote_candidates, 0,
+				ice_rtp_source_cmp, &addr);
+			if (candidate) {
+				/* Tentatively pass this packet to SRTP authentication.
+				 * The Strict RTP lock changes only after unprotect succeeds.
+				 */
+				ao2_ref(candidate, -1);
+				break;
+			}
+		}
+#endif
 		ast_debug_rtp(1, "(%p) RTP %p -- Received packet from %s, dropping due to strict RTP protection.\n",
 			instance, rtp, ast_sockaddr_stringify(&addr));
 #ifdef TEST_FRAMEWORK
