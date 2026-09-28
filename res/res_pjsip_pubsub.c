@@ -3182,7 +3182,7 @@ static int generate_initial_notify(struct ast_sip_subscription *sub)
 	return res;
 }
 
-static int pubsub_on_refresh_timeout(void *userdata);
+static int pubsub_on_expiration_timeout(void *userdata);
 
 static int initial_notify_task(void * obj)
 {
@@ -3210,7 +3210,7 @@ static int initial_notify_task(void * obj)
 
 		ast_debug(3, "Scheduling timer: %s\n", name);
 		ind->sub_tree->expiration_task = ast_sip_schedule_task(ind->sub_tree->serializer,
-			ind->expires * 1000, pubsub_on_refresh_timeout, name,
+			ind->expires * 1000, pubsub_on_expiration_timeout, name,
 			ind->sub_tree, AST_SIP_SCHED_TASK_FIXED | AST_SIP_SCHED_TASK_DATA_AO2);
 		if (!ind->sub_tree->expiration_task) {
 			ast_log(LOG_ERROR, "Unable to create expiration timer of %d seconds for %s\n",
@@ -4201,6 +4201,32 @@ static int pubsub_on_refresh_timeout(void *userdata)
 				"SUBSCRIPTION_TERMINATED" : "SUBSCRIPTION_REFRESHED",
 				"Resource: %s", sub_tree->root->resource);
 
+	pjsip_dlg_dec_lock(dlg);
+
+	return 0;
+}
+
+/*!
+ * \brief Expire a subscription recreated from persistence
+ *
+ * A recreated subscription is never accepted by pjproject, so its server
+ * timeout never fires.  Any refresh cancels this task, so if it runs the
+ * subscription has expired: terminate it as pubsub_on_server_timeout would.
+ */
+static int pubsub_on_expiration_timeout(void *userdata)
+{
+	struct sip_subscription_tree *sub_tree = userdata;
+	pjsip_dialog *dlg = sub_tree->dlg;
+
+	/* The dialog lock is held across the state change and the NOTIFY so they
+	 * happen together. pubsub_on_refresh_timeout() takes the same lock again;
+	 * that recursive lock is safe, as the dialog lock is a recursive mutex.
+	 */
+	pjsip_dlg_inc_lock(dlg);
+	if (sub_tree->state == SIP_SUB_TREE_NORMAL) {
+		sub_tree->state = SIP_SUB_TREE_TERMINATE_PENDING;
+	}
+	pubsub_on_refresh_timeout(sub_tree);
 	pjsip_dlg_dec_lock(dlg);
 
 	return 0;
