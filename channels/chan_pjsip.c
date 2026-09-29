@@ -69,6 +69,7 @@
 #include "asterisk/stream.h"
 
 #include "pjsip/include/chan_pjsip.h"
+#include "pjsip/include/channel_info.h"
 #include "pjsip/include/dialplan_functions.h"
 #include "pjsip/include/cli_functions.h"
 
@@ -516,6 +517,7 @@ static int send_direct_media_request(void *data)
 			cdata->chan, cdata->vrtp, session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO], session);
 	}
 	ast_channel_unlock(cdata->chan);
+	pjsip_channel_info_update(session);
 
 	if (direct_media_mitigate_glare(cdata->session)) {
 		ast_debug(4, "Disregarding setting RTP on %s: mitigating re-INVITE glare\n", ast_channel_name(cdata->chan));
@@ -680,6 +682,14 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	}
 
 	ast_channel_tech_pvt_set(chan, channel);
+	if (pjsip_channel_info_create(chan, session)) {
+		/* Keep technology hangup from accessing the not yet attached session. */
+		ast_channel_tech_pvt_set(chan, NULL);
+		ao2_cleanup(channel);
+		ast_channel_unlock(chan);
+		ast_hangup(chan);
+		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create PJSIP channel state\n");
+	}
 
 	if (!ast_stream_topology_get_count(session->pending_media_state->topology) ||
 		!compatible_formats_exist(session->pending_media_state->topology, session->endpoint->media.codecs)) {
@@ -2622,12 +2632,22 @@ static struct hangup_data *hangup_data_alloc(int cause, struct ast_channel *chan
 	return h_data;
 }
 
-/*! \brief Clear a channel from a session along with its PVT */
-static void clear_session_and_channel(struct ast_sip_session *session, struct ast_channel *ast)
+/*! \brief Clear a channel from a session along with its PVT (channel lock held) */
+static void clear_session_and_channel_locked(struct ast_sip_session *session,
+	struct ast_channel *ast)
 {
 	session->channel = NULL;
 	set_channel_on_rtp_instance(session, "");
 	ast_channel_tech_pvt_set(ast, NULL);
+}
+
+/*! \brief Clear a channel from a session along with its PVT */
+static void clear_session_and_channel(struct ast_sip_session *session, struct ast_channel *ast)
+{
+	/* Serialize detachment with channel-locked readers of the session. */
+	ast_channel_lock(ast);
+	clear_session_and_channel_locked(session, ast);
+	ast_channel_unlock(ast);
 }
 
 static int hangup(void *data)
@@ -2709,7 +2729,7 @@ failure:
 	/* Go ahead and do our cleanup of the session and channel even if we're not going
 	 * to be able to send our SIP request/response
 	 */
-	clear_session_and_channel(channel->session, ast);
+	clear_session_and_channel_locked(channel->session, ast);
 	ao2_cleanup(channel);
 	ao2_cleanup(h_data);
 
@@ -3537,6 +3557,7 @@ static int load_module(void)
 	ast_format_cap_append_by_type(chan_pjsip_tech.capabilities, AST_MEDIA_TYPE_AUDIO);
 
 	ast_rtp_glue_register(&chan_pjsip_rtp_glue);
+	pjsip_channel_info_register();
 
 	if (ast_channel_register(&chan_pjsip_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channel_type);
@@ -3622,6 +3643,7 @@ static int load_module(void)
 	return 0;
 
 end:
+	pjsip_channel_info_unregister();
 	ao2_cleanup(pjsip_uids_onhold);
 	pjsip_uids_onhold = NULL;
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
@@ -3651,6 +3673,7 @@ end:
 /*! \brief Unload the PJSIP channel from Asterisk */
 static int unload_module(void)
 {
+	pjsip_channel_info_unregister();
 	ao2_cleanup(pjsip_uids_onhold);
 	pjsip_uids_onhold = NULL;
 
