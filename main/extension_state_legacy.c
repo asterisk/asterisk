@@ -106,6 +106,34 @@ static void device_state_info_destroy(void *obj)
 
 /*!
  * \internal
+ * \brief Add a device state info object to a container.
+ *
+ * \param device_state_info The container to add the device state info to.
+ * \param device_state The device state info to add.
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+static int extension_state_legacy_add_device_state_info(struct ao2_container *device_state_info,
+	const struct ast_extension_state_device_state_info *device_state)
+{
+	struct ast_device_state_info *obj;
+
+	obj = ao2_alloc_options(sizeof(*obj) + strlen(device_state->device) + 1, device_state_info_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!obj) {
+		return -1;
+	}
+
+	obj->device_state = device_state->state;
+	strcpy(obj->device_name, device_state->device); /* Safe */
+	obj->causing_channel = ast_extension_state_get_device_causing_channel(device_state->device, device_state->state);
+	ao2_link(device_state_info, obj);
+	ao2_ref(obj, -1);
+
+	return 0;
+}
+
+/*!
+ * \internal
  * \brief Create a container of device state info objects from an extension device state message.
  *
  * \param device_state_message The extension device state message to create device state info from.
@@ -120,21 +148,23 @@ static struct ao2_container *extension_state_legacy_create_device_state_info(str
 		return NULL;
 	}
 
+	/*
+	 * The causing device is not part of additional_devices, but the legacy API
+	 * expects the device state info to contain every contributing device.
+	 */
+	if (device_snapshot->causing_device &&
+		extension_state_legacy_add_device_state_info(device_state_info, device_snapshot->causing_device)) {
+		ao2_ref(device_state_info, -1);
+		return NULL;
+	}
+
 	for (i = 0; i < AST_VECTOR_SIZE(&device_snapshot->additional_devices); i++) {
 		struct ast_extension_state_device_state_info *source_info = AST_VECTOR_GET(&device_snapshot->additional_devices, i);
-		struct ast_device_state_info *obj;
 
-		obj = ao2_alloc_options(sizeof(*obj) + strlen(source_info->device) + 1, device_state_info_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
-		if (!obj) {
+		if (extension_state_legacy_add_device_state_info(device_state_info, source_info)) {
 			ao2_ref(device_state_info, -1);
 			return NULL;
 		}
-
-		obj->device_state = source_info->state;
-		strcpy(obj->device_name, source_info->device); /* Safe */
-		obj->causing_channel = ast_extension_state_get_device_causing_channel(source_info->device, source_info->state);
-		ao2_link(device_state_info, obj);
-		ao2_ref(obj, -1);
 	}
 
 	return device_state_info;
