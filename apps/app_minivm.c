@@ -3319,7 +3319,7 @@ static int minivm_counter_func_read(struct ast_channel *chan, const char *cmd, c
 /*! \brief  ${MINIVMCOUNTER()} Dialplan function - changes counter data */
 static int minivm_counter_func_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	char *username, *domain, *countername, *operand;
+	char *username, *domain, *countername, *operand = NULL;
 	char userpath[BUFSIZ];
 	int change = 0;
 	int operation = 0;
@@ -3333,10 +3333,11 @@ static int minivm_counter_func_write(struct ast_channel *chan, const char *cmd, 
 	if ((countername = strchr(username, ':'))) {
 		*countername = '\0';
 		countername++;
-	}
-	if ((operand = strchr(countername, ':'))) {
-		*operand = '\0';
-		operand++;
+
+		if ((operand = strchr(countername, ':'))) {
+			*operand = '\0';
+			operand++;
+		}
 	}
 
 	if ((domain = strchr(username, '@'))) {
