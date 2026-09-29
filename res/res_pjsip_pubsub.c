@@ -4245,6 +4245,32 @@ static int pubsub_on_expiration_timeout(void *userdata)
 	return 0;
 }
 
+#ifdef HAVE_PJSIP_EVSUB_PENDING_NOTIFY
+/*!
+ * \brief Persist the CSeq of the NOTIFY that answered a refresh
+ *
+ * pjproject sends that NOTIFY after its reply to the SUBSCRIBE, and only then
+ * advances the dialog's local CSeq, so the persistence updates made while
+ * handling the refresh store the CSeq from before it.  A subscription
+ * recreated from that record would reuse the NOTIFY's CSeq.  This task runs
+ * on the subscription's serializer after the NOTIFY has been sent.
+ */
+static int serialized_persist_refresh_notify(void *userdata)
+{
+	struct sip_subscription_tree *sub_tree = userdata;
+	pjsip_dialog *dlg = sub_tree->dlg;
+
+	if (dlg) {
+		pjsip_dlg_inc_lock(dlg);
+		subscription_persistence_update(sub_tree, NULL, SUBSCRIPTION_PERSISTENCE_SEND_REQUEST);
+		pjsip_dlg_dec_lock(dlg);
+	}
+	ao2_cleanup(sub_tree);
+
+	return 0;
+}
+#endif
+
 static int serialized_pubsub_on_refresh_timeout(void *userdata)
 {
 	struct sip_subscription_tree *sub_tree = userdata;
@@ -4427,6 +4453,20 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 	   looks for the NOTIFY to be sent from this function and caches it to send after it
 	   auto-replies to the SUBSCRIBE. */
 	pubsub_on_refresh_timeout(sub_tree);
+	/* The NOTIFY above has not been sent yet: pjproject only cached it, and the
+	   dialog's local CSeq advances when it is actually sent. So the persistence
+	   updates made so far for this refresh store the CSeq from before it.
+
+	   This function runs within a task on the subscription's serializer (in-dialog
+	   requests are dispatched to the dialog's serializer, set to sub_tree->serializer
+	   in subscription_setup_dialog). After it returns, and still within that same
+	   task, pjproject sends the 200 OK to the SUBSCRIBE and then the cached NOTIFY.
+	   A serializer runs one task at a time in order, so a task pushed here runs only
+	   after that NOTIFY has been sent, and persists the CSeq it used. */
+	if (ast_sip_push_task(sub_tree->serializer, serialized_persist_refresh_notify, ao2_bump(sub_tree))) {
+		ast_log(LOG_WARNING, "Failed to push task to persist the refresh NOTIFY's CSeq.\n");
+		ao2_ref(sub_tree, -1);
+	}
 #else
 	if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_refresh_timeout, ao2_bump(sub_tree))) {
 		/* If we can't push the NOTIFY refreshing task...we'll just go with it. */
