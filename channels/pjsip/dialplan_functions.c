@@ -48,6 +48,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
 #include "include/chan_pjsip.h"
+#include "include/channel_info.h"
 #include "include/dialplan_functions.h"
 
 /*!
@@ -62,64 +63,58 @@ static const char *t38state_to_string[T38_MAX_ENUM] = {
 };
 
 /*!
+ * \internal \brief Escape a captured URI into the dialplan result buffer
+ */
+static int copy_escaped_uri(struct ast_channel *chan, const char *type,
+	const struct pjsip_channel_uri *uri, char *buf, size_t size)
+{
+	if (uri->length < 0 || uri->length >= size) {
+		ast_log(LOG_ERROR, "Channel %s: Unescaped %s too long for %zu byte buffer\n",
+			ast_channel_name(chan), type, size);
+		buf[0] = '\0';
+		return -1;
+	}
+	ast_escape_quoted(uri->value, buf, size);
+	return 0;
+}
+
+/*!
  * \internal \brief Handle reading RTP information
  */
-static int channel_read_rtp(struct ast_channel *chan, const char *type, const char *field, char *buf, size_t buflen)
+static int channel_read_rtp(struct ast_channel *chan, struct ast_rtp_instance *rtp,
+	const struct ast_sockaddr *direct_media_addr, unsigned int secure,
+	unsigned int held, const char *type, const char *field, char *buf, size_t buflen)
 {
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
-	struct ast_sip_session *session;
-	struct ast_sip_session_media *media;
 	struct ast_sockaddr addr;
-
-	if (!channel) {
-		ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(chan));
-		return -1;
-	}
-
-	session = channel->session;
-	if (!session) {
-		ast_log(AST_LOG_WARNING, "Channel %s has no session!\n", ast_channel_name(chan));
-		return -1;
-	}
 
 	if (ast_strlen_zero(type)) {
 		ast_log(AST_LOG_WARNING, "You must supply a type field for 'rtp' information\n");
 		return -1;
 	}
 
-	if (ast_strlen_zero(field) || !strcmp(field, "audio")) {
-		media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
-	} else if (!strcmp(field, "video")) {
-		media = session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO];
-	} else {
+	if (!ast_strlen_zero(field) && strcmp(field, "audio") && strcmp(field, "video")) {
 		ast_log(AST_LOG_WARNING, "Unknown media type field '%s' for 'rtp' information\n", field);
 		return -1;
 	}
 
-	if (!media || !media->rtp) {
+	if (!rtp) {
 		ast_log(AST_LOG_WARNING, "Channel %s has no %s media/RTP session\n",
 			ast_channel_name(chan), S_OR(field, "audio"));
 		return -1;
 	}
 
 	if (!strcmp(type, "src")) {
-		ast_rtp_instance_get_local_address(media->rtp, &addr);
+		ast_rtp_instance_get_local_address(rtp, &addr);
 		ast_copy_string(buf, ast_sockaddr_stringify(&addr), buflen);
 	} else if (!strcmp(type, "dest")) {
-		ast_rtp_instance_get_remote_address(media->rtp, &addr);
+		ast_rtp_instance_get_remote_address(rtp, &addr);
 		ast_copy_string(buf, ast_sockaddr_stringify(&addr), buflen);
 	} else if (!strcmp(type, "direct")) {
-		ast_copy_string(buf, ast_sockaddr_stringify(&media->direct_media_addr), buflen);
+		ast_copy_string(buf, ast_sockaddr_stringify(direct_media_addr), buflen);
 	} else if (!strcmp(type, "secure")) {
-		if (media->srtp) {
-			struct ast_sdp_srtp *srtp = media->srtp;
-			int flag = ast_test_flag(srtp, AST_SRTP_CRYPTO_OFFER_OK);
-			snprintf(buf, buflen, "%d", flag ? 1 : 0);
-		} else {
-			snprintf(buf, buflen, "%d", 0);
-		}
+		snprintf(buf, buflen, "%u", secure);
 	} else if (!strcmp(type, "hold")) {
-		snprintf(buf, buflen, "%d", media->remotely_held ? 1 : 0);
+		snprintf(buf, buflen, "%u", held);
 	} else {
 		ast_log(AST_LOG_WARNING, "Unknown type field '%s' specified for 'rtp' information\n", type);
 		return -1;
@@ -131,38 +126,20 @@ static int channel_read_rtp(struct ast_channel *chan, const char *type, const ch
 /*!
  * \internal \brief Handle reading RTCP information
  */
-static int channel_read_rtcp(struct ast_channel *chan, const char *type, const char *field, char *buf, size_t buflen)
+static int channel_read_rtcp(struct ast_channel *chan, struct ast_rtp_instance *rtp,
+	const char *type, const char *field, char *buf, size_t buflen)
 {
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
-	struct ast_sip_session *session;
-	struct ast_sip_session_media *media;
-
-	if (!channel) {
-		ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(chan));
-		return -1;
-	}
-
-	session = channel->session;
-	if (!session) {
-		ast_log(AST_LOG_WARNING, "Channel %s has no session!\n", ast_channel_name(chan));
-		return -1;
-	}
-
 	if (ast_strlen_zero(type)) {
 		ast_log(AST_LOG_WARNING, "You must supply a type field for 'rtcp' information\n");
 		return -1;
 	}
 
-	if (ast_strlen_zero(field) || !strcmp(field, "audio")) {
-		media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
-	} else if (!strcmp(field, "video")) {
-		media = session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO];
-	} else {
+	if (!ast_strlen_zero(field) && strcmp(field, "audio") && strcmp(field, "video")) {
 		ast_log(AST_LOG_WARNING, "Unknown media type field '%s' for 'rtcp' information\n", field);
 		return -1;
 	}
 
-	if (!media || !media->rtp) {
+	if (!rtp) {
 		ast_log(AST_LOG_WARNING, "Channel %s has no %s media/RTP session\n",
 			ast_channel_name(chan), S_OR(field, "audio"));
 		return -1;
@@ -181,7 +158,7 @@ static int channel_read_rtcp(struct ast_channel *chan, const char *type, const c
 			stat_field = AST_RTP_INSTANCE_STAT_FIELD_QUALITY_MES;
 		}
 
-		if (!ast_rtp_instance_get_quality(media->rtp, stat_field, buf, buflen)) {
+		if (!ast_rtp_instance_get_quality(rtp, stat_field, buf, buflen)) {
 			ast_log(AST_LOG_WARNING, "Unable to retrieve 'rtcp' statistics for %s\n", ast_channel_name(chan));
 			return -1;
 		}
@@ -238,7 +215,7 @@ static int channel_read_rtcp(struct ast_channel *chan, const char *type, const c
 			{ NULL, },
 		};
 
-		if (ast_rtp_instance_get_stats(media->rtp, &stats, AST_RTP_INSTANCE_STAT_ALL)) {
+		if (ast_rtp_instance_get_stats(rtp, &stats, AST_RTP_INSTANCE_STAT_ALL)) {
 			ast_log(AST_LOG_WARNING, "Unable to retrieve 'rtcp' statistics for %s\n", ast_channel_name(chan));
 			return -1;
 		}
@@ -260,191 +237,127 @@ static int channel_read_rtcp(struct ast_channel *chan, const char *type, const c
 	return 0;
 }
 
-static int print_escaped_uri(struct ast_channel *chan, const char *type,
-	pjsip_uri_context_e context, const void *uri, char *buf, size_t size)
+/* The original Request-URI is cloned before channel creation and never changed. */
+static int read_request_uri(struct ast_channel *chan, struct ast_sip_session *session,
+	char *buf, size_t size)
 {
-	int res;
-	char *buf_copy;
+	int length;
+	char *copy;
 
-	res = pjsip_uri_print(context, uri, buf, size);
-	if (res < 0) {
-		ast_log(LOG_ERROR, "Channel %s: Unescaped %s too long for %d byte buffer\n",
-			ast_channel_name(chan), type, (int) size);
-
-		/* Empty buffer that likely is not terminated. */
+	if (!session->request_uri) {
+		return 0;
+	}
+	length = pjsip_uri_print(PJSIP_URI_IN_REQ_URI, session->request_uri, buf, size);
+	if (length < 0 || length >= size) {
+		ast_log(LOG_ERROR, "Channel %s: Request URI too long for %zu byte buffer\n",
+			ast_channel_name(chan), size);
 		buf[0] = '\0';
 		return -1;
 	}
-
-	buf_copy = ast_strdupa(buf);
-	ast_escape_quoted(buf_copy, buf, size);
+	buf[length] = '\0';
+	copy = ast_strdupa(buf);
+	ast_escape_quoted(copy, buf, size);
 	return 0;
 }
 
-/*!
- * \internal \brief Handle reading signalling information
- */
-static int channel_read_pjsip(struct ast_channel *chan, const char *type, const char *field, char *buf, size_t buflen)
+/* The caller holds the channel lock. No dialog lock or serializer wait is allowed. */
+static int channel_read_pjsip(struct ast_channel *chan, struct ast_sip_session *session,
+	const char *type, char *buf, size_t len)
 {
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
-	char *buf_copy;
-	pjsip_dialog *dlg;
-	int res = 0;
-
-	if (!channel) {
-		ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(chan));
-		return -1;
-	}
-
-	dlg = channel->session->inv_session->dlg;
+	const struct pjsip_channel_info *info;
 
 	if (ast_strlen_zero(type)) {
 		ast_log(LOG_WARNING, "You must supply a type field for 'pjsip' information\n");
 		return -1;
-	} else if (!strcmp(type, "call-id")) {
-		snprintf(buf, buflen, "%.*s", (int) pj_strlen(&dlg->call_id->id), pj_strbuf(&dlg->call_id->id));
-	} else if (!strcmp(type, "secure")) {
+	}
+
+	if (!strcmp(type, "call-id") || !strcmp(type, "local_tag")) {
+		pjsip_dialog *dlg = session->inv_session ? session->inv_session->dlg : NULL;
+
+		if (!dlg) {
+			return -1;
+		}
+		/* These identities are fixed for the lifetime of the retained dialog. */
+		if (!strcmp(type, "call-id")) {
+			ast_copy_pj_str(buf, &dlg->call_id->id, len);
+		} else {
+			char *copy;
+
+			ast_copy_pj_str(buf, &dlg->local.info->tag, len);
+			copy = ast_strdupa(buf);
+			ast_escape_quoted(copy, buf, len);
+		}
+		return 0;
+	}
+	if (!strcmp(type, "request_uri")) {
+		return read_request_uri(chan, session, buf, len);
+	}
+	if (!strcmp(type, "t38state")) {
+		if (session->t38state < 0 || session->t38state >= T38_MAX_ENUM) {
+			return -1;
+		}
+		ast_copy_string(buf, t38state_to_string[session->t38state], len);
+		return 0;
+	}
+	if (!strcmp(type, "local_addr") || !strcmp(type, "remote_addr")) {
+		RAII_VAR(struct ast_datastore *, datastore,
+			ast_sip_session_get_datastore(session, "transport_info"), ao2_cleanup);
+		struct transport_info_data *transport;
+		const pj_sockaddr *addr;
+
+		if (!datastore) {
+			ast_log(LOG_WARNING, "No transport information for channel %s\n",
+				ast_channel_name(chan));
+			return -1;
+		}
+		/* The transport payload is fully initialized before publication and immutable. */
+		transport = datastore->data;
+		addr = !strcmp(type, "local_addr") ? &transport->local_addr : &transport->remote_addr;
+		if (pj_sockaddr_has_addr(addr)) {
+			pj_sockaddr_print(addr, buf, len, 3);
+		}
+		return 0;
+	}
+
+	info = pjsip_channel_info_get(chan);
+	if (!info) {
+		ast_log(LOG_WARNING, "Channel %s has no PJSIP channel information\n",
+			ast_channel_name(chan));
+		return -1;
+	}
+	if (!strcmp(type, "secure")) {
 #ifdef HAVE_PJSIP_GET_DEST_INFO
-		pjsip_host_info dest;
-		pj_pool_t *pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "secure-check", 128, 128);
-		pjsip_get_dest_info(dlg->target, NULL, pool, &dest);
-		snprintf(buf, buflen, "%d", dest.flag & PJSIP_TRANSPORT_SECURE ? 1 : 0);
-		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		if (info->secure < 0) {
+			return -1;
+		}
+		snprintf(buf, len, "%d", info->secure);
 #else
-		ast_log(LOG_WARNING, "Asterisk has been built against a version of pjproject which does not have the required functionality to support the 'secure' argument. Please upgrade to version 2.3 or later.\n");
+		ast_log(LOG_WARNING, "Asterisk was built without support for CHANNEL(pjsip,secure)\n");
 		return -1;
 #endif
 	} else if (!strcmp(type, "target_uri")) {
-		res = print_escaped_uri(chan, type, PJSIP_URI_IN_REQ_URI, dlg->target, buf,
-			buflen);
+		return copy_escaped_uri(chan, type, &info->target_uri, buf, len);
 	} else if (!strcmp(type, "local_uri")) {
-		res = print_escaped_uri(chan, type, PJSIP_URI_IN_FROMTO_HDR, dlg->local.info->uri,
-			buf, buflen);
-	} else if (!strcmp(type, "local_tag")) {
-		ast_copy_pj_str(buf, &dlg->local.info->tag, buflen);
-		buf_copy = ast_strdupa(buf);
-		ast_escape_quoted(buf_copy, buf, buflen);
+		return copy_escaped_uri(chan, type, &info->local_uri, buf, len);
 	} else if (!strcmp(type, "remote_uri")) {
-		res = print_escaped_uri(chan, type, PJSIP_URI_IN_FROMTO_HDR,
-			dlg->remote.info->uri, buf, buflen);
+		return copy_escaped_uri(chan, type, &info->remote_uri, buf, len);
 	} else if (!strcmp(type, "remote_tag")) {
-		ast_copy_pj_str(buf, &dlg->remote.info->tag, buflen);
-		buf_copy = ast_strdupa(buf);
-		ast_escape_quoted(buf_copy, buf, buflen);
-	} else if (!strcmp(type, "request_uri")) {
-		if (channel->session->request_uri) {
-			res = print_escaped_uri(chan, type, PJSIP_URI_IN_REQ_URI,
-				channel->session->request_uri, buf, buflen);
-		}
-	} else if (!strcmp(type, "t38state")) {
-		ast_copy_string(buf, t38state_to_string[channel->session->t38state], buflen);
-	} else if (!strcmp(type, "local_addr")) {
-		RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
-		struct transport_info_data *transport_data;
-
-		datastore = ast_sip_session_get_datastore(channel->session, "transport_info");
-		if (!datastore) {
-			ast_log(AST_LOG_WARNING, "No transport information for channel %s\n", ast_channel_name(chan));
+		if (!info->remote_tag) {
 			return -1;
 		}
-		transport_data = datastore->data;
-
-		if (pj_sockaddr_has_addr(&transport_data->local_addr)) {
-			pj_sockaddr_print(&transport_data->local_addr, buf, buflen, 3);
-		}
-	} else if (!strcmp(type, "remote_addr")) {
-		RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
-		struct transport_info_data *transport_data;
-
-		datastore = ast_sip_session_get_datastore(channel->session, "transport_info");
-		if (!datastore) {
-			ast_log(AST_LOG_WARNING, "No transport information for channel %s\n", ast_channel_name(chan));
-			return -1;
-		}
-		transport_data = datastore->data;
-
-		if (pj_sockaddr_has_addr(&transport_data->remote_addr)) {
-			pj_sockaddr_print(&transport_data->remote_addr, buf, buflen, 3);
-		}
+		ast_escape_quoted(info->remote_tag, buf, len);
 	} else {
-		ast_log(AST_LOG_WARNING, "Unrecognized argument '%s' for 'pjsip' information\n", type);
+		ast_log(LOG_WARNING, "Unrecognized argument '%s' for 'pjsip' information\n", type);
 		return -1;
 	}
-
-	return res;
-}
-
-/*! \brief Struct used to push function arguments to task processor */
-struct pjsip_func_args {
-	struct ast_sip_session *session;
-	const char *param;
-	const char *type;
-	const char *field;
-	char *buf;
-	size_t len;
-	int ret;
-};
-
-/*! \internal \brief Taskprocessor callback that handles the read on a PJSIP thread */
-static int read_pjsip(void *data)
-{
-	struct pjsip_func_args *func_args = data;
-
-	if (!strcmp(func_args->param, "rtp")) {
-		if (!func_args->session->channel) {
-			func_args->ret = -1;
-			return 0;
-		}
-		func_args->ret = channel_read_rtp(func_args->session->channel, func_args->type,
-		                                  func_args->field, func_args->buf,
-		                                  func_args->len);
-	} else if (!strcmp(func_args->param, "rtcp")) {
-		if (!func_args->session->channel) {
-			func_args->ret = -1;
-			return 0;
-		}
-		func_args->ret = channel_read_rtcp(func_args->session->channel, func_args->type,
-		                                   func_args->field, func_args->buf,
-		                                   func_args->len);
-	} else if (!strcmp(func_args->param, "endpoint")) {
-		if (!func_args->session->endpoint) {
-			ast_log(AST_LOG_WARNING, "Channel %s has no endpoint!\n", func_args->session->channel ?
-				ast_channel_name(func_args->session->channel) : "<unknown>");
-			func_args->ret = -1;
-			return 0;
-		}
-		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(func_args->session->endpoint));
-	} else if (!strcmp(func_args->param, "contact")) {
-		if (!func_args->session->contact) {
-			return 0;
-		}
-		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(func_args->session->contact));
-	} else if (!strcmp(func_args->param, "aor")) {
-		if (!func_args->session->aor) {
-			return 0;
-		}
-		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(func_args->session->aor));
-	} else if (!strcmp(func_args->param, "pjsip")) {
-		if (!func_args->session->channel) {
-			func_args->ret = -1;
-			return 0;
-		}
-		func_args->ret = channel_read_pjsip(func_args->session->channel, func_args->type,
-		                                    func_args->field, func_args->buf,
-		                                    func_args->len);
-	} else {
-		func_args->ret = -1;
-	}
-
 	return 0;
 }
 
-
 int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct pjsip_func_args func_args = { 0, };
 	struct ast_sip_channel_pvt *channel;
 	char *parse = ast_strdupa(data);
+	int res = 0;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(param);
@@ -460,6 +373,11 @@ int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data
 	/* Check for zero arguments */
 	if (ast_strlen_zero(parse)) {
 		ast_log(LOG_ERROR, "Cannot call %s without arguments\n", cmd);
+		return -1;
+	}
+
+	if (!len) {
+		ast_log(LOG_ERROR, "Cannot call %s without an output buffer\n", cmd);
 		return -1;
 	}
 
@@ -487,24 +405,57 @@ int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data
 		return -1;
 	}
 
-	func_args.session = ao2_bump(channel->session);
-	ast_channel_unlock(chan);
-
 	memset(buf, 0, len);
 
-	func_args.param = args.param;
-	func_args.type = args.type;
-	func_args.field = args.field;
-	func_args.buf = buf;
-	func_args.len = len;
-	if (ast_sip_push_task_wait_serializer(func_args.session->serializer, read_pjsip, &func_args)) {
-		ast_log(LOG_WARNING, "Unable to read properties of channel %s: failed to push task\n", ast_channel_name(chan));
-		ao2_ref(func_args.session, -1);
-		return -1;
-	}
-	ao2_ref(func_args.session, -1);
+	if (!strcmp(args.param, "endpoint")) {
+		if (!channel->session->endpoint) {
+			res = -1;
+		} else {
+			ast_copy_string(buf, ast_sorcery_object_get_id(channel->session->endpoint), len);
+		}
+	} else if (!strcmp(args.param, "contact")) {
+		if (channel->session->contact) {
+			ast_copy_string(buf, ast_sorcery_object_get_id(channel->session->contact), len);
+		}
+	} else if (!strcmp(args.param, "aor")) {
+		if (channel->session->aor) {
+			ast_copy_string(buf, ast_sorcery_object_get_id(channel->session->aor), len);
+		}
+	} else if (!strcmp(args.param, "pjsip")) {
+		res = channel_read_pjsip(chan, channel->session, args.type, buf, len);
+	} else if (!strcmp(args.param, "rtp") || !strcmp(args.param, "rtcp")) {
+		const struct pjsip_channel_info *info = pjsip_channel_info_get(chan);
+		struct ast_rtp_instance *rtp;
+		struct ast_sip_session_media *media;
+		struct ast_sockaddr no_address = { { 0, } };
+		const struct ast_sockaddr *direct_media_addr;
+		unsigned int secure;
+		unsigned int held;
+		int video = !strcmp(S_OR(args.field, "audio"), "video");
 
-	return func_args.ret;
+		if (!info) {
+			res = -1;
+		} else {
+			/* The channel lock keeps these retained instances alive throughout the read. */
+			rtp = video ? info->video_rtp : info->audio_rtp;
+			media = channel->session->active_media_state
+				? channel->session->active_media_state->default_session[video
+					? AST_MEDIA_TYPE_VIDEO : AST_MEDIA_TYPE_AUDIO] : NULL;
+			direct_media_addr = media ? &media->direct_media_addr : &no_address;
+			secure = video ? info->video_secure : info->audio_secure;
+			held = video ? info->video_held : info->audio_held;
+			if (!strcmp(args.param, "rtp")) {
+				res = channel_read_rtp(chan, rtp, direct_media_addr, secure, held,
+					args.type, args.field, buf, len);
+			} else {
+				res = channel_read_rtcp(chan, rtp, args.type, args.field, buf, len);
+			}
+		}
+	} else {
+		res = -1;
+	}
+	ast_channel_unlock(chan);
+	return res;
 }
 
 int pjsip_acf_dial_contacts_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
