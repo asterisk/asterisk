@@ -3442,6 +3442,21 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			}
 			return 0;
 		}
+
+		/*
+		 * PJPROJECT only invokes the receive-data callback for application data
+		 * accepted by the ICE session. If media moves to another valid ICE pair
+		 * after Strict RTP has closed, allow Strict RTP to relearn that source.
+		 * Otherwise the valid media packet will be dropped indefinitely because
+		 * the learned Strict RTP address still points at the previous ICE path.
+		 */
+		if (!rtcp && strictrtp && rtp->strict_rtp_state == STRICT_RTP_CLOSED
+			&& ast_sockaddr_cmp(&rtp->strict_rtp_address, sa)) {
+			ast_verb(4, "%p -- Strict RTP learning after ICE source address change to: %s\n",
+				rtp, ast_sockaddr_stringify(sa));
+			rtp_learning_start(rtp);
+		}
+
 		rtp->passthrough = 0;
 	}
 #endif
