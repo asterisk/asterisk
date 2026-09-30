@@ -137,7 +137,14 @@ static void t38_change_state(struct ast_sip_session *session, struct ast_sip_ses
 		return;
 	}
 
+	/* CHANNEL(pjsip,t38state) reads this under the channel lock. */
+	if (session->channel) {
+		ast_channel_lock(session->channel);
+	}
 	session->t38state = new_state;
+	if (session->channel) {
+		ast_channel_unlock(session->channel);
+	}
 	ast_debug(2, "T.38 state changed to '%u' from '%u' on channel '%s'\n",
 		new_state, old_state,
 		session->channel ? ast_channel_name(session->channel) : "<gone>");

@@ -3456,7 +3456,17 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 	 * media sessions here.
 	 */
 	ast_sip_session_media_stats_save(session, session->active_media_state);
+	/* Publish the replacement under the channel lock used by media readers.
+	 * Reset the detached state after unlocking: stream teardown may wait for
+	 * scheduler callbacks that need the channel lock.
+	 */
+	if (session->channel) {
+		ast_channel_lock(session->channel);
+	}
 	SWAP(session->active_media_state, session->pending_media_state);
+	if (session->channel) {
+		ast_channel_unlock(session->channel);
+	}
 	ast_sip_session_media_state_reset(session->pending_media_state);
 
 	switch (session->inv_session->state) {
