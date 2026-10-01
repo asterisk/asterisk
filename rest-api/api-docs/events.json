@@ -246,6 +246,8 @@
 				"StasisEnd",
 				"StasisStart",
 				"TextMessageReceived",
+				"ChannelMessageDeliveryStatus",
+				"ChannelMessageReceived",
 				"ChannelConnectedLine",
 				"PeerStatusChange",
 				"ChannelTransfer",
@@ -991,6 +993,96 @@
 				"endpoint": {
 					"required": false,
 					"type": "Endpoint"
+				}
+			}
+		},
+		"ChannelMessageDeliveryStatus": {
+			"id": "ChannelMessageDeliveryStatus",
+			"description": "Final delivery status for an outbound in-dialog MESSAGE request.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel on which in-dialog delivery was attempted."
+				},
+				"request_id": {
+					"required": true,
+					"type": "string",
+					"description": "Correlation identifier for the outbound MESSAGE request."
+				},
+				"status": {
+					"required": true,
+					"type": "string",
+					"description": "Final delivery result for the request.",
+					"allowableValues": {
+						"valueType": "LIST",
+						"values": [
+							"delivered",
+							"failed",
+							"transport_error"
+						]
+					}
+				},
+				"to": {
+					"required": false,
+					"type": "string",
+					"description": "Resolved destination URI used for the outbound MESSAGE."
+				},
+				"from": {
+					"required": false,
+					"type": "string",
+					"description": "Source URI used for the outbound MESSAGE."
+				},
+				"body": {
+					"required": false,
+					"type": "string",
+					"description": "Body that was sent with the outbound MESSAGE."
+				},
+				"content_type": {
+					"required": false,
+					"type": "string",
+					"description": "Content type used for the outbound MESSAGE."
+				},
+				"sip_status_code": {
+					"required": false,
+					"type": "int",
+					"description": "Final SIP response code, when available."
+				},
+				"reason": {
+					"required": false,
+					"type": "string",
+					"description": "Optional failure reason text."
+				}
+			}
+		},
+		"ChannelMessageReceived": {
+			"id": "ChannelMessageReceived",
+			"description": "Inbound in-dialog SIP MESSAGE received on a channel.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel on which the in-dialog MESSAGE was received."
+				},
+				"body": {
+					"required": true,
+					"type": "string",
+					"description": "Body of the received MESSAGE."
+				},
+				"content_type": {
+					"required": true,
+					"type": "string",
+					"description": "Content type of the received MESSAGE body."
+				},
+				"from": {
+					"required": false,
+					"type": "string",
+					"description": "Source identity from the From header display name."
+				},
+				"to": {
+					"required": false,
+					"type": "string",
+					"description": "Destination identity from the To header display name."
 				}
 			}
 		},
