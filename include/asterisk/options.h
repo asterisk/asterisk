@@ -213,8 +213,6 @@ extern pid_t ast_mainpid;
 
 extern char record_cache_dir[AST_CACHE_DIR_LEN];
 
-extern int ast_language_is_prefix;
-
 extern int ast_option_rtpusedynamic;
 extern unsigned int ast_option_rtpptdynamic;
 
