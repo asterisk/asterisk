@@ -625,9 +625,10 @@ struct ast_rtcp {
 struct rtp_red {
 	struct ast_frame t140;  /*!< Primary data  */
 	struct ast_frame t140red;   /*!< Redundant t140*/
-	unsigned char pt[AST_RED_MAX_GENERATION];  /*!< Payload types for redundancy data */
-	unsigned char ts[AST_RED_MAX_GENERATION]; /*!< Time stamps */
-	unsigned char len[AST_RED_MAX_GENERATION]; /*!< length of each generation */
+	/* We are encoding the primary payload type also in this array, so we need one more element */
+	unsigned char pt[AST_RED_MAX_GENERATION+1];  /*!< Payload types for redundancy data */
+	unsigned char ts[AST_RED_MAX_GENERATION+1]; /*!< Time stamps */
+	unsigned char len[AST_RED_MAX_GENERATION+1]; /*!< length of each generation */
 	int num_gen; /*!< Number of generations */
 	int schedid; /*!< Timer id */
 	unsigned char t140red_data[64000];
@@ -4422,10 +4423,15 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	}
 
 	/* Destroy RED if it was being used */
+	/* only needed for chan_sip compatibility, should be removed after completely getting rid of it */
 	if (rtp->red) {
-		ao2_unlock(instance);
-		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
-		ao2_lock(instance);
+		if (rtp->red->schedid > -1) {
+			ao2_unlock(instance);
+			if (!AST_SCHED_DEL(rtp->sched, rtp->red->schedid)) {
+				ao2_ref(instance, -1);
+			}
+			ao2_lock(instance);
+		}
 		ast_free(rtp->red);
 		rtp->red = NULL;
 	}
@@ -5549,10 +5555,7 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red)
 	memcpy(&data[len], red->t140.data.ptr, red->t140.datalen);
 	red->t140red.datalen = len + red->t140.datalen;
 
-	/* no primary data and no generations to send */
-	if (len == red->hdrlen && !red->t140.datalen) {
-		return NULL;
-	}
+	/* We need to continue even if we get no payload, to forward idle packets */
 
 	/* reset t.140 buffer */
 	red->t140.datalen = 0;
@@ -5714,7 +5717,12 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	}
 
 	/* If there is no data length we can't very well send the packet */
-	if (!frame->datalen) {
+	if (!frame->datalen && frame->frametype != AST_FRAME_TEXT) {
+		/* RFC 4103:
+		 * When valid T.140 data has been sent and no new T.140 data is
+		* available for transmission after the selected buffering time, an
+		* empty T140block SHOULD be transmitted.
+		*/
 		ast_debug_rtp(1, "(%p) RTP received frame with no data for instance, so dropping frame\n", instance);
 		return 0;
 	}
@@ -5726,10 +5734,8 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	}
 
 	if (rtp->red) {
-		/* return 0; */
-		/* no primary data or generations to send */
-		if ((frame = red_t140_to_red(rtp->red)) == NULL)
-			return 0;
+		ast_rtp_red_buffer(instance, frame);
+		frame = red_t140_to_red(rtp->red);
 	}
 
 	/* Grab the subclass and look up the payload we are going to use */
@@ -7526,11 +7532,19 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 	ast_rtp_instance_get_remote_address(instance1, &remote_address);
 
 	if (ast_sockaddr_isnull(&remote_address)) {
-		ast_debug_rtp(5, "(%p, %p) RTP remote address is null, most likely RTP has been stopped\n",
-			instance, instance1);
+		int is_text = payload_type->asterisk_format
+				&& payload_type->format
+				&& ast_format_get_type(payload_type->format) == AST_MEDIA_TYPE_TEXT;
+		if (is_text) {
+			ast_debug_rtp(5, "(%p, %p) RTP remote address is null, audio RTP is probably stopped while text is still active\n",
+				instance, instance1);
+		} else {
+			ast_debug_rtp(5, "(%p, %p) RTP remote address is null, most likely RTP has been stopped\n",
+				instance, instance1);
+		}
 		ao2_unlock(instance1);
 		ao2_lock(instance);
-		return 0;
+		return is_text ? -1 : 0;
 	}
 
 	/* If the marker bit has been explicitly set turn it on */
@@ -7974,6 +7988,54 @@ static void rtp_instance_parse_extmap_extensions(struct ast_rtp_instance *instan
 	}
 }
 
+struct red_payload_layout {
+	size_t header_length; /*!< Combined redundant and primary RED header length. */
+	size_t primary_offset; /*!< Offset of the primary T.140 block in the RED payload. */
+	size_t redundant_length[AST_RED_MAX_GENERATION]; /*!< Length of each redundant block. */
+	size_t redundant_count; /*!< Number of redundant blocks preceding the primary block. */
+};
+
+/* Parse and validate the RFC 2198 RED headers without modifying the packet. */
+static int red_payload_layout_parse(const unsigned char *data, size_t data_length,
+	struct red_payload_layout *layout)
+{
+	size_t offset = 0;
+	size_t payload_offset;
+
+	memset(layout, 0, sizeof(*layout));
+	for (;;) {
+		/* Every header must begin inside the received payload. */
+		if (offset >= data_length) {
+			return -1;
+		}
+		/* F=0 identifies the final one-byte header for the primary block. */
+		if (!(data[offset] & 0x80)) {
+			layout->header_length = ++offset;
+			break;
+		}
+		/* An F=1 redundant header is four bytes and must fit our generation limit. */
+		if (data_length - offset < 4
+			|| layout->redundant_count >= ARRAY_LEN(layout->redundant_length)) {
+			return -1;
+		}
+		/* The redundant block length is the low 10 bits of header bytes two and three. */
+		layout->redundant_length[layout->redundant_count++] =
+			((size_t) (data[offset + 2] & 0x03) << 8) | data[offset + 3];
+		offset += 4;
+	}
+
+	/* Walk the redundant blocks, validating each length and locating the primary block. */
+	payload_offset = layout->header_length;
+	for (offset = 0; offset < layout->redundant_count; ++offset) {
+		if (layout->redundant_length[offset] > data_length - payload_offset) {
+			return -1;
+		}
+		payload_offset += layout->redundant_length[offset];
+	}
+	layout->primary_offset = payload_offset;
+	return 0;
+}
+
 static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, struct ast_srtp *srtp,
 	const struct ast_sockaddr *remote_address, unsigned char *read_area, int length, int prev_seqno,
 	unsigned int bundled)
@@ -8208,58 +8270,61 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		&& ((int)seqno - (prev_seqno + 1) < 10)) {
 		unsigned char *data = rtp->f.data.ptr;
 
+		ast_debug(2, "processing T140 with %d bytes \n", rtp->f.datalen);
 		memmove(rtp->f.data.ptr+3, rtp->f.data.ptr, rtp->f.datalen);
 		rtp->f.datalen +=3;
 		*data++ = 0xEF;
 		*data++ = 0xBF;
 		*data = 0xBD;
-	}
-
-	if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
+	} else if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
 		unsigned char *data = rtp->f.data.ptr;
-		unsigned char *header_end;
-		int num_generations;
-		int header_length;
-		int len;
-		int diff =(int)seqno - (prev_seqno+1); /* if diff = 0, no drop*/
-		int x;
+		struct red_payload_layout layout;
+		size_t payload_offset;
+		size_t payload_length;
+		size_t generation;
+		int diff = (int16_t) ((uint16_t) seqno - (uint16_t) (prev_seqno + 1));
 
+		ast_debug(2, "processing T140 RED with %d bytes\n", rtp->f.datalen);
 		ao2_replace(rtp->f.subclass.format, ast_format_t140);
-		header_end = memchr(data, ((*data) & 0x7f), rtp->f.datalen);
-		if (header_end == NULL) {
+		if (red_payload_layout_parse(data, rtp->f.datalen, &layout)) {
+			ast_debug_rtp(1, "Dropping malformed T.140 RED packet\n");
 			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 		}
-		header_end++;
 
-		header_length = header_end - data;
-		num_generations = header_length / 4;
-		len = header_length;
-
-		if (!diff) {
-			for (x = 0; x < num_generations; x++)
-				len += data[x * 4 + 3];
-
-			if (!(rtp->f.datalen - len))
-				return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
-
-			rtp->f.data.ptr += len;
-			rtp->f.datalen -= len;
-		} else if (diff > num_generations && diff < 10) {
-			len -= 3;
-			rtp->f.data.ptr += len;
-			rtp->f.datalen -= len;
-
-			data = rtp->f.data.ptr;
-			*data++ = 0xEF;
-			*data++ = 0xBF;
-			*data = 0xBD;
+		if (prev_seqno == 0 || diff == 0 || diff > 10) {
+			payload_offset = layout.primary_offset;
+		} else if (diff < 0) {
+			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
+		} else if (diff > layout.redundant_count) {
+			/* The missing packets exceed the available RED generations, so use the primary payload. */
+			payload_offset = layout.primary_offset;
+			payload_length = rtp->f.datalen - payload_offset;
+			if (rtp->f.datalen >= 3 && payload_length <= (size_t) rtp->f.datalen - 3) {
+				/* Move the primary payload forward to make room for the loss marker. */
+				memmove(data + 3, data + payload_offset, payload_length);
+				/* Prefix U+FFFD (UTF-8 EF BF BD) to mark text lost beyond RED recovery. */
+				data[0] = 0xEF;
+				data[1] = 0xBF;
+				data[2] = 0xBD;
+				rtp->f.data.ptr = data;
+				rtp->f.datalen = payload_length + 3;
+				ast_debug_rtp(1, "Missing packets exceed the available RED generations, set marker in packet\n");
+				goto red_done;
+			}
 		} else {
-			for ( x = 0; x < num_generations - diff; x++)
-				len += data[x * 4 + 3];
-
-			rtp->f.data.ptr += len;
-			rtp->f.datalen -= len;
+			/* Skip older generations and include only the missing generations plus the primary payload. */
+			payload_offset = layout.header_length;
+			for (generation = 0; generation < layout.redundant_count - diff; ++generation) {
+				payload_offset += layout.redundant_length[generation];
+			}
 		}
+		/* Expose the selected contiguous T.140 payload as the frame data. */
+		payload_length = rtp->f.datalen - payload_offset;
+		/* Either we have payload available, or we need to send an idle packet without payload */
+		rtp->f.data.ptr = data + payload_offset;
+		rtp->f.datalen = payload_length;
+	red_done:
+		;
 	}
 
 	if (ast_format_get_type(rtp->f.subclass.format) == AST_MEDIA_TYPE_AUDIO) {
@@ -8287,6 +8352,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 		rtp->f.subclass.frame_ending = mark ? 1 : 0;
 	} else if (ast_format_get_type(rtp->f.subclass.format) == AST_MEDIA_TYPE_TEXT) {
 		/* TEXT -- samples is # of samples vs. 1000 */
+		ast_debug(2, "processing AST_MEDIA_TYPE_TEXT, payload length %d\n", rtp->f.datalen);
 		if (!rtp->lastitexttimestamp)
 			rtp->lastitexttimestamp = timestamp;
 		rtp->f.samples = timestamp - rtp->lastitexttimestamp;
@@ -9331,16 +9397,24 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 /*!
  * \brief Write t140 redundancy frame
  *
+ * Write a t140 redundancy frame,  only needed for chan_sip compatibility,
+ * should be removed after completely getting rid of it
  * \param data primary data to be buffered
  *
  * Scheduler callback
  */
 static int red_write(const void *data)
 {
-	struct ast_rtp_instance *instance = (struct ast_rtp_instance*) data;
-	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	struct ast_rtp_instance *instance = (struct ast_rtp_instance *) data;
+	struct ast_rtp *rtp;
 
 	ao2_lock(instance);
+	rtp = ast_rtp_instance_get_data(instance);
+	if (!rtp || !rtp->red) {
+		ao2_unlock(instance);
+		ast_log(LOG_ERROR, "Could not get rtp from instance or RED handler for real-time text\n");
+		return 0;
+	}
 	if (rtp->red->t140.datalen > 0) {
 		ast_rtp_write(instance, &rtp->red->t140);
 	}
@@ -9352,13 +9426,30 @@ static int red_write(const void *data)
 /*! \pre instance is locked */
 static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations)
 {
+	const char *chanid;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int x;
+
+	if (rtp->red) {
+		if (rtp->red->schedid > -1) {
+			ao2_unlock(instance);
+			if (!AST_SCHED_DEL(rtp->sched, rtp->red->schedid)) {
+				ao2_ref(instance, -1);
+			}
+			ao2_lock(instance);
+		}
+		ast_free(rtp->red);
+		rtp->red = NULL;
+	}
+	if (generations < 0) {
+		return 0;
+	}
 
 	rtp->red = ast_calloc(1, sizeof(*rtp->red));
 	if (!rtp->red) {
 		return -1;
 	}
+	rtp->red->schedid = -1;
 
 	rtp->red->t140.frametype = AST_FRAME_TEXT;
 	rtp->red->t140.subclass.format = ast_format_t140_red;
@@ -9376,7 +9467,24 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 		rtp->red->t140red_data[x*4] = rtp->red->pt[x];
 	}
 	rtp->red->t140red_data[x*4] = rtp->red->pt[x] = payloads[x]; /* primary pt */
-	rtp->red->schedid = ast_sched_add(rtp->sched, buffer_time, red_write, instance);
+	/* only needed for chan_sip compatibility, should be removed after completely getting rid of it */
+	chanid = ast_rtp_instance_get_channel_id(instance);
+	if (!ast_strlen_zero(chanid)) {
+		struct ast_channel *chan = ast_channel_get_by_uniqueid(chanid);
+		if (chan && ast_strings_equal(ast_channel_tech(chan)->type, "SIP")) {
+			ast_debug(3, "RED scheduler started for SIP channel\n");
+			ao2_ref(instance, +1);
+			rtp->red->schedid = ast_sched_add(rtp->sched, buffer_time, red_write, instance);
+			if (rtp->red->schedid < 0) {
+				ao2_ref(instance, -1);
+				ast_log(LOG_WARNING, "scheduling red_write for real-time text failed for stream %s\n",
+						ast_rtp_instance_get_cname(instance));
+			}
+		}
+		ao2_cleanup(chan);
+	}
+	ast_debug(3, "Init RED for stream %s, primary payload %d with %d generations\n",
+		ast_rtp_instance_get_cname(instance), payloads[x], generations);
 
 	return 0;
 }
@@ -9401,6 +9509,14 @@ static int rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *f
 		int space_available = 0;
 
 		if (red->t140.datalen > 0) {
+			/*
+			* Avoid merging command and regular T.140 text packets by flushing the
+			* previous T.140 packets. When realtime text packets are to be sent, the
+			* text is accumulated in a buffer and sent regularly by a timer.  It can
+			* happen that commands such as a backspace, CR, or LF get merged with
+			* regular text. This breaks some UAs. In recent tests it could not be
+			* reproduced, but its probably better to keep it.
+			*/
 			const unsigned char *primary = red->buf_data;
 
 			/* There is something already in the T.140 buffer */
@@ -9612,10 +9728,15 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 		rtp->transport_wide_cc.schedid = -1;
         }
 
+	/* only needed for chan_sip compatibility, should be removed after completely getting rid of it */
 	if (rtp->red) {
-		ao2_unlock(instance);
-		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
-		ao2_lock(instance);
+		if (rtp->red->schedid > -1) {
+			ao2_unlock(instance);
+			if (!ast_sched_del(rtp->sched, rtp->red->schedid)) {
+				ao2_ref(instance, -1);
+			}
+			ao2_lock(instance);
+		}
 		ast_free(rtp->red);
 		rtp->red = NULL;
 	}
