@@ -26,6 +26,7 @@
 
 #include <pjsip.h>
 #include <pjsip_ua.h>
+#include <pjsip-ua/sip_timer.h>
 #include <pjlib.h>
 #include <pjmedia.h>
 
@@ -3955,6 +3956,45 @@ static int check_content_disposition(pjsip_rx_data *rdata)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Apply the configured session timer refresher preference.
+ *
+ * When an incoming INVITE carries a Session-Expires header without a refresher
+ * parameter, pjsip selects the refresher itself during session timer
+ * negotiation. This function lets an endpoint force its preference by
+ * supplying the refresher parameter in the request before the session timers
+ * are negotiated. An explicit refresher parameter chosen by the remote party
+ * is always respected.
+ */
+static void session_timer_set_refresher(struct ast_sip_session *session,
+					pjsip_rx_data *rdata)
+{
+	const struct ast_sip_endpoint *endpoint = session->endpoint;
+	static const pj_str_t str_session_expires = {"Session-Expires", 15};
+	static const pj_str_t str_session_expires_short = {"x", 1};
+	pjsip_sess_expires_hdr *se_hdr;
+
+	if (endpoint->extensions.refresher == AST_SIP_TIMER_REFRESHER_AUTO) {
+		return;
+	}
+
+	se_hdr = (pjsip_sess_expires_hdr *) pjsip_msg_find_hdr_by_names(
+		rdata->msg_info.msg, &str_session_expires,
+		&str_session_expires_short, NULL);
+
+	if (!se_hdr || se_hdr->refresher.slen) {
+		return;
+	}
+
+	if (endpoint->extensions.refresher == AST_SIP_TIMER_REFRESHER_UAS) {
+		se_hdr->refresher.ptr = (char *) "uas";
+	} else {
+		se_hdr->refresher.ptr = (char *) "uac";
+	}
+	se_hdr->refresher.slen = 3;
+}
+
 static int new_invite(struct new_invite *invite)
 {
 	pjsip_tx_data *tdata = NULL;
@@ -4031,6 +4071,8 @@ static int new_invite(struct new_invite *invite)
 		}
 		goto end;
 	}
+
+	session_timer_set_refresher(invite->session, invite->rdata);
 
 	pjsip_timer_setting_default(&timer);
 	timer.min_se = invite->session->endpoint->extensions.timer.min_se;
