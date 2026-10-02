@@ -743,7 +743,7 @@ static void *ast_hashtab_remove_object_internal(struct ast_hashtab *tab, struct 
 	return (void *) obj2; /* inside this code, the obj's are untouchable, but outside, they aren't */
 }
 
-void *ast_hashtab_remove_object_via_lookup(struct ast_hashtab *tab, void *obj)
+void *ast_hashtab_remove_object_via_lookup(struct ast_hashtab *tab, const void *obj)
 {
 	/* looks up the object; removes the corresponding bucket */
 	const void *obj2;
@@ -762,7 +762,7 @@ void *ast_hashtab_remove_object_via_lookup(struct ast_hashtab *tab, void *obj)
 	return (void *)obj2;
 }
 
-void *ast_hashtab_remove_object_via_lookup_nolock(struct ast_hashtab *tab, void *obj)
+void *ast_hashtab_remove_object_via_lookup_nolock(struct ast_hashtab *tab, const void *obj)
 {
 	/* looks up the object; removes the corresponding bucket */
 	unsigned int h;
@@ -786,7 +786,7 @@ void *ast_hashtab_remove_object_via_lookup_nolock(struct ast_hashtab *tab, void 
 	return 0;
 }
 
-void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, void *obj)
+void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, const void *obj)
 {
 	/* looks up the object by hash and then comparing pts in bucket list instead of
 	   calling the compare routine; removes the bucket -- a slightly cheaper operation */
@@ -799,7 +799,7 @@ void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, void *obj)
 	if (tab->do_locking)
 		ast_rwlock_wrlock(&tab->lock);
 
-	obj2 = ast_hashtab_remove_this_object_nolock(tab,obj);
+	obj2 = ast_hashtab_remove_this_object_nolock(tab, obj);
 
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
@@ -807,7 +807,7 @@ void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, void *obj)
 	return (void *)obj2;
 }
 
-void *ast_hashtab_remove_this_object_nolock(struct ast_hashtab *tab, void *obj)
+void *ast_hashtab_remove_this_object_nolock(struct ast_hashtab *tab, const void *obj)
 {
 	/* looks up the object by hash and then comparing pts in bucket list instead of
 	   calling the compare routine; removes the bucket -- a slightly cheaper operation */
