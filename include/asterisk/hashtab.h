@@ -363,11 +363,11 @@ void ast_hashtab_end_traversal(struct ast_hashtab_iter *it);
 void *ast_hashtab_next(struct ast_hashtab_iter *it);
 
 /*! \brief Looks up the object, removes the corresponding bucket */
-void *ast_hashtab_remove_object_via_lookup(struct ast_hashtab *tab, void *obj);
+void *ast_hashtab_remove_object_via_lookup(struct ast_hashtab *tab, const void *obj);
 
 /*! \brief Hash the object and then compare ptrs in bucket list instead of
 	   calling the compare routine, will remove the bucket */
-void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, void *obj);
+void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, const void *obj);
 
 /* ------------------ */
 /* for lock-enabled traversals with ability to remove an object during the traversal*/
@@ -379,11 +379,11 @@ struct ast_hashtab_iter *_ast_hashtab_start_write_traversal(struct ast_hashtab *
 	_ast_hashtab_start_write_traversal(tab, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*! \brief Looks up the object, removes the corresponding bucket */
-void *ast_hashtab_remove_object_via_lookup_nolock(struct ast_hashtab *tab, void *obj);
+void *ast_hashtab_remove_object_via_lookup_nolock(struct ast_hashtab *tab, const void *obj);
 
 /*! \brief Hash the object and then compare ptrs in bucket list instead of
 	   calling the compare routine, will remove the bucket */
-void *ast_hashtab_remove_this_object_nolock(struct ast_hashtab *tab, void *obj);
+void *ast_hashtab_remove_this_object_nolock(struct ast_hashtab *tab, const void *obj);
 
 /* ------------------ */
 /* ------------------ */
