@@ -19,6 +19,13 @@
 #ifndef _RES_PJSIP_SESSION_H
 #define _RES_PJSIP_SESSION_H
 
+/* Needed for AST_OPTIONAL_API.
+ * NOTE: This must be included before anything that includes inline_api.h
+ * (e.g. channel.h -> lock.h) so that a provider module defining
+ * AST_API_MODULE before including this header is handled by optional_api.h
+ * and doesn't cause inline_api.h to emit function definitions. */
+#include "asterisk/optional_api.h"
+
 /* Needed for pj_timer_entry definition */
 #include <pjlib.h>
 #include "asterisk/linkedlists.h"
@@ -747,6 +754,57 @@ struct ast_datastore *ast_sip_session_get_datastore(struct ast_sip_session *sess
  * \param name The name of the datastore to remove
  */
 void ast_sip_session_remove_datastore(struct ast_sip_session *session, const char *name);
+
+/*!
+ * \brief Add headers stored on a session by PJSIP_HEADER(add, ...) to an outgoing message
+ *
+ * Retrieves the session header datastore populated by PJSIP_HEADER(add, ...),
+ * clones each explicitly added header onto the given outgoing message, then
+ * removes the datastore so the headers are only applied once. Headers captured
+ * from incoming requests for PJSIP_HEADER(read, ...) are never applied; if no
+ * explicitly added headers are found the datastore is left untouched.
+ *
+ * This is provided by res_pjsip_header_funcs as an optional API so that messages
+ * created outside of the normal session supplement path (such as the REFER sent
+ * by the Transfer() dialplan application) can include the stored headers.
+ *
+ * \param session The session to retrieve stored headers from
+ * \param tdata The outgoing message to add the headers to
+ *
+ * \retval >=0 The number of headers added
+ * \retval -1 No stored headers were found
+ * \retval AST_OPTIONAL_API_UNAVAILABLE res_pjsip_header_funcs is not loaded
+ */
+AST_OPTIONAL_API(int, ast_sip_session_add_stored_pjsip_headers,
+	(struct ast_sip_session *session, pjsip_tx_data *tdata),
+	{ return AST_OPTIONAL_API_UNAVAILABLE; });
+
+/*!
+ * \brief Add headers stored on a session's channel by PJSIP_INHERITABLE_HEADER(add, ...) to an outgoing message
+ *
+ * Retrieves the inheritable header datastore from the session's channel,
+ * populated by PJSIP_INHERITABLE_HEADER(add, ...), and adds each header to
+ * the given outgoing message in the order the headers were added. Unlike
+ * ast_sip_session_add_stored_pjsip_headers(), the channel datastore is NOT
+ * consumed: inheritable headers must survive on the channel so they can
+ * still be inherited by future channels.
+ *
+ * This is provided by res_pjsip_header_funcs as an optional API so that
+ * messages created outside of the normal session supplement path (such as
+ * the REFER sent by the Transfer() dialplan application, which the
+ * INVITE-only session supplement never handles on an established dialog)
+ * can include the inheritable headers.
+ *
+ * \param session The session whose channel holds the inheritable headers
+ * \param tdata The outgoing message to add the headers to
+ *
+ * \retval >=0 The number of headers added
+ * \retval -1 No inheritable headers were found
+ * \retval AST_OPTIONAL_API_UNAVAILABLE res_pjsip_header_funcs is not loaded
+ */
+AST_OPTIONAL_API(int, ast_sip_session_add_inheritable_pjsip_headers,
+	(struct ast_sip_session *session, pjsip_tx_data *tdata),
+	{ return AST_OPTIONAL_API_UNAVAILABLE; });
 
 /*!
  * \brief Send a reinvite or UPDATE on a session
