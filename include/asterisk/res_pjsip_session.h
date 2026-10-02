@@ -91,7 +91,12 @@ struct ast_sip_session_media {
 	pj_str_t transport;
 	/*! \brief Scheduler ID for RTP keepalive */
 	int keepalive_sched_id;
-	/*! \brief Scheduler ID for RTP timeout */
+	/*!
+	 * \deprecated Moved to a task on ast_sip_session
+	 * \version 20.22.0 deprecated
+	 * Scheduler ID for RTP timeout (XXX no longer set or used, see
+	 * rtp_timeout_sched_task in ast_sip_session instead, kept for ABI)
+	 */
 	int timeout_sched_id;
 	/*! \brief Stream is on hold by remote side */
 	unsigned int remotely_held:1;
@@ -249,6 +254,8 @@ struct ast_sip_session {
 	enum ast_sip_session_call_direction call_direction;
 	/*! Originating Line Info (ANI II digits) */
 	int ani2;
+	/*! \brief The RTP timeout scheduler task for this session */
+	struct ast_sip_sched_task *rtp_timeout_sched_task;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);
