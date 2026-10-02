@@ -643,6 +643,8 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 	struct ast_channel *rchan;
 	int res = -1;
 	int hangup_info_sent = 0;
+	int command_pending = 0;
+	int error_pending = 0;
 
 	waitfds[0] = ast_iostream_get_fd(eivr_commands);
 	waitfds[1] = eivr_errors ? ast_iostream_get_fd(eivr_errors) : -1;
@@ -669,7 +671,16 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 		errno = 0;
 		exception = 0;
 
-		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, (eivr_errors) ? 2 : 1, &exception, &ready_fd, &ms);
+		if (command_pending) {
+			rchan = NULL;
+			ready_fd = waitfds[0];
+		} else if (error_pending) {
+			rchan = NULL;
+			ready_fd = waitfds[1];
+		} else {
+			rchan = ast_waitfor_nandfds(&chan, 1, waitfds, (eivr_errors) ? 2 : 1,
+				&exception, &ready_fd, &ms);
+		}
 
 		if (ast_channel_state(chan) == AST_STATE_UP && !AST_LIST_EMPTY(&u->finishlist)) {
 			AST_LIST_LOCK(&u->finishlist);
@@ -724,6 +735,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 			}
 
 			r = ast_iostream_gets(eivr_commands, input, sizeof(input));
+			command_pending = ast_iostream_has_buffered_line(eivr_commands);
 			if (r <= 0) {
 				if (r == 0) {
 					ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
@@ -881,6 +893,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 			}
 
 			r = ast_iostream_gets(eivr_errors, input, sizeof(input));
+			error_pending = ast_iostream_has_buffered_line(eivr_errors);
 			if (r > 0) {
 				ast_chan_log(LOG_NOTICE, chan, "stderr: %s\n", ast_strip(input));
 			} else if (r == 0) {
