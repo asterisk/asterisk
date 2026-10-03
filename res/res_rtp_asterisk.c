@@ -4147,10 +4147,16 @@ static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *ad
 }
 #endif
 
+/* Allocate an RTP transport with timer state safe for cleanup on failure. */
 static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_rtp *rtp)
 {
 	int x, startplace, i, maxloops;
 	unsigned int port_start, port_end;
+
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
+	rtp->rekeyid = -1;
+	rtp->dtls.timeout_timer = -1;
+#endif
 
 	rtp->strict_rtp_state = (strictrtp ? STRICT_RTP_CLOSED : STRICT_RTP_OPEN);
 
@@ -4222,11 +4228,6 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 			ast_sockaddr_copy(&rtp->ice_original_rtp_addr, &rtp->bind_address);
 		}
 	}
-#endif
-
-#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
-	rtp->rekeyid = -1;
-	rtp->dtls.timeout_timer = -1;
 #endif
 
 	return 0;
