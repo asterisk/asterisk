@@ -259,6 +259,63 @@ static void test_write_and_read_interleaved_frames(struct ast_rtp_instance *inst
 	}
 }
 
+/* Verify failed RTP allocation without a scheduler is safe and releases its resources. */
+AST_TEST_DEFINE(rtp_port_exhaustion)
+{
+	RAII_VAR(struct ast_rtp_instance *, occupied, NULL, ast_rtp_instance_destroy);
+	RAII_VAR(struct ast_rtp_instance *, instance, NULL, ast_rtp_instance_destroy);
+	struct ast_sockaddr address;
+	struct ast_rtp_instance_options options;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "rtp_port_exhaustion";
+		info->category = "/res/res_rtp/";
+		info->summary = "RTP port exhaustion without a scheduler";
+		info->description =
+			"Exhaust a per-instance RTP port range with no scheduler, as used by "
+			"UnicastRTP. Verify allocation fails safely and succeeds after the "
+			"occupied port is released.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_sockaddr_parse(&address, "127.0.0.1", 0);
+	occupied = ast_rtp_instance_new("asterisk", NULL, &address, NULL);
+	if (!occupied) {
+		ast_test_status_update(test, "Unable to allocate the initial RTP instance\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_rtp_instance_get_local_address(occupied, &address);
+	/* The occupied port is the only even port in this range. */
+	options.port_start = ast_sockaddr_port(&address);
+	options.port_end = options.port_start + 1;
+	instance = ast_rtp_instance_new_with_options("asterisk", NULL, &address,
+		NULL, &options);
+	if (instance) {
+		ast_test_status_update(test, "Allocation succeeded with an exhausted port range\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_rtp_instance_destroy(occupied);
+	occupied = NULL;
+	instance = ast_rtp_instance_new_with_options("asterisk", NULL, &address,
+		NULL, &options);
+	if (!instance) {
+		ast_test_status_update(test, "Unable to reuse the released RTP port\n");
+		return AST_TEST_FAIL;
+	}
+	ast_rtp_instance_get_local_address(instance, &address);
+	if (ast_sockaddr_port(&address) != options.port_start) {
+		ast_test_status_update(test, "RTP instance did not reuse the released port\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(nack_no_packet_loss)
 {
 	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ast_rtp_instance_destroy);
@@ -839,8 +896,10 @@ cleanup:
 	return result;
 }
 
+/* Unregister RTP regression tests when the module unloads. */
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(rtp_port_exhaustion);
 	AST_TEST_UNREGISTER(payload_merge_preserves_preferences);
 	AST_TEST_UNREGISTER(payload_merge_abandoned_offer);
 	AST_TEST_UNREGISTER(mes);
@@ -854,8 +913,10 @@ static int unload_module(void)
 	return 0;
 }
 
+/* Register RTP regression tests with the unit test framework. */
 static int load_module(void)
 {
+	AST_TEST_REGISTER(rtp_port_exhaustion);
 	AST_TEST_REGISTER(nack_no_packet_loss);
 	AST_TEST_REGISTER(nack_nominal);
 	AST_TEST_REGISTER(nack_overflow);
