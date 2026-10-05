@@ -2818,12 +2818,51 @@ static char *cli_qualify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return CLI_SUCCESS;
 }
 
+/* Retrieve registered and permanent contacts for the AMI contact list. */
 static struct ao2_container *get_all_contacts(void)
 {
+	struct ast_variable *fields;
 	struct ao2_container *contacts;
+	struct ao2_container *aors;
+	struct ao2_iterator aor_iter;
+	struct ast_sip_aor *aor;
 
 	contacts = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "contact",
 			AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!contacts) {
+		return NULL;
+	}
+
+	fields = ast_variable_new("contact !=", "", "");
+	if (!fields) {
+		ao2_ref(contacts, -1);
+		return NULL;
+	}
+
+	aors = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "aor",
+			AST_RETRIEVE_FLAG_MULTIPLE, fields);
+	ast_variables_destroy(fields);
+	if (!aors) {
+		ao2_ref(contacts, -1);
+		return NULL;
+	}
+
+	aor_iter = ao2_iterator_init(aors, 0);
+	while ((aor = ao2_iterator_next(&aor_iter))) {
+		if (aor->permanent_contacts) {
+			/* The destination is temporary, so emptying it on error is fine. */
+			if (ao2_container_dup(contacts, aor->permanent_contacts, 0) == -1) {
+				ao2_ref(aor, -1);
+				ao2_ref(contacts, -1);
+				contacts = NULL;
+				goto done;
+			}
+		}
+		ao2_ref(aor, -1);
+	}
+done:
+	ao2_iterator_destroy(&aor_iter);
+	ao2_ref(aors, -1);
 
 	return contacts;
 }
