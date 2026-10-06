@@ -1353,7 +1353,6 @@ static int dumpgroups_exec(struct ast_channel *chan, const char *data)
 	struct ast_group_meta *gmi = NULL;
 	struct varshead *headp;
 	struct ast_var_t *variable = NULL;
-	int numgroups = 0;
 	int numchans = 0;
 	struct ast_str *out = ast_str_create(4096);
 
@@ -1387,7 +1386,6 @@ static int dumpgroups_exec(struct ast_channel *chan, const char *data)
 	gmi = ast_app_group_meta_head();
 	while (gmi) {
 		ast_str_append(&out, 0, FORMAT_STRING_GROUPS, gmi->group, (strcmp(gmi->category, "") ? gmi->category : "(Default)"));
-		numgroups++;
 		headp = &gmi->varshead;
 
 		AST_LIST_TRAVERSE(headp, variable, entries) {
