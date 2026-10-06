@@ -1,0 +1,245 @@
+From 05222f9b839771dd5241c7045c903e24ea402204 Mon Sep 17 00:00:00 2001
+From: Greg Anthony <5074839+gaanthony@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 09:35:50 -0400
+Subject: [PATCH] pjnath: add ICE-Lite session support
+
+Add an ICE-Lite session option that keeps the agent controlled, responds to incoming connectivity checks, forms valid and nominated pairs, and never originates ordinary or triggered checks. Preserve bounded nomination timeout behavior for silent peers.
+
+Add in-memory coverage for peer-reflexive nomination, trickle checklist updates, early checks, role enforcement, and timeout behavior. All implementation and tests were reviewed and validated by the contributor; AI assistance was used for code drafting and review.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+(cherry picked from commit 1c6d19fd1b980fb01c0d1f2c9c9ea2353396dfad)
+---
+ pjnath/include/pjnath/ice_session.h |  11 ++-
+ pjnath/src/pjnath/ice_session.c     | 102 ++++++++++++++++++++++++++--
+ 2 files changed, 106 insertions(+), 7 deletions(-)
+
+diff --git a/pjnath/include/pjnath/ice_session.h b/pjnath/include/pjnath/ice_session.h
+index b4296d36..7c1e4bab 100644
+--- a/pjnath/include/pjnath/ice_session.h
++++ b/pjnath/include/pjnath/ice_session.h
+@@ -694,6 +694,16 @@ typedef struct pj_ice_sess_options
+      */
+     pj_bool_t check_src_addr;
+ 
++    /**
++     * Specify whether the session implements ICE-Lite. An ICE-Lite session
++     * always uses the controlled role, responds to connectivity checks, and
++     * never originates ordinary or triggered connectivity checks. The
++     * application is responsible for supplying host candidates only.
++     *
++     * Default value is PJ_FALSE.
++     */
++    pj_bool_t lite;
++
+ } pj_ice_sess_options;
+ 
+ 
+@@ -1143,4 +1153,3 @@ PJ_END_DECL
+ 
+ 
+ #endif  /* __PJNATH_ICE_SESSION_H__ */
+-
+diff --git a/pjnath/src/pjnath/ice_session.c b/pjnath/src/pjnath/ice_session.c
+index e1513b94..98226431 100644
+--- a/pjnath/src/pjnath/ice_session.c
++++ b/pjnath/src/pjnath/ice_session.c
+@@ -326,6 +326,7 @@ PJ_DEF(void) pj_ice_sess_options_default(pj_ice_sess_options *opt)
+         ICE_CONTROLLED_AGENT_WAIT_NOMINATION_TIMEOUT;
+     opt->trickle = PJ_ICE_SESS_TRICKLE_DISABLED;
+     opt->check_src_addr = PJ_ICE_SESS_CHECK_SRC_ADDR;
++    opt->lite = PJ_FALSE;
+ }
+ 
+ /*
+@@ -452,7 +453,11 @@ PJ_DEF(pj_status_t) pj_ice_sess_set_options(pj_ice_sess *ice,
+                                             const pj_ice_sess_options *opt)
+ {
+     PJ_ASSERT_RETURN(ice && opt, PJ_EINVAL);
++
++    pj_grp_lock_acquire(ice->grp_lock);
+     pj_memcpy(&ice->opt, opt, sizeof(*opt));
++    if (ice->opt.lite)
++        ice->role = PJ_ICE_SESS_ROLE_CONTROLLED;
+     ice->is_trickling = (ice->opt.trickle != PJ_ICE_SESS_TRICKLE_DISABLED);
+     if (ice->is_trickling) {
+         LOG5((ice->obj_name, "Trickle ICE is active (%s mode)",
+@@ -468,6 +473,7 @@ PJ_DEF(pj_status_t) pj_ice_sess_set_options(pj_ice_sess *ice,
+ 
+     LOG5((ice->obj_name, "ICE nomination type set to %s",
+           (ice->opt.aggressive ? "aggressive" : "regular")));
++    pj_grp_lock_release(ice->grp_lock);
+     return PJ_SUCCESS;
+ }
+ 
+@@ -559,6 +565,9 @@ PJ_DEF(pj_status_t) pj_ice_sess_change_role(pj_ice_sess *ice,
+ {
+     PJ_ASSERT_RETURN(ice, PJ_EINVAL);
+ 
++    if (ice->opt.lite && new_role != PJ_ICE_SESS_ROLE_CONTROLLED)
++        return PJ_EINVALIDOP;
++
+     if (new_role != ice->role) {
+         ice->role = new_role;
+         LOG4((ice->obj_name, "Role changed to %s", role_names[new_role]));
+@@ -2064,7 +2073,8 @@ static pj_status_t add_rcand_and_update_checklist(
+     /* For trickle ICE: resume the periodic check, it may be halted when
+      * there is no available check pair.
+      */
+-    if (ice->opt.trickle != PJ_ICE_SESS_TRICKLE_DISABLED &&
++    if (!ice->opt.lite &&
++        ice->opt.trickle != PJ_ICE_SESS_TRICKLE_DISABLED &&
+         clist->count > 0 && !ice->is_complete &&
+         clist->state == PJ_ICE_SESS_CHECKLIST_ST_RUNNING)
+     {
+@@ -2567,7 +2577,7 @@ PJ_DEF(pj_status_t) pj_ice_sess_start_check(pj_ice_sess *ice)
+     pj_log_push_indent();
+ 
+     /* If we are using aggressive nomination, set the is_nominating state */
+-    if (ice->opt.aggressive)
++    if (ice->opt.aggressive && !ice->opt.lite)
+         ice->is_nominating = PJ_TRUE;
+ 
+     /* The agent examines the check list for the first media stream (a
+@@ -2583,7 +2593,7 @@ PJ_DEF(pj_status_t) pj_ice_sess_start_check(pj_ice_sess *ice)
+      */
+ 
+     clist = &ice->clist;
+-    for (i=0; i < clist->foundation_cnt; ++i) {
++    for (i=0; !ice->opt.lite && i < clist->foundation_cnt; ++i) {
+         unsigned k;
+         pj_ice_sess_check *chk = NULL;
+ 
+@@ -2634,12 +2644,33 @@ PJ_DEF(pj_status_t) pj_ice_sess_start_check(pj_ice_sess *ice)
+     }
+     pj_list_init(&ice->early_check);
+ 
++    if (ice->opt.lite && !ice->is_complete &&
++        ice->timer.id == TIMER_NONE &&
++        ice->opt.controlled_agent_want_nom_timeout >= 0)
++    {
++        pj_time_val delay;
++
++        delay.sec = 0;
++        delay.msec = ice->opt.controlled_agent_want_nom_timeout;
++        pj_time_val_normalize(&delay);
++        status = pj_timer_heap_schedule_w_grp_lock(
++                                    ice->stun_cfg.timer_heap,
++                                    &ice->timer, &delay,
++                                    TIMER_CONTROLLED_WAIT_NOM,
++                                    ice->grp_lock);
++        if (status != PJ_SUCCESS) {
++            pj_grp_lock_release(ice->grp_lock);
++            pj_log_pop_indent();
++            return status;
++        }
++    }
++
+     /* Start periodic check */
+     /* We could start it immediately like below, but lets schedule timer 
+      * instead to reduce stack usage:
+      * return start_periodic_check(ice->stun_cfg.timer_heap, &clist->timer);
+      */
+-    if (!pj_timer_entry_running(&clist->timer)) {
++    if (!ice->opt.lite && !pj_timer_entry_running(&clist->timer)) {
+         pj_time_val delay = {0, 0};
+         status = pj_timer_heap_schedule_w_grp_lock(ice->stun_cfg.timer_heap,
+                                                    &clist->timer, &delay,
+@@ -3217,6 +3248,13 @@ static pj_status_t on_stun_rx_request(pj_stun_session *sess,
+                                     src_addr, src_addr_len);
+             pj_grp_lock_release(ice->grp_lock);
+             return PJ_SUCCESS;
++        } else if (ice->opt.lite) {
++            /* An ICE-Lite agent never changes to the controlling role. */
++            pj_stun_session_respond(sess, rdata, PJ_STUN_SC_ROLE_CONFLICT,
++                                    NULL, token, PJ_TRUE,
++                                    src_addr, src_addr_len);
++            pj_grp_lock_release(ice->grp_lock);
++            return PJ_SUCCESS;
+         } else {
+             /* Switch role to controlled */
+             LOG4((ice->obj_name, 
+@@ -3330,6 +3368,47 @@ static pj_status_t on_stun_rx_request(pj_stun_session *sess,
+ }
+ 
+ 
++/* Complete a candidate pair from an incoming ICE-Lite check. */
++static void complete_incoming_lite_check(pj_ice_sess *ice,
++                                         pj_ice_sess_check *check)
++{
++    pj_ice_sess_check *valid;
++    unsigned i;
++
++    for (i=0; i<ice->valid_list.count; ++i) {
++        valid = &ice->valid_list.checks[i];
++        if (valid->lcand == check->lcand && valid->rcand == check->rcand)
++            break;
++    }
++
++    if (i == ice->valid_list.count) {
++        if (ice->valid_list.count >= PJ_ICE_MAX_CHECKS) {
++            LOG4((ice->obj_name, "Unable to add ICE-Lite valid pair: "
++                  "valid list is full"));
++            check_set_state(ice, check, PJ_ICE_SESS_CHECK_STATE_FAILED,
++                            PJ_ETOOMANY);
++            on_check_complete(ice, check);
++            return;
++        }
++
++        valid = &ice->valid_list.checks[ice->valid_list.count++];
++        pj_bzero(valid, sizeof(*valid));
++        valid->lcand = check->lcand;
++        valid->rcand = check->rcand;
++        valid->prio = check->prio;
++        valid->foundation_idx = check->foundation_idx;
++        valid->state = PJ_ICE_SESS_CHECK_STATE_SUCCEEDED;
++        valid->err_code = PJ_SUCCESS;
++    }
++
++    check_set_state(ice, check, PJ_ICE_SESS_CHECK_STATE_SUCCEEDED,
++                    PJ_SUCCESS);
++    valid->nominated = (valid->nominated || check->nominated);
++    update_comp_check(ice, valid->lcand->comp_id, valid);
++    sort_checklist(ice, &ice->valid_list);
++    on_check_complete(ice, check);
++}
++
+ /* Handle incoming Binding request and perform triggered check.
+  * This function may be called by on_stun_rx_request(), or when
+  * SDP answer is received and we have received early checks.
+@@ -3461,6 +3540,11 @@ static void handle_incoming_check(pj_ice_sess *ice,
+ 
+         rcand->checked = PJ_TRUE;
+ 
++        if (ice->opt.lite) {
++            complete_incoming_lite_check(ice, c);
++            return;
++        }
++
+         if (c->state == PJ_ICE_SESS_CHECK_STATE_FROZEN ||
+             c->state == PJ_ICE_SESS_CHECK_STATE_WAITING)
+         {
+@@ -3551,6 +3635,14 @@ static void handle_incoming_check(pj_ice_sess *ice,
+ 
+         LOG4((ice->obj_name, "New triggered check added: %d", check_id));
+ 
++        if (ice->opt.lite) {
++            c->foundation_idx = get_check_foundation_idx(ice, lcand, rcand,
++                                                         PJ_TRUE);
++            complete_incoming_lite_check(ice, c);
++            sort_checklist(ice, &ice->clist);
++            return;
++        }
++
+         /* If we are nominating in regular nomination, don't nominate this
+          * newly found pair.
+          */
+@@ -3823,5 +3915,3 @@ PJ_DEF(pj_status_t) pj_ice_sess_on_rx_pkt(pj_ice_sess *ice,
+ 
+     return status;
+ }
+-
+-
+-- 
+2.55.0.windows.5
+

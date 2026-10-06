@@ -942,6 +942,8 @@ struct ast_sip_media_rtp_configuration {
 	unsigned int symmetric;
 	/*! Whether ICE support is enabled or not */
 	unsigned int ice_support;
+	/*! Whether local ICE-Lite behavior is enabled or not */
+	unsigned int ice_lite;
 	/*! Whether to use the "ptime" attribute received from the endpoint or not */
 	unsigned int use_ptime;
 	/*! Do we use AVPF exclusively for this endpoint? */

@@ -291,8 +291,12 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_NAT, session->endpoint->media.rtp.symmetric);
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_ASYMMETRIC_CODEC, session->endpoint->asymmetric_rtp_codec);
 
-	if (!session->endpoint->media.rtp.ice_support && (ice = ast_rtp_instance_get_ice(session_media->rtp))) {
-		ice->stop(session_media->rtp);
+	if ((ice = ast_rtp_instance_get_ice(session_media->rtp))) {
+		if (!session->endpoint->media.rtp.ice_support) {
+			ice->stop(session_media->rtp);
+		} else if (session->endpoint->media.rtp.ice_lite) {
+			ice->set_lite(session_media->rtp);
+		}
 	}
 
 	if (session->dtmf == AST_SIP_DTMF_RFC_4733 || session->dtmf == AST_SIP_DTMF_AUTO || session->dtmf == AST_SIP_DTMF_AUTO_INFO) {
@@ -905,8 +909,8 @@ static pjmedia_sdp_attr* generate_fmtp_attr(pj_pool_t *pool, struct ast_format *
 }
 
 /*! \brief Function which adds ICE attributes to a media stream */
-static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_session_media *session_media, pj_pool_t *pool, pjmedia_sdp_media *media,
-	unsigned int include_candidates)
+static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+	pj_pool_t *pool, pjmedia_sdp_session *sdp, pjmedia_sdp_media *media, unsigned int include_candidates)
 {
 	struct ast_rtp_engine_ice *ice;
 	struct ao2_container *candidates;
@@ -923,6 +927,11 @@ static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_se
 	if (!session_media->remote_ice) {
 		ice->stop(session_media->rtp);
 		return;
+	}
+
+	if (session->endpoint->media.rtp.ice_lite &&
+		!pjmedia_sdp_attr_find2(sdp->attr_count, sdp->attr, "ice-lite", NULL)) {
+		sdp->attr[sdp->attr_count++] = pjmedia_sdp_attr_create(pool, "ice-lite", NULL);
 	}
 
 	if ((username = ice->get_ufrag(session_media->rtp))) {
@@ -947,6 +956,12 @@ static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_se
 	it_candidates = ao2_iterator_init(candidates, 0);
 	for (; (candidate = ao2_iterator_next(&it_candidates)); ao2_ref(candidate, -1)) {
 		struct ast_str *attr_candidate = ast_str_create(128);
+
+		if (session->endpoint->media.rtp.ice_lite &&
+			candidate->type != AST_RTP_ICE_CANDIDATE_TYPE_HOST) {
+			ast_free(attr_candidate);
+			continue;
+		}
 
 		ast_str_set(&attr_candidate, -1, "%s %u %s %d %s ", candidate->foundation, candidate->id, candidate->transport,
 					candidate->priority, ast_sockaddr_stringify_addr_remote(&candidate->address));
@@ -1083,7 +1098,8 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 		return;
 	}
 
-	if (pjmedia_sdp_media_find_attr2(remote_stream, "ice-lite", NULL)) {
+	if (pjmedia_sdp_media_find_attr2(remote_stream, "ice-lite", NULL) ||
+		pjmedia_sdp_attr_find2(remote->attr_count, remote->attr, "ice-lite", NULL)) {
 		ice->ice_lite(session_media->rtp);
 	}
 
@@ -1142,8 +1158,13 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 		ice->add_remote_candidate(session_media->rtp, &candidate);
 	}
 
-	ice->set_role(session_media->rtp, pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_TRUE ?
-		AST_RTP_ICE_ROLE_CONTROLLING : AST_RTP_ICE_ROLE_CONTROLLED);
+	if (session->endpoint->media.rtp.ice_lite) {
+		ice->set_lite(session_media->rtp);
+		ice->set_role(session_media->rtp, AST_RTP_ICE_ROLE_CONTROLLED);
+	} else {
+		ice->set_role(session_media->rtp, pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_TRUE ?
+			AST_RTP_ICE_ROLE_CONTROLLING : AST_RTP_ICE_ROLE_CONTROLLED);
+	}
 	ice->start(session_media->rtp);
 }
 
@@ -2102,7 +2123,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		}
 
 		/* Add ICE attributes and candidates */
-		add_ice_to_stream(session, session_media, pool, media, 1);
+		add_ice_to_stream(session, session_media, pool, sdp, media, 1);
 
 		ast_rtp_instance_get_local_address(session_media->rtp, &addr);
 		media->desc.port = direct_media_enabled ? ast_sockaddr_port(&session_media->direct_media_addr) : (pj_uint16_t) ast_sockaddr_port(&addr);
@@ -2119,7 +2140,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			SCOPE_EXIT_RTN_VALUE(-1, "Couldn't add crypto\n");
 		}
 
-		add_ice_to_stream(session, session_media_transport, pool, media, 0);
+		add_ice_to_stream(session, session_media_transport, pool, sdp, media, 0);
 
 		enable_rtcp(session, session_media, NULL);
 	}

@@ -1729,6 +1729,12 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 	endpoint->media.rtp.ice_support |= endpoint->media.webrtc;
 	endpoint->media.rtp.use_received_transport |= endpoint->media.webrtc;
 
+	if (endpoint->media.rtp.ice_lite && !endpoint->media.rtp.ice_support) {
+		ast_log(LOG_ERROR, "Endpoint '%s': ice_lite requires ice_support\n",
+			ast_sorcery_object_get_id(endpoint));
+		return -1;
+	}
+
 	if (endpoint->media.webrtc) {
 		endpoint->media.rtp.encryption = AST_SIP_MEDIA_ENCRYPT_DTLS;
 		endpoint->media.rtp.dtls_cfg.enabled = 1;
@@ -2283,6 +2289,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_ipv6", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.ipv6));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_symmetric", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.symmetric));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ice_support", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.ice_support));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ice_lite", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.ice_lite));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "use_ptime", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.use_ptime));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "force_rport", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, nat.force_rport));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rewrite_contact", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, nat.rewrite_contact));

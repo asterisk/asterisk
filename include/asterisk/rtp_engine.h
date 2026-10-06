@@ -550,6 +550,8 @@ struct ast_rtp_engine_ice {
 	struct ao2_container *(*get_local_candidates)(struct ast_rtp_instance *instance);
 	/*! Callback for telling the ICE support that it is talking to an ice-lite implementation */
 	void (*ice_lite)(struct ast_rtp_instance *instance);
+	/*! Callback for enabling local ICE-Lite behavior */
+	void (*set_lite)(struct ast_rtp_instance *instance);
 	/*! Callback for changing our role in negotiation */
 	void (*set_role)(struct ast_rtp_instance *instance, enum ast_rtp_ice_role role);
 	/*! Callback for requesting a TURN session */

@@ -588,6 +588,15 @@
 					</since>
 					<synopsis>Enable the ICE mechanism to help traverse NAT</synopsis>
 				</configOption>
+				<configOption name="ice_lite" default="no">
+					<synopsis>Enable local ICE-Lite behavior</synopsis>
+					<description><para>
+						When enabled, the endpoint advertises ICE-Lite, remains in the
+						controlled role, responds to remote connectivity checks, and does
+						not originate connectivity checks. This option requires
+						<literal>ice_support</literal>.
+					</para></description>
+				</configOption>
 				<configOption name="identify_by">
 					<since>
 						<version>13.19.0</version>

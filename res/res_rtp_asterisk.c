@@ -513,6 +513,7 @@ struct ast_rtp {
 	struct ast_sockaddr ice_original_rtp_addr;            /*!< rtp address that ICE started on first session */
 	unsigned int ice_num_components; /*!< The number of ICE components */
 	unsigned int ice_media_started:1; /*!< ICE media has started, either on a valid pair or on ICE completion */
+	unsigned int ice_lite:1; /*!< Local ICE-Lite behavior is enabled */
 #endif
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
@@ -1024,7 +1025,7 @@ static int ice_reset_session(struct ast_rtp_instance *instance)
 	int res;
 
 	ast_debug_ice(3, "(%p) ICE resetting\n", instance);
-	if (!rtp->ice->real_ice->is_nominating && !rtp->ice->real_ice->is_complete) {
+	if (!rtp->ice_lite && !rtp->ice->real_ice->is_nominating && !rtp->ice->real_ice->is_complete) {
 		ast_debug_ice(3, " (%p) ICE nevermind, not ready for a reset\n", instance);
 		return 0;
 	}
@@ -1274,6 +1275,25 @@ static void ast_rtp_ice_lite(struct ast_rtp_instance *instance)
 }
 
 /*! \pre instance is locked */
+static void ast_rtp_ice_set_lite(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	pj_ice_sess_options options;
+
+	rtp->ice_lite = 1;
+	rtp->role = AST_RTP_ICE_ROLE_CONTROLLED;
+	if (!rtp->ice) {
+		return;
+	}
+
+	pj_thread_register_check();
+	pj_ice_sess_get_options(rtp->ice->real_ice, &options);
+	options.lite = PJ_TRUE;
+	pj_ice_sess_set_options(rtp->ice->real_ice, &options);
+	pj_ice_sess_change_role(rtp->ice->real_ice, PJ_ICE_SESS_ROLE_CONTROLLED);
+}
+
+/*! \pre instance is locked */
 static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp_ice_role role)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
@@ -1283,6 +1303,9 @@ static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp
 		return;
 	}
 
+	if (rtp->ice_lite) {
+		role = AST_RTP_ICE_ROLE_CONTROLLED;
+	}
 	rtp->role = role;
 
 	if (!rtp->ice->real_ice->is_nominating && !rtp->ice->real_ice->is_complete) {
@@ -1822,6 +1845,7 @@ static struct ast_rtp_engine_ice ast_rtp_ice = {
 	.get_password = ast_rtp_ice_get_password,
 	.get_local_candidates = ast_rtp_ice_get_local_candidates,
 	.ice_lite = ast_rtp_ice_lite,
+	.set_lite = ast_rtp_ice_set_lite,
 	.set_role = ast_rtp_ice_set_role,
 	.turn_request = ast_rtp_ice_turn_request,
 	.change_components = ast_rtp_ice_change_components,
@@ -4108,6 +4132,15 @@ static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *ad
 		rtp->ice_num_components, &ast_rtp_ice_sess_cb, &ufrag, &passwd, NULL, &real_ice);
 	ao2_lock(instance);
 	if (status == PJ_SUCCESS) {
+		if (rtp->ice_lite) {
+			pj_ice_sess_options options;
+
+			pj_ice_sess_get_options(real_ice, &options);
+			options.lite = PJ_TRUE;
+			pj_ice_sess_set_options(real_ice, &options);
+			pj_ice_sess_change_role(real_ice, PJ_ICE_SESS_ROLE_CONTROLLED);
+		}
+
 		/* Safely complete linking the ICE session into the instance */
 		real_ice->user_data = instance;
 		ice->real_ice = real_ice;

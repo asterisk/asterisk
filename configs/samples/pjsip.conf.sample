@@ -690,6 +690,8 @@
                                 ; the specified address. (default: "no")
 ;force_rport=yes        ; Force use of return port (default: "yes")
 ;ice_support=no ; Enable the ICE mechanism to help traverse NAT (default: "no")
+;ice_lite=no    ; Enable ICE-Lite operation. Requires ice_support=yes.
+                 ; (default: "no")
 ;identify_by=username   ; A comma-separated list of ways the Endpoint or AoR can be
                         ; identified.
                         ; "username": Identify by the From or To username and domain

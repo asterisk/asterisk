@@ -3131,6 +3131,13 @@ static void rtp_ice_wrap_ice_lite(struct ast_rtp_instance *instance)
 	ao2_unlock(instance);
 }
 
+static void rtp_ice_wrap_set_lite(struct ast_rtp_instance *instance)
+{
+	ao2_lock(instance);
+	instance->engine->ice->set_lite(instance);
+	ao2_unlock(instance);
+}
+
 static void rtp_ice_wrap_set_role(struct ast_rtp_instance *instance,
 	enum ast_rtp_ice_role role)
 {
@@ -3166,6 +3173,7 @@ static struct ast_rtp_engine_ice rtp_ice_wrappers = {
 	.get_password = rtp_ice_wrap_get_password,
 	.get_local_candidates = rtp_ice_wrap_get_local_candidates,
 	.ice_lite = rtp_ice_wrap_ice_lite,
+	.set_lite = rtp_ice_wrap_set_lite,
 	.set_role = rtp_ice_wrap_set_role,
 	.turn_request = rtp_ice_wrap_turn_request,
 	.change_components = rtp_ice_wrap_change_components,
