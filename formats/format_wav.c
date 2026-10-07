@@ -329,6 +329,11 @@ static int wav_open(struct ast_filestream *s)
 		return -1;
 	}
 
+	if (tmp->maxlen == 0) {
+		ast_debug(2, "WAV file contains no audio data\n");
+		return -1;
+	}
+
 	tmp->hz = sample_rate;
 	return 0;
 }
