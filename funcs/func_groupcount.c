@@ -1321,11 +1321,15 @@ static int group_match_list_function_read(struct ast_channel *chan, const char *
 	ast_app_group_meta_rdlock();
 	for (gmi = ast_app_group_meta_head(); gmi; gmi = AST_LIST_NEXT(gmi, group_meta_list)) {
 		if (!regexec(&regexbuf_group, gmi->group, 0, NULL, 0) && (ast_strlen_zero(categorymatch) || (!ast_strlen_zero(gmi->category) && !regexec(&regexbuf_category, gmi->category, 0, NULL, 0)))) {
-			if (groups_found > 1) {
+			if (groups_found > 0) {
 				ast_str_append(&foundgroup_str, 0, ",");
 			}
 
-			ast_str_append(&foundgroup_str, 0, "%s@%s", gmi->group, gmi->category);
+			if (ast_strlen_zero(gmi->category)) {
+				ast_str_append(&foundgroup_str, 0, "%s", gmi->group);
+			} else {
+				ast_str_append(&foundgroup_str, 0, "%s@%s", gmi->group, gmi->category);
+			}
 
 			groups_found++;
 		}
