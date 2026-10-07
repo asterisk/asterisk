@@ -338,7 +338,6 @@ AST_TEST_DEFINE(app_group_var)
 		goto exit_group_var_test;
 	}
 	ast_free(value);
-	value = NULL;
 	if (!(value = ast_app_group_get_var(group, "", "othervar")) || strcmp(value, "otherval")) {
 		ast_test_status_update(test, "Setting 'othervar' should not disturb 'myvar', got '%s' for 'othervar'\n", value ? value : "(null)");
 		res = AST_TEST_FAIL;
