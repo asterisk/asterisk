@@ -1,1 +1,1 @@
-ChangeLogs/ChangeLog-24.0.0-rc1.md
+ChangeLogs/ChangeLog-24.0.0-rc2.md
