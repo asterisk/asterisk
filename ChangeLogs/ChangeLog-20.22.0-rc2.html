@@ -1,0 +1,110 @@
+<html><head><title>ChangeLog for asterisk-20.22.0-rc2</title></head><body>
+
+<h2 dir="auto">Change Log for Release asterisk-20.22.0-rc2</h2>
+<h3 dir="auto">Links:</h3>
+<ul dir="auto">
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.22.0-rc2.html" rel="nofollow">Full ChangeLog</a></li>
+<li><a href="https://github.com/asterisk/asterisk/compare/20.22.0-rc1...20.22.0-rc2">GitHub Diff</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.22.0-rc2.tar.gz" rel="nofollow">Tarball</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk" rel="nofollow">Downloads</a></li>
+</ul>
+<h3 dir="auto">Summary:</h3>
+<ul dir="auto">
+<li>Commits: 3</li>
+<li>Commit Authors: 2</li>
+<li>Issues Resolved: 3</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3 dir="auto">User Notes:</h3>
+<h3 dir="auto">Upgrade Notes:</h3>
+<h3 dir="auto">Developer Notes:</h3>
+<ul dir="auto">
+<li>
+<h4 dir="auto">Audiohooks: Fix whisper framehook timer leak and masquerade handling</h4>
+ast_channel_fd_add() now returns -1 if it fails to allocate<br>
+space for the descriptor.</li>
+</ul>
+<h3 dir="auto">Commit Authors:</h3>
+<ul dir="auto">
+<li>Joshua C. Colp: (2)</li>
+<li>Mike Bradeen: (1)</li>
+</ul>
+<h2 dir="auto">Issue and Commit Detail:</h2>
+<h3 dir="auto">Closed Issues:</h3>
+<ul dir="auto">
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5312945362" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2134" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2134/hovercard" href="https://github.com/asterisk/asterisk/issues/2134">#2134</a>: [bug]: Bridging channels which have been spied on with ChanSpy fails</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5582663148" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2179" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2179/hovercard" href="https://github.com/asterisk/asterisk/issues/2179">#2179</a>: [bug]: No initial NOTIFY for dialog subscriptions when hint references CustomPresence without AstDB entry (regression in 22.11.0)</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5611923243" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2186" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2186/hovercard" href="https://github.com/asterisk/asterisk/issues/2186">#2186</a>: [bug]: dialog-info NOTIFY for ringing extension no longer contains  identity (caller ID) since 22.11.0</li>
+</ul>
+<h3 dir="auto">Commits By Author:</h3>
+<ul dir="auto">
+<li>
+<p dir="auto"><strong>Joshua C. Colp</strong> (2):</p>
+<ul dir="auto">
+<li>extstate/pjsip: Handle lack of or late loading of presence state.</li>
+<li>extstate: Include causing device channel details in legacy callbacks.</li>
+</ul>
+</li>
+<li>
+<p dir="auto"><strong>Mike Bradeen</strong> (1):</p>
+<ul dir="auto">
+<li>Audiohooks: Fix whisper framehook timer leak and masquerade handling</li>
+</ul>
+</li>
+</ul>
+<h3 dir="auto">Commit List:</h3>
+<ul dir="auto">
+<li>Audiohooks: Fix whisper framehook timer leak and masquerade handling</li>
+<li>extstate/pjsip: Handle lack of or late loading of presence state.</li>
+<li>extstate: Include causing device channel details in legacy callbacks.</li>
+</ul>
+<h3 dir="auto">Commit Details:</h3>
+<p dir="auto"><strong>Audiohooks: Fix whisper framehook timer leak and masquerade handling</strong><br>
+Author: Mike Bradeen<br>
+Date:   2026-09-25</p>
+<p dir="auto">Resolves several issues with the framehook added to allow whispering without<br>
+an underlying stream.</p>
+<p dir="auto">The timer is now owned by the audiohook list rather than the framehook.  It is<br>
+retired on both channels during a masquerade and recreated when the audiohook(s)<br>
+are moved.</p>
+<p dir="auto">If the timer cannot be started, whisper audio is still mixed into the outbound<br>
+media as it was previously (requiring an underlying stream.)</p>
+<p dir="auto">An audiohook that cannot be moved to the new channel is now left DONE so that<br>
+its owner does not wait on it forever.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5312945362" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2134" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2134/hovercard" href="https://github.com/asterisk/asterisk/issues/2134">#2134</a></p>
+<p dir="auto">DeveloperNote: ast_channel_fd_add() now returns -1 if it fails to allocate<br>
+space for the descriptor.</p>
+<p dir="auto"><strong>extstate/pjsip: Handle lack of or late loading of presence state.</strong><br>
+Author: Joshua C. Colp<br>
+Date:   2026-09-25</p>
+<p dir="auto">The extension state implementation is stateful resulting in state<br>
+not being updated if a presence state provider does not publish an<br>
+update after loading. To handle providers which don't do this we<br>
+query for updated state if we are asked for it and the existing<br>
+state is invalid. This ensures that if the presence state provider<br>
+is loaded later we will get the updated state when asked.</p>
+<p dir="auto">The func_presencestate module is written to publish the persisted<br>
+custom presence states at load time. This failed for entries with<br>
+a not_set state as this resulted in querying the presence provider<br>
+that was not yet registered. The provider is now registered before<br>
+this ensuring the update can be published.</p>
+<p dir="auto">This change also fixes an issue in PJSIP where a SUBSCRIBE for a<br>
+hint that had an invalid presence state configuration would not<br>
+send an initial NOTIFY. We now treat an invalid presence state as<br>
+not set instead.</p>
+<p dir="auto">Fixes: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5582663148" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2179" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2179/hovercard" href="https://github.com/asterisk/asterisk/issues/2179">#2179</a></p>
+<p dir="auto"><strong>extstate: Include causing device channel details in legacy callbacks.</strong><br>
+Author: Joshua C. Colp<br>
+Date:   2026-09-29</p>
+<p dir="auto">When a legacy extension state callback registers it can optionally<br>
+do so in a way that it will receive the channel(s) that have caused<br>
+a device to ring. This is used in PJSIP for the dialog-info+xml<br>
+support so that phones can display who is calling the monitored<br>
+extension.</p>
+<p dir="auto">An issue was introduced in the extension state rewrite where this<br>
+did not occur for the actual device that caused the extension state<br>
+update. It was only being done for additional devices that could be<br>
+involved. This has been fixed so that it is now done for the causing<br>
+device.</p>
+<p dir="auto">Fixes: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5611923243" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2186" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2186/hovercard" href="https://github.com/asterisk/asterisk/issues/2186">#2186</a></p>
+</body></html>
