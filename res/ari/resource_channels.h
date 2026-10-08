@@ -405,6 +405,40 @@ int ast_ari_channels_send_dtmf_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_send_dtmf(struct ast_variable *headers, struct ast_ari_channels_send_dtmf_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_channels_send_message() */
+struct ast_ari_channels_send_message_args {
+	/*! Channel's id */
+	const char *channel_id;
+	/*! Name for the message to send to (e.g. for PJSIP channels this is the display name of the To header). */
+	const char *to;
+	/*! Name for the message to send from (e.g. for PJSIP channels this is the display name of the From header). */
+	const char *from;
+	/*! The body of the message, sent verbatim as the SIP MESSAGE body. */
+	const char *body;
+	/*! Application-provided correlation identifier for async delivery workflow. */
+	const char *request_id;
+	/*! Optional content type for the outbound SIP MESSAGE body. Defaults to text/plain. */
+	const char *content_type;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/sendMessage.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_send_message_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_send_message_args *args);
+
+/*!
+ * \brief Send a message on a channel's active dialog.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_send_message(struct ast_variable *headers, struct ast_ari_channels_send_message_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_channels_mute() */
 struct ast_ari_channels_mute_args {
 	/*! Channel's id */
