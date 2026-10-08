@@ -519,6 +519,7 @@ static void filestream_destructor(void *arg)
 
 	ast_free(f->filename);
 	ast_free(f->realfilename);
+	ast_free(f->open_extension);
 	if (f->vfs)
 		ast_closestream(f->vfs);
 	ast_free(f->write_buffer);
@@ -691,6 +692,7 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 				s->fmt = f;
 				s->trans = NULL;
 				s->filename = NULL;
+				s->open_extension = ast_strdup(translate_extension(ext));
 				if (ast_format_get_type(s->fmt->format) == AST_MEDIA_TYPE_AUDIO) {
 					if (ast_channel_stream(chan))
 						ast_closestream(ast_channel_stream(chan));
@@ -1463,7 +1465,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename,
 
 	if (VERBOSITY_ATLEAST(3)) {
 		ast_channel_lock(chan);
-		ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", ast_channel_name(chan), tmp_filename, ast_format_get_name(ast_channel_writeformat(chan)), preflang ? preflang : "default");
+		ast_verb(3, "<%s> Playing '%s' (format '%s', language '%s')\n", ast_channel_name(chan), tmp_filename, S_OR(fs->open_extension, "unknown"), preflang ? preflang : "default");
 		ast_channel_unlock(chan);
 	}
 
