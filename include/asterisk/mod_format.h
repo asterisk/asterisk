@@ -103,7 +103,7 @@ struct ast_filestream {
 	struct ast_format_def *fmt;	/* need to write to the lock and usecnt */
 	int flags;
 	mode_t mode;
-	char *open_filename;
+	char *open_extension;
 	char *filename;
 	char *realfilename;
 	/*! Video file stream */
