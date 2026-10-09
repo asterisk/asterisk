@@ -3122,7 +3122,9 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 				/* We only want to use non-2XX SIP response codes */
 				if (tech_cause / 100 > 2) {
 					new_tech_cause = tech_cause;
-					new_cause = pvt_cause->ast_cause;
+					if (!existing_cause) {
+						new_cause = pvt_cause->ast_cause;
+					}
 					ast_trace(-1, "%s: %s dialed ast_cause: %d tech_cause: %d used\n", ast_sip_session_get_name(session),
 						pvt_cause->chan_name, new_cause, new_tech_cause);
 				} else {
