@@ -14304,7 +14304,7 @@ static int cache_get_callno_locked(const char *data)
 	return callno;
 }
 
-static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *data, const char *context, const char *exten, int priority)
+static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *data, const char *context, const char *exten, int priority, int *is_hungup)
 {
 	struct iax2_dpcache *dp = NULL;
 	struct timeval now = ast_tvnow();
@@ -14393,6 +14393,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		}
 
 		if (chan && ast_check_hangup(chan)) {
+			*is_hungup = 1;
 			doabort = 1;
 		}
 
@@ -14432,6 +14433,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 static int iax2_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
+	int is_hungup = 0;
 	struct iax2_dpcache *dp = NULL;
 #if 0
 	ast_log(LOG_NOTICE, "iax2_exists: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
@@ -14440,11 +14442,11 @@ static int iax2_exists(struct ast_channel *chan, const char *context, const char
 		return 0;
 
 	AST_LIST_LOCK(&dpcache);
-	if ((dp = find_cache(chan, data, context, exten, priority))) {
+	if ((dp = find_cache(chan, data, context, exten, priority, &is_hungup))) {
 		if (dp->flags & CACHE_FLAG_EXISTS)
 			res = 1;
-	} else {
-		ast_log(LOG_WARNING, "Unable to make DP cache\n");
+	} else if (!is_hungup) {
+		ast_log(LOG_WARNING, "Unable to make DP cache for %s,%s,%d\n", context, exten, priority);
 	}
 	AST_LIST_UNLOCK(&dpcache);
 
@@ -14455,6 +14457,7 @@ static int iax2_exists(struct ast_channel *chan, const char *context, const char
 static int iax2_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
+	int is_hungup = 0;
 	struct iax2_dpcache *dp = NULL;
 #if 0
 	ast_log(LOG_NOTICE, "iax2_canmatch: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
@@ -14463,11 +14466,11 @@ static int iax2_canmatch(struct ast_channel *chan, const char *context, const ch
 		return 0;
 
 	AST_LIST_LOCK(&dpcache);
-	if ((dp = find_cache(chan, data, context, exten, priority))) {
+	if ((dp = find_cache(chan, data, context, exten, priority, &is_hungup))) {
 		if (dp->flags & CACHE_FLAG_CANEXIST)
 			res = 1;
-	} else {
-		ast_log(LOG_WARNING, "Unable to make DP cache\n");
+	} else if (!is_hungup) {
+		ast_log(LOG_WARNING, "Unable to make DP cache for %s,%s,%d\n", context, exten, priority);
 	}
 	AST_LIST_UNLOCK(&dpcache);
 
@@ -14478,6 +14481,7 @@ static int iax2_canmatch(struct ast_channel *chan, const char *context, const ch
 static int iax2_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
+	int is_hungup = 0;
 	struct iax2_dpcache *dp = NULL;
 #if 0
 	ast_log(LOG_NOTICE, "iax2_matchmore: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
@@ -14486,11 +14490,11 @@ static int iax2_matchmore(struct ast_channel *chan, const char *context, const c
 		return 0;
 
 	AST_LIST_LOCK(&dpcache);
-	if ((dp = find_cache(chan, data, context, exten, priority))) {
+	if ((dp = find_cache(chan, data, context, exten, priority, &is_hungup))) {
 		if (dp->flags & CACHE_FLAG_MATCHMORE)
 			res = 1;
-	} else {
-		ast_log(LOG_WARNING, "Unable to make DP cache\n");
+	} else if (!is_hungup) {
+		ast_log(LOG_WARNING, "Unable to make DP cache for %s,%s,%d\n", context, exten, priority);
 	}
 	AST_LIST_UNLOCK(&dpcache);
 
@@ -14503,6 +14507,7 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 	char odata[256];
 	char req[sizeof(odata) + AST_MAX_CONTEXT + AST_MAX_EXTENSION + sizeof("IAX2//@")];
 	char *ncontext;
+	int is_hungup = 0; /* Unused */
 	struct iax2_dpcache *dp = NULL;
 	struct ast_app *dial = NULL;
 #if 0
@@ -14521,7 +14526,7 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 		return -1;
 
 	AST_LIST_LOCK(&dpcache);
-	if ((dp = find_cache(chan, data, context, exten, priority))) {
+	if ((dp = find_cache(chan, data, context, exten, priority, &is_hungup))) {
 		if (dp->flags & CACHE_FLAG_EXISTS) {
 			ast_copy_string(odata, data, sizeof(odata));
 			ncontext = strchr(odata, '/');
