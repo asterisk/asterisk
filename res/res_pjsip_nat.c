@@ -327,7 +327,7 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 	RAII_VAR(struct ao2_container *, hooks, NULL, ao2_cleanup);
 	const char *transport_type_name = "unknown";
 
-	if (ast_sip_set_request_transport_details(&details, tdata, 0)) {
+	if (ast_sip_set_request_transport_details(&details, tdata, 1)) {
 		ast_debug(4, "Unable to process message for transport type '%s'\n", transport_type_name);
 		return PJ_SUCCESS;
 	}
