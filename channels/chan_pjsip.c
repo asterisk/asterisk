@@ -2911,68 +2911,8 @@ static struct sendtext_data* sendtext_data_create(struct ast_channel *chan,
 static int sendtext(void *obj)
 {
 	struct sendtext_data *data = obj;
-	pjsip_tx_data *tdata;
-	const char *body_text = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_BODY);
-	const char *content_type = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
-	char *sep;
-	struct ast_sip_body body = {
-		.type = "text",
-		.subtype = "plain",
-		.body_text = body_text,
-	};
 
-	if (!ast_strlen_zero(content_type)) {
-		char *content_type_copy = ast_strdupa(content_type);
-		sep = strchr(content_type_copy, '/');
-		if (sep) {
-			*sep = '\0';
-			body.type = content_type_copy;
-			body.subtype = ++sep;
-		}
-	}
-
-	if (data->session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
-		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
-			data->session->inv_session->cause,
-			pjsip_get_status_text(data->session->inv_session->cause)->ptr);
-	} else {
-		pjsip_from_hdr *hdr;
-		pjsip_name_addr *name_addr;
-		const char *from = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_FROM);
-		const char *to = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_TO);
-		int invalidate_tdata = 0;
-
-		ast_sip_create_request("MESSAGE", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);
-		ast_sip_add_body(tdata, &body);
-
-		/*
-		 * If we have a 'from' in the msg, set the display name in the From
-		 * header to it.
-		 */
-		if (!ast_strlen_zero(from)) {
-			hdr = PJSIP_MSG_FROM_HDR(tdata->msg);
-			name_addr = (pjsip_name_addr *) hdr->uri;
-			pj_strdup2(tdata->pool, &name_addr->display, from);
-			invalidate_tdata = 1;
-		}
-
-		/*
-		 * If we have a 'to' in the msg, set the display name in the To
-		 * header to it.
-		 */
-		if (!ast_strlen_zero(to)) {
-			hdr = PJSIP_MSG_TO_HDR(tdata->msg);
-			name_addr = (pjsip_name_addr *) hdr->uri;
-			pj_strdup2(tdata->pool, &name_addr->display, to);
-			invalidate_tdata = 1;
-		}
-
-		if (invalidate_tdata) {
-			pjsip_tx_data_invalidate_msg(tdata);
-		}
-
-		ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
-	}
+	ast_sip_session_send_message(data->session, data->msg);
 
 	ao2_cleanup(data);
 
