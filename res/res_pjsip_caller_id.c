@@ -34,6 +34,7 @@
 #include "asterisk/module.h"
 #include "asterisk/callerid.h"
 #include "asterisk/conversions.h"
+#include "asterisk/taskpool.h"
 
 static int extract_oli(const pjsip_param *param_list, char *buf, size_t len)
 {
@@ -590,7 +591,18 @@ static void caller_id_outgoing_response(struct ast_sip_session *session, pjsip_t
 	struct ast_party_id effective_id;
 	struct ast_party_id connected_id;
 
-	if (!session->channel
+	/*
+	 * Outgoing response callbacks may execute on the PJSIP monitor
+	 * thread during retransmissions, outside the session serializer.
+	 * The channel pointer can change during a masquerade, potentially
+	 * causing a channel mutex to remain locked.
+	 *
+	 * Retransmitted responses already contain the caller ID information
+	 * added when the response was first sent, so skipping this callback
+	 * outside the serializer does not change the response contents.
+	 */
+	if (session->serializer != ast_taskpool_serializer_get_current()
+		|| !session->channel
 		|| (!session->endpoint->id.send_connected_line
 			&& session->inv_session
 			&& session->inv_session->state >= PJSIP_INV_STATE_EARLY)) {
