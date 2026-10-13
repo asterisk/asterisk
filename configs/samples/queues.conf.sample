@@ -127,8 +127,16 @@ monitor-type = MixMonitor
 ;           a metric between 0 and 3000. Please note, if using this strategy, the member
 ;           penalty is not the same as when using other queue strategies. It is ONLY used
 ;           as a weight for calculating metric.
+; external - An external strategy with logic outside of app_queue.
+;            The external strategy name should be specified using 'externalstrategy'.
 ;
 ;strategy = ringall
+;
+; If strategy = external, the name of the external strategy provider to use
+; for this queue. A module providing this strategy must register it in order
+; for it to be used.
+;
+;externalstrategy = custom-external-strategy-1
 ;
 ; Second settings for service level (default 0)
 ; Used for service level statistics (calls answered within service level time frame)
