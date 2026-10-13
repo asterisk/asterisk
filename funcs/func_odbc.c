@@ -772,6 +772,14 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	const char *status = "FAILURE";
 	struct dsn *dsn = NULL;
+	/*
+	 * Snapshot of the per-DSN read handle list. The queries rwlock is
+	 * dropped before doing the slow SQL execution so that concurrent
+	 * reloads aren't blocked by long-running reads. But that means we
+	 * cannot dereference `query` after the unlock — a concurrent
+	 * func_odbc reload would free it. Copy what we still need.
+	 */
+	char readhandle[ARRAY_LEN(query->readhandle)][sizeof(query->readhandle[0])];
 
 	if (!sql || !colnames) {
 		if (chan) {
@@ -870,11 +878,12 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			AST_LIST_HEAD_INIT(resultset);
 		}
 	}
+	memcpy(readhandle, query->readhandle, sizeof(readhandle));
 	AST_RWLIST_UNLOCK(&queries);
 
-	for (dsn_num = 0; dsn_num < 5; dsn_num++) {
-		if (!ast_strlen_zero(query->readhandle[dsn_num])) {
-			obj = get_odbc_obj(query->readhandle[dsn_num], &dsn);
+	for (dsn_num = 0; dsn_num < ARRAY_LEN(readhandle); dsn_num++) {
+		if (!ast_strlen_zero(readhandle[dsn_num])) {
+			obj = get_odbc_obj(readhandle[dsn_num], &dsn);
 			if (!obj) {
 				continue;
 			}
