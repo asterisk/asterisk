@@ -5050,7 +5050,7 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int pred, mark = 0;
-	unsigned int ms = calc_txstamp(rtp, &frame->delivery);
+	unsigned int ms;
 	struct ast_sockaddr remote_address = { {0,} };
 	int rate = ast_rtp_get_rate(frame->subclass.format) / 1000;
 	unsigned int seqno;
@@ -5065,6 +5065,9 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	if (rtp->sending_digit) {
 		return 0;
 	}
+
+	/* Suppressed audio must not consume elapsed transmit time. */
+	ms = calc_txstamp(rtp, &frame->delivery);
 
 #ifdef TEST_FRAMEWORK
 	if (test && test->send_report) {
