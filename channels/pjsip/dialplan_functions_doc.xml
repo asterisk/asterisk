@@ -474,6 +474,20 @@
 								</enum>
 							</enumlist>
 						</enum>
+						<enum name="rtplearning">
+							<para>R/W Whether or not RTP address learning is enabled for this channel's RTP session.</para>
+							<enumlist>
+								<enum name="1">
+									<para>RTP learning is enabled (default).</para>
+								</enum>
+								<enum name="0">
+									<para>RTP learning is disabled.</para>
+									<para>Disabling RTP address learning can be helpful in cases where Asterisk
+									should only use the address from re-INVITEs and RTP learning can result
+									in media going to the wrong address.</para>
+								</enum>
+							</enumlist>
+						</enum>
 					</enumlist>
 				</parameter>
 				<parameter name="media_type" required="false">

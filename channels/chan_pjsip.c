@@ -128,6 +128,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.devicestate = chan_pjsip_devicestate,
 	.queryoption = chan_pjsip_queryoption,
 	.func_channel_read = pjsip_acf_channel_read,
+	.func_channel_write = pjsip_acf_channel_write,
 	.get_pvt_uniqueid = chan_pjsip_get_uniqueid,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER | AST_CHAN_TP_SEND_TEXT_DATA
 };

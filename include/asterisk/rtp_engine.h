@@ -132,6 +132,8 @@ enum ast_rtp_property {
 	AST_RTP_PROPERTY_RETRANS_SEND,
 	/*! Enable REMB sending and receiving passthrough support */
 	AST_RTP_PROPERTY_REMB,
+	/*! Disable RTP learning */
+	AST_RTP_PROPERTY_DISABLE_LEARNING,
 
 	/*!
 	 * \brief Maximum number of RTP properties supported

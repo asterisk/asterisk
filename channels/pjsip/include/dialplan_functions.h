@@ -36,6 +36,18 @@
 int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len);
 
 /*!
+ * \brief CHANNEL function write callback
+ * \param chan The channel the function is called on
+ * \param funcname The name of the function
+ * \param data Arguments passed to the function
+ * \param value Function value
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int pjsip_acf_channel_write(struct ast_channel *chan, const char *funcname, char *data, const char *value);
+
+/*!
  * \brief PJSIP_MEDIA_OFFER function write callback
  * \param chan The channel the function is called on
  * \param cmd The name of the function

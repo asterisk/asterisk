@@ -120,9 +120,46 @@ static int channel_read_rtp(struct ast_channel *chan, const char *type, const ch
 		}
 	} else if (!strcmp(type, "hold")) {
 		snprintf(buf, buflen, "%d", media->remotely_held ? 1 : 0);
+	} else if (!strcmp(type, "rtplearning")) {
+		snprintf(buf, buflen, "%d", ast_rtp_instance_get_prop(media->rtp, AST_RTP_PROPERTY_DISABLE_LEARNING) ? 0 : 1);
 	} else {
 		ast_log(AST_LOG_WARNING, "Unknown type field '%s' specified for 'rtp' information\n", type);
 		return -1;
+	}
+
+	return 0;
+}
+
+static int channel_write_rtp(struct ast_channel *chan, const char *type, const char *field, const char *value)
+{
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct ast_sip_session *session;
+	struct ast_sip_session_media *media;
+
+	if (!channel) {
+		ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(chan));
+		return -1;
+	}
+
+	session = channel->session;
+	if (!session) {
+		ast_log(AST_LOG_WARNING, "Channel %s has no session!\n", ast_channel_name(chan));
+		return -1;
+	}
+
+	if (ast_strlen_zero(type)) {
+		ast_log(AST_LOG_WARNING, "You must supply a type field for 'rtp' information\n");
+		return -1;
+	}
+
+	media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
+	if (!media || !media->rtp) {
+		ast_log(AST_LOG_WARNING, "Channel %s has no %s media/RTP session\n", ast_channel_name(chan), S_OR(field, "audio"));
+		return -1;
+	}
+
+	if (!strcmp(type, "rtplearning")) {
+		ast_rtp_instance_set_prop(media->rtp, AST_RTP_PROPERTY_DISABLE_LEARNING, ast_true(value) ? 0 : 1);
 	}
 
 	return 0;
@@ -380,6 +417,7 @@ struct pjsip_func_args {
 	const char *param;
 	const char *type;
 	const char *field;
+	const char *value; /* W/O */
 	char *buf;
 	size_t len;
 	int ret;
@@ -439,6 +477,21 @@ static int read_pjsip(void *data)
 	return 0;
 }
 
+static int write_pjsip(void *data)
+{
+	struct pjsip_func_args *func_args = data;
+
+	if (!strcmp(func_args->param, "rtp")) {
+		if (!func_args->session->channel) {
+			func_args->ret = -1;
+			return 0;
+		}
+		func_args->ret = channel_write_rtp(func_args->session->channel, func_args->type, func_args->field, func_args->value);
+	} else {
+		func_args->ret = -1;
+	}
+	return 0;
+}
 
 int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
@@ -499,6 +552,69 @@ int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data
 	func_args.len = len;
 	if (ast_sip_push_task_wait_serializer(func_args.session->serializer, read_pjsip, &func_args)) {
 		ast_log(LOG_WARNING, "Unable to read properties of channel %s: failed to push task\n", ast_channel_name(chan));
+		ao2_ref(func_args.session, -1);
+		return -1;
+	}
+	ao2_ref(func_args.session, -1);
+
+	return func_args.ret;
+}
+
+int pjsip_acf_channel_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct pjsip_func_args func_args = { 0, };
+	struct ast_sip_channel_pvt *pvt;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(param);
+		AST_APP_ARG(type);
+		AST_APP_ARG(field);
+	);
+	char *parse;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "Cannot call %s without arguments\n", cmd);
+		return -1;
+	}
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	ast_channel_lock(chan);
+
+	/* Sanity check */
+	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
+		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel\n", cmd);
+		ast_channel_unlock(chan);
+		return 0;
+	}
+
+	pvt = ast_channel_tech_pvt(chan);
+	if (!pvt) {
+		ast_log(LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(chan));
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	if (!pvt->session) {
+		ast_log(LOG_WARNING, "Channel %s has no session\n", ast_channel_name(chan));
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	func_args.session = ao2_bump(pvt->session);
+	ast_channel_unlock(chan);
+
+	func_args.param = args.param;
+	func_args.type = args.type;
+	func_args.field = args.field;
+	func_args.value = value;
+	func_args.len = 0;
+	if (ast_sip_push_task_wait_serializer(func_args.session->serializer, write_pjsip, &func_args)) {
+		ast_log(LOG_WARNING, "Unable to write properties of channel %s: failed to push task\n", ast_channel_name(chan));
 		ao2_ref(func_args.session, -1);
 		return -1;
 	}
