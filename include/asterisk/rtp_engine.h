@@ -1630,6 +1630,33 @@ void ast_rtp_codecs_payloads_merge(struct ast_rtp_codecs *src, struct ast_rtp_co
 void ast_rtp_codecs_payloads_xover(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance);
 
 /*!
+ * \brief Update an immutable set of common direct media payload mappings
+ * \since 24.0.0
+ * \since 23.6.0
+ * \since 22.12.0
+ * \since 20.22.0
+ *
+ * \param codecs Address of an AO2 common mapping pointer, initially NULL
+ * \param local First RTP instance
+ * \param peer Second RTP instance
+ *
+ * The same instance supplies the payload numbers regardless of argument order.
+ * Only negotiated TX mappings compatible on both instances are included, with
+ * joint codec attributes and matching noncodec clock rates. RX and TX mappings
+ * in the result are identical.
+ *
+ * \retval 1 Mappings changed
+ * \retval 0 Mappings unchanged
+ * \retval -1 Allocation failure (existing mappings are unchanged)
+ *
+ * \note The result is AO2 managed. Release it with ao2_cleanup(), not
+ * ast_rtp_codecs_payloads_destroy(). Callers must serialize updates to *codecs
+ * and must not modify the returned mappings.
+ */
+int ast_rtp_codecs_payloads_set_common(struct ast_rtp_codecs **codecs,
+	struct ast_rtp_instance *local, struct ast_rtp_instance *peer);
+
+/*!
  * \brief Record tx payload type information that was seen in an m= SDP line
  *
  * \param codecs The codecs structure to muck with
