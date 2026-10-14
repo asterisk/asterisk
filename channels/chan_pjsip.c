@@ -121,6 +121,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.read_stream = chan_pjsip_read_stream,
 	.write = chan_pjsip_write,
 	.write_stream = chan_pjsip_write_stream,
+	.write_text = chan_pjsip_write,
 	.exception = chan_pjsip_read_stream,
 	.indicate = chan_pjsip_indicate,
 	.transfer = chan_pjsip_transfer,
@@ -231,6 +232,35 @@ static enum ast_rtp_glue_result chan_pjsip_get_vrtp_peer(struct ast_channel *cha
 	}
 
 	media = channel->session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO];
+	if (!media || !media->rtp) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	endpoint = channel->session->endpoint;
+
+	*instance = media->rtp;
+	ao2_ref(*instance, +1);
+
+	ast_assert(endpoint != NULL);
+	if (endpoint->media.rtp.encryption != AST_SIP_MEDIA_ENCRYPT_NONE) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	return AST_RTP_GLUE_RESULT_LOCAL;
+}
+
+/*! \brief Function called by RTP engine to get local text RTP peer */
+static enum ast_rtp_glue_result chan_pjsip_get_trtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
+{
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct ast_sip_endpoint *endpoint;
+	struct ast_sip_session_media *media;
+
+	if (!channel || !channel->session) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	media = channel->session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT];
 	if (!media || !media->rtp) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
@@ -457,6 +487,7 @@ struct rtp_direct_media_data {
 	struct ast_rtp_instance *vrtp;
 	struct ast_format_cap *cap;
 	struct ast_sip_session *session;
+	struct ast_rtp_instance *trtp;
 };
 
 static void rtp_direct_media_data_destroy(void *data)
@@ -466,12 +497,14 @@ static void rtp_direct_media_data_destroy(void *data)
 	ao2_cleanup(cdata->session);
 	ao2_cleanup(cdata->cap);
 	ao2_cleanup(cdata->vrtp);
+	ao2_cleanup(cdata->trtp);
 	ao2_cleanup(cdata->rtp);
 	ao2_cleanup(cdata->chan);
 }
 
 static struct rtp_direct_media_data *rtp_direct_media_data_create(
 	struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp,
+	struct ast_rtp_instance *trtp,
 	const struct ast_format_cap *cap, struct ast_sip_session *session)
 {
 	struct rtp_direct_media_data *cdata = ao2_alloc(sizeof(*cdata), rtp_direct_media_data_destroy);
@@ -483,6 +516,7 @@ static struct rtp_direct_media_data *rtp_direct_media_data_create(
 	cdata->chan = ao2_bump(chan);
 	cdata->rtp = ao2_bump(rtp);
 	cdata->vrtp = ao2_bump(vrtp);
+	cdata->trtp = ao2_bump(trtp);
 	cdata->cap = ao2_bump((struct ast_format_cap *)cap);
 	cdata->session = ao2_bump(session);
 
@@ -498,7 +532,7 @@ static int send_direct_media_request(void *data)
 	int res = 0;
 
 	/* XXX In an ideal world each media stream would be direct, but for now preserve behavior
-	 * and connect only the default media sessions for audio and video.
+	 * and connect only the default media sessions for audio, video, and text.
 	 */
 
 	/* The channel needs to be locked when checking for RTP changes.
@@ -514,6 +548,10 @@ static int send_direct_media_request(void *data)
 	if (session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO]) {
 		changed |= check_for_rtp_changes(
 			cdata->chan, cdata->vrtp, session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO], session);
+	}
+	if (session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT]) {
+		changed |= check_for_rtp_changes(
+			cdata->chan, cdata->trtp, session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT], session);
 	}
 	ast_channel_unlock(cdata->chan);
 
@@ -565,7 +603,7 @@ static int chan_pjsip_set_rtp_peer(struct ast_channel *chan,
 		SCOPE_EXIT_RTN_VALUE(0, "NAT is active\n");
 	}
 
-	cdata = rtp_direct_media_data_create(chan, rtp, vrtp, cap, session);
+	cdata = rtp_direct_media_data_create(chan, rtp, vrtp, tpeer, cap, session);
 	if (!cdata) {
 		SCOPE_EXIT_RTN_VALUE(0);
 	}
@@ -583,6 +621,7 @@ static struct ast_rtp_glue chan_pjsip_rtp_glue = {
 	.type = "PJSIP",
 	.get_rtp_info = chan_pjsip_get_rtp_peer,
 	.get_vrtp_info = chan_pjsip_get_vrtp_peer,
+	.get_trtp_info = chan_pjsip_get_trtp_peer,
 	.get_codec = chan_pjsip_get_codec,
 	.update_peer = chan_pjsip_set_rtp_peer,
 };
@@ -1117,6 +1156,22 @@ static int chan_pjsip_write_stream(struct ast_channel *ast, int stream_num, stru
 		break;
 	case AST_FRAME_CNG:
 		break;
+	case AST_FRAME_TEXT:
+		if (!media) {
+			return 0;
+		} else if (media->type != AST_MEDIA_TYPE_TEXT) {
+			ast_debug(3, "Channel %s stream %d is of type '%s', not text!\n",
+				ast_channel_name(ast), stream_num, ast_codec_media_type2str(media->type));
+			return 0;
+		} else if (media->write_callback) {
+			if (frame->datalen > 0) {
+				ast_debug(3, "Writing text data: %.*s\n",frame->datalen,(char*)frame->data.ptr);
+			} else {
+				ast_debug(3, "Writing text idle packet\n");
+			}
+			res = media->write_callback(session, media, frame);
+		}
+		break;
 	case AST_FRAME_RTCP:
 		/* We only support writing out feedback */
 		if (frame->subclass.integer != AST_RTP_RTCP_PSFB || !media) {
@@ -1139,6 +1194,9 @@ static int chan_pjsip_write_stream(struct ast_channel *ast, int stream_num, stru
 
 static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *frame)
 {
+	if (frame->frametype == AST_FRAME_TEXT) {
+		return chan_pjsip_write_stream(ast, frame->stream_num, frame);
+	}
 	return chan_pjsip_write_stream(ast, -1, frame);
 }
 

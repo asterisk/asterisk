@@ -444,6 +444,12 @@ static enum ast_rtp_glue_result chan_rtp_get_vrtp_peer(struct ast_channel *chan,
 	return AST_RTP_GLUE_RESULT_FORBID;
 }
 
+/*! \brief Function called by RTP engine to get local text RTP peer */
+static enum ast_rtp_glue_result chan_rtp_get_trtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
+{
+	return AST_RTP_GLUE_RESULT_FORBID;
+}
+
 /*! \brief Function called by RTP engine to get local audio RTP peer */
 static enum ast_rtp_glue_result chan_rtp_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
@@ -471,6 +477,7 @@ static struct ast_rtp_glue unicast_rtp_glue = {
 	.type = "UnicastRTP",
 	.get_rtp_info = chan_rtp_get_rtp_peer,
 	.get_vrtp_info = chan_rtp_get_vrtp_peer,
+	.get_trtp_info = chan_rtp_get_trtp_peer,
 	.get_codec = chan_rtp_get_codec,
 	.update_peer = chan_rtp_set_rtp_peer,
 };
