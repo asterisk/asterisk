@@ -257,6 +257,41 @@ static int timers_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static const char *timer_refresher_map[] = {
+	[AST_SIP_TIMER_REFRESHER_AUTO] = "auto",
+	[AST_SIP_TIMER_REFRESHER_UAS] = "uas",
+	[AST_SIP_TIMER_REFRESHER_UAC] = "uac",
+};
+
+static int timers_refresher_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!strcasecmp(var->value, "auto")) {
+		endpoint->extensions.refresher = AST_SIP_TIMER_REFRESHER_AUTO;
+	} else if (!strcasecmp(var->value, "uas")) {
+		endpoint->extensions.refresher = AST_SIP_TIMER_REFRESHER_UAS;
+	} else if (!strcasecmp(var->value, "uac")) {
+		endpoint->extensions.refresher = AST_SIP_TIMER_REFRESHER_UAC;
+	} else {
+		ast_log(LOG_NOTICE, "Unrecognized option value %s for %s on endpoint %s\n",
+				var->value, var->name, ast_sorcery_object_get_id(endpoint));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int timers_refresher_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+
+	if (ARRAY_IN_BOUNDS(endpoint->extensions.refresher, timer_refresher_map)) {
+		*buf = ast_strdup(timer_refresher_map[endpoint->extensions.refresher]);
+	}
+	return 0;
+}
+
 static int security_mechanism_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
@@ -2293,6 +2328,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "timers", "yes", timers_handler, timers_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "timers_min_se", "90", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, extensions.timer.min_se));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "timers_sess_expires", "1800", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, extensions.timer.sess_expires));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "timers_refresher", "auto", timers_refresher_handler, timers_refresher_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "auth", "", inbound_auth_handler, inbound_auths_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "aors", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, aors));

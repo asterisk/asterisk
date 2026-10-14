@@ -734,6 +734,10 @@
 ;timers=yes     ; Session timers for SIP packets (default: "yes")
 ;timers_sess_expires=1800       ; Maximum session timer expiration period
                                 ; (default: "1800")
+;timers_refresher=auto  ; Preferred session timer refresher for inbound call
+                        ; legs when the remote sends Session-Expires without a
+                        ; refresher parameter.  Values: auto (default), uas
+                        ; (this side refreshes) or uac (the remote refreshes)
 ;transport=     ; Explicit transport configuration to use (default: "")
                 ; This will force the endpoint to use the specified transport
                 ; configuration to send SIP messages.  You need to already know
