@@ -117,6 +117,7 @@
 					<para>This is the status of the answering machine detection</para>
 					<value name="MACHINE" />
 					<value name="HUMAN" />
+					<value name="FAX" />
 					<value name="NOTSURE" />
 					<value name="HANGUP" />
 				</variable>
@@ -304,6 +305,14 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 		return;
 	}
 
+	/* ast_dsp_set_faxmode(silenceDetector, DSP_FAXMODE_DETECT_CED) doesn't work well here,
+	 * because it requires 2600 ms of tone; a solid tone is interpreted as speaking noise,
+	 * so if 2600 ms is significantly greater than the value for greeting, it will be interpreted as "MACHINE".
+	 * To work around this, we manually detect the CED tone using a shorter required duration,
+	 * ensuring that FAX is detected before MACHINE, while remaining long enough to avoid false positives. */
+	ast_dsp_set_features(silenceDetector, DSP_FEATURE_FREQ_DETECT);
+	ast_dsp_set_freqmode(silenceDetector, 2100, 1000, 16, 0);
+
 	/* Set silence threshold to specified value */
 	ast_dsp_set_threshold(silenceDetector, silenceThreshold);
 
@@ -380,6 +389,22 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 			else {
 				dspsilence = 0;
 				ast_dsp_silence(silenceDetector, f, &dspsilence);
+			}
+
+			if (f->frametype == AST_FRAME_VOICE) {
+				/* Fax detection */
+				int fax;
+				/* We don't use the frame after this, so no harm in using it directly rather than frdup'ing first */
+				f = ast_dsp_process(chan, silenceDetector, f);
+				fax = f->frametype == AST_FRAME_DTMF && f->subclass.integer == 'q';
+				if (fax) {
+					ast_verb(3, "AMD: Channel [%s]. Fax answer\n", ast_channel_name(chan));
+					ast_frfree(f);
+					strcpy(amdStatus , "FAX");
+					/* No AMDCAUSE needed for this one */
+					res = 1;
+					break;
+				}
 			}
 
 			if (dspsilence > 0) {
