@@ -509,6 +509,19 @@ int __ast_pthread_mutex_unlock(const char *filename, int lineno, const char *fun
 
 	res = pthread_mutex_unlock(&t->mutex);
 
+#ifndef DEBUG_THREADS
+	/*
+	 * An unlock failure (e.g. EPERM) means the mutex may stay locked.
+	 * The strcmp only runs when the unlock failed, so there is no
+	 * performance impact on normal unlocks. It avoids recursion if the
+	 * logger's own mutex fails to unlock.
+	 */
+	if (res && strcmp(filename, "logger.c")) {
+		ast_log(LOG_ERROR, "Failed to unlock mutex '%s' at %s:%d (%s): %s\n",
+			mutex_name, filename, lineno, func, strerror(res));
+	}
+#endif
+
 #ifdef DEBUG_THREADS
 	if (res) {
 		log_mutex_error(canlog, "%s line %d (%s): Error releasing mutex: %s\n",
