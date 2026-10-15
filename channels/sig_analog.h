@@ -378,6 +378,11 @@ struct analog_pvt {
 	char *origcid_name;				/*!< malloced original callerid */
 	char call_forward[AST_MAX_EXTENSION];
 
+	/* ADSI on-hook alerting */
+	unsigned char cpeid[4];
+	char adsionhookscript[64];
+	struct timeval adsionhooktime;
+
 	/* Ast channel to pass to __ss_analog_thread */
 	struct ast_channel *ss_astchan;
 
