@@ -607,6 +607,7 @@ static int sip_options_qualify_resolve_task(void *obj)
 
 	for (idx = 0; idx < task_data->count; ++idx) {
 		pjsip_tx_data *tdata;
+		pjsip_host_info target_dest;
 		pjsip_via_hdr *via;
 		pjsip_transaction *tsx = NULL;
 
@@ -618,6 +619,12 @@ static int sip_options_qualify_resolve_task(void *obj)
 
 		if (!ast_strlen_zero(batch->contact->outbound_proxy) &&
 			ast_sip_set_outbound_proxy(tdata, batch->contact->outbound_proxy)) {
+			pjsip_tx_data_dec_ref(tdata);
+			sip_options_queue_target_result(batch, UNAVAILABLE);
+			continue;
+		}
+
+		if (pjsip_get_request_dest(tdata, &target_dest) != PJ_SUCCESS) {
 			pjsip_tx_data_dec_ref(tdata);
 			sip_options_queue_target_result(batch, UNAVAILABLE);
 			continue;
@@ -639,6 +646,14 @@ static int sip_options_qualify_resolve_task(void *obj)
 			&task_data->addresses.entry[idx].addr);
 		pj_strdup(tdata->pool, &tdata->dest_info.addr.entry[0].name,
 			&task_data->addresses.entry[idx].name);
+
+		/*
+		 * PJPROJECT only sets dest_info.name when it does the resolution itself.
+		 * Set it here since TLS/WSS uses it for connection reuse and SNI/certificate
+		 * verification.
+		 */
+		pj_strdup(tdata->pool, &tdata->dest_info.name, &target_dest.addr.host);
+
 		via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL);
 		if (via) {
 			via->branch_param.slen = 0;
