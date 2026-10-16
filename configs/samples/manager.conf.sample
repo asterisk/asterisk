@@ -295,8 +295,16 @@ Both Legacy and Advanced filter entries are processed as follows:
 ; Authorization for various classes
 ;
 ; Read authorization permits you to receive asynchronous events, in general.
-; Write authorization permits you to send commands and get back responses.  The
-; following classes exist:
+; Write authorization permits you to send actions and get back responses.
+; Read authorization does not restrict information returned in action responses.
+;
+; Class authorizations overlap and are not independent security boundaries.
+; In particular, write=command (also included in write=all) lets a user run CLI
+; commands, such as "channel originate" or "module reload", that perform
+; similar operations to actions in other classes. Grant command only to users
+; trusted with those operations.
+;
+; The following classes exist:
 ;
 ; all       - All event classes below (including any we may have missed).
 ; system    - General information about the system and ability to run system
@@ -311,7 +319,7 @@ Both Legacy and Advanced filter entries are processed as follows:
 ;             members to a queue.
 ; user      - Permission to send and receive UserEvent.
 ; config    - Ability to read and write configuration files.
-; command   - Permission to run CLI commands.  Write-only.
+; command   - Permission to run CLI commands.  Write-only.  See note above.
 ; dtmf      - Receive DTMF events.  Read-only.
 ; reporting - Ability to get information about the system.
 ; cdr       - Output of cdr_manager, if loaded.  Read-only.
