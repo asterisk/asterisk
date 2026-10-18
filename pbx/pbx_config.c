@@ -2036,8 +2036,12 @@ static void pbx_load_users(void)
 		return;
 
 	/*! \todo Remove users.conf support in Asterisk 23 */
-	fully_booted_subscription =
-		stasis_subscribe_pool(ast_manager_get_topic(), startup_event_cb, NULL);
+	/* FullyBooted is only published once, so subscribing on a reload after
+	 * startup (or twice before it) would leave a subscription behind. */
+	if (!ast_fully_booted && !fully_booted_subscription) {
+		fully_booted_subscription =
+			stasis_subscribe_pool(ast_manager_get_topic(), startup_event_cb, NULL);
+	}
 
 	for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
 		if (!strcasecmp(cat, "general"))
