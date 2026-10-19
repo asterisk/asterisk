@@ -1,0 +1,184 @@
+<html><head><title>ChangeLog for asterisk-certified-20.7-cert12</title></head><body>
+
+<h2 dir="auto">Change Log for Release asterisk-certified-20.7-cert12</h2>
+<h3 dir="auto">Links:</h3>
+<ul dir="auto">
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/releases/ChangeLog-certified-20.7-cert12.html" rel="nofollow">Full ChangeLog</a></li>
+<li><a href="https://github.com/asterisk/asterisk/compare/certified-20.7-cert11...certified-20.7-cert12">GitHub Diff</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/asterisk-certified-20.7-cert12.tar.gz" rel="nofollow">Tarball</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk" rel="nofollow">Downloads</a></li>
+</ul>
+<h3 dir="auto">Summary:</h3>
+<ul dir="auto">
+<li>Commits: 14</li>
+<li>Commit Authors: 4</li>
+<li>Issues Resolved: 8</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3 dir="auto">User Notes:</h3>
+<h3 dir="auto">Upgrade Notes:</h3>
+<h3 dir="auto">Developer Notes:</h3>
+<h3 dir="auto">Commit Authors:</h3>
+<ul dir="auto">
+<li>George Joseph: (5)</li>
+<li>Mike Bradeen: (1)</li>
+<li>Naveen Albert: (5)</li>
+<li>Sean Bright: (3)</li>
+</ul>
+<h2 dir="auto">Issue and Commit Detail:</h2>
+<h3 dir="auto">Closed Issues:</h3>
+<ul dir="auto">
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="3958296083" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1781" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1781/hovercard" href="https://github.com/asterisk/asterisk/issues/1781">#1781</a>: [bug]: More discarded-qualifiers errors with gcc 15.2.1</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="3959953305" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1783" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1783/hovercard" href="https://github.com/asterisk/asterisk/issues/1783">#1783</a>: [bug]: Several unused-but-set-variable warnings with gcc 16</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="3960534296" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1786" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1786/hovercard" href="https://github.com/asterisk/asterisk/issues/1786">#1786</a>: [bug]: chan_dahdi: A few more discarded-qualifiers errors not caught previously</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="4337800191" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1903" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1903/hovercard" href="https://github.com/asterisk/asterisk/issues/1903">#1903</a>: [bug]: g++ 16 no longer defines <strong>STDC_VERSION</strong> causing channelstorage_cpp_map_name_id.cc to fail</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="4497285485" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1947" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1947/hovercard" href="https://github.com/asterisk/asterisk/issues/1947">#1947</a>: [bug]: chan_dahdi fails to build with gcc-16 when openr2 is installed</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5050908342" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2054" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2054/hovercard" href="https://github.com/asterisk/asterisk/issues/2054">#2054</a>: [bug]: backtrace.c: Compilation failure due to use of removed type</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5065733803" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2061" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2061/hovercard" href="https://github.com/asterisk/asterisk/issues/2061">#2061</a>: [bug]: backtrace.c: stdbool.h needed for portability</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5835957039" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2230" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2230/hovercard" href="https://github.com/asterisk/asterisk/issues/2230">#2230</a>: [bug]: The timestamp on the first packet after in-band digit generation is incorrect</li>
+</ul>
+<h3 dir="auto">Commits By Author:</h3>
+<ul dir="auto">
+<li>
+<p dir="auto"><strong>George Joseph</strong> (5):</p>
+<ul dir="auto">
+<li>SECURITY.md: Add warning about reporting multiple issues in one advisory.</li>
+<li>res_stir_shaken.c: Fix GCC set-but-not-used error in unload_module.</li>
+<li>chan_dahdi: Fix set but not used in mfcr2_show_links_of().</li>
+<li>compat.h: Ensure check for <code class="notranslate">__STDC_VERSION__</code> is not attempted for c++.</li>
+<li>SECURITY.md: Update with additional instructions.</li>
+</ul>
+</li>
+<li>
+<p dir="auto"><strong>Mike Bradeen</strong> (1):</p>
+<ul dir="auto">
+<li>res_rtp_asterisk: Fix rtp timestamp calculation during DTMF generation</li>
+</ul>
+</li>
+<li>
+<p dir="auto"><strong>Naveen Albert</strong> (5):</p>
+<ul dir="auto">
+<li>backtrace.c: Include stdbool.h</li>
+<li>backtrace.c: Avoid removed bfd_boolean type.</li>
+<li>build: Fix another GCC discarded-qualifiers const error.</li>
+<li>chan_dahdi: Fix discarded-qualifiers errors.</li>
+<li>build: Fix unused-but-set-variable warnings with gcc 16.</li>
+</ul>
+</li>
+<li>
+<p dir="auto"><strong>Sean Bright</strong> (3):</p>
+<ul dir="auto">
+<li>app_voicemail.c: Fix may-be-uninitialized error</li>
+<li>chan_sip.c: Fix __sip_reliable_xmit build error</li>
+<li>build: Fix GCC discarded-qualifiers const errors.</li>
+</ul>
+</li>
+</ul>
+<h3 dir="auto">Commit List:</h3>
+<ul dir="auto">
+<li>res_rtp_asterisk: Fix rtp timestamp calculation during DTMF generation</li>
+<li>backtrace.c: Include stdbool.h</li>
+<li>backtrace.c: Avoid removed bfd_boolean type.</li>
+<li>app_voicemail.c: Fix may-be-uninitialized error</li>
+<li>build: Fix another GCC discarded-qualifiers const error.</li>
+<li>SECURITY.md: Add warning about reporting multiple issues in one advisory.</li>
+<li>res_stir_shaken.c: Fix GCC set-but-not-used error in unload_module.</li>
+<li>chan_sip.c: Fix __sip_reliable_xmit build error</li>
+<li>chan_dahdi: Fix discarded-qualifiers errors.</li>
+<li>build: Fix unused-but-set-variable warnings with gcc 16.</li>
+<li>build: Fix GCC discarded-qualifiers const errors.</li>
+<li>chan_dahdi: Fix set but not used in mfcr2_show_links_of().</li>
+<li>compat.h: Ensure check for <code class="notranslate">__STDC_VERSION__</code> is not attempted for c++.</li>
+<li>SECURITY.md: Update with additional instructions.</li>
+</ul>
+<h3 dir="auto">Commit Details:</h3>
+<p dir="auto"><strong>res_rtp_asterisk: Fix rtp timestamp calculation during DTMF generation</strong><br>
+Author: Mike Bradeen<br>
+Date:   2026-10-13</p>
+<p dir="auto">Avoid advancing the last tx timestamp when audio is suppressed during DTMF<br>
+generation to avoid mis-calculating the timestamp on the first packet after<br>
+the RTP Event end.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5835957039" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2230" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2230/hovercard" href="https://github.com/asterisk/asterisk/issues/2230">#2230</a></p>
+<p dir="auto"><strong>backtrace.c: Include stdbool.h</strong><br>
+Author: Naveen Albert<br>
+Date:   2026-08-04</p>
+<p dir="auto">stdbool.h is needed now that we use the bool type directly<br>
+instead of bfd_boolean. See also 1d95b744c06974f0a00c143c6e0fc979af930908.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5065733803" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2061" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2061/hovercard" href="https://github.com/asterisk/asterisk/issues/2061">#2061</a></p>
+<p dir="auto"><strong>backtrace.c: Avoid removed bfd_boolean type.</strong><br>
+Author: Naveen Albert<br>
+Date:   2026-08-03</p>
+<p dir="auto">bfd_boolean has been deprecated for some time and has now been<br>
+removed in gdb, so use bool directly instead.</p>
+<p dir="auto">See: <a class="commit-link" data-hovercard-type="commit" data-hovercard-url="https://github.com/gnutools/binutils-gdb/commit/1d95b744c06974f0a00c143c6e0fc979af930908/hovercard" href="https://github.com/gnutools/binutils-gdb/commit/1d95b744c06974f0a00c143c6e0fc979af930908">gnutools/binutils-gdb@<tt>1d95b74</tt></a></p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5050908342" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2054" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2054/hovercard" href="https://github.com/asterisk/asterisk/issues/2054">#2054</a></p>
+<p dir="auto"><strong>app_voicemail.c: Fix may-be-uninitialized error</strong><br>
+Author: Sean Bright<br>
+Date:   2026-08-02</p>
+<p dir="auto">A pointer to <code class="notranslate">new</code> is passed to <code class="notranslate">inboxcount(...)</code> which increments the<br>
+pointed-to value.</p>
+<p dir="auto"><strong>build: Fix another GCC discarded-qualifiers const error.</strong><br>
+Author: Naveen Albert<br>
+Date:   2026-02-18</p>
+<p dir="auto">Follow on commit to <a class="commit-link" data-hovercard-type="commit" data-hovercard-url="https://github.com/asterisk/asterisk/commit/27a39cba7e6832cb30cb64edaf879f447b669628/hovercard" href="https://github.com/asterisk/asterisk/commit/27a39cba7e6832cb30cb64edaf879f447b669628"><tt>27a39cb</tt></a><br>
+to fix compilation with BETTER_BACKTRACES with gcc 15.2.1.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="3958296083" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1781" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1781/hovercard" href="https://github.com/asterisk/asterisk/issues/1781">#1781</a></p>
+<p dir="auto"><strong>SECURITY.md: Add warning about reporting multiple issues in one advisory.</strong><br>
+Author: George Joseph<br>
+Date:   2026-08-04</p>
+<p dir="auto"><strong>res_stir_shaken.c: Fix GCC set-but-not-used error in unload_module.</strong><br>
+Author: George Joseph<br>
+Date:   2026-07-31</p>
+<p dir="auto">__chan_sip.c: Fix <strong>sip_reliable_xmit build error</strong><br>
+Author: Sean Bright<br>
+Date:   2024-10-17</p>
+<p dir="auto">Fixes <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="2595273247" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/954" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/954/hovercard" href="https://github.com/asterisk/asterisk/issues/954">#954</a></p>
+<p dir="auto"><strong>chan_dahdi: Fix discarded-qualifiers errors.</strong><br>
+Author: Naveen Albert<br>
+Date:   2026-02-18</p>
+<p dir="auto">Fix discarded-qualifiers errors to compile successfully with gcc 15.2.1.</p>
+<p dir="auto">Associated changes have also been made to libss7; however, for compatibility<br>
+we cast const char* values to char*. In the future, these casts could be<br>
+removed.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="3960534296" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1786" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1786/hovercard" href="https://github.com/asterisk/asterisk/issues/1786">#1786</a></p>
+<p dir="auto"><strong>build: Fix unused-but-set-variable warnings with gcc 16.</strong><br>
+Author: Naveen Albert<br>
+Date:   2026-02-18</p>
+<p dir="auto">Fix or remove a few variables that were being set but not actually<br>
+used anywhere, causing warnings with gcc 16.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="3959953305" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1783" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1783/hovercard" href="https://github.com/asterisk/asterisk/issues/1783">#1783</a></p>
+<p dir="auto"><strong>build: Fix GCC discarded-qualifiers const errors.</strong><br>
+Author: Sean Bright<br>
+Date:   2026-07-28</p>
+<p dir="auto">GCC 15.2.1 pays attention to the discarding of the const<br>
+qualifier when strchr, strrchr, memchr, or memrchr are now<br>
+used. This change fixes numerous errors with this throughout<br>
+chan_sip. The fixes can be broken down into the following:</p>
+<ol dir="auto">
+<li>The value passed to strchr or strrchr can be cast as it is<br>
+expected and allowed to be modified.</li>
+<li>The pointer passed to strchr or strrchr is not meant to be<br>
+modified and so the contents must be duplicated.</li>
+<li>It was declared const and never should have been.</li>
+</ol>
+<p dir="auto"><strong>chan_dahdi: Fix set but not used in mfcr2_show_links_of().</strong><br>
+Author: George Joseph<br>
+Date:   2026-05-21</p>
+<p dir="auto">When openr2 is installed mfcr2_show_links_of() is no longer ifdeffed out<br>
+which makes gcc-16 complain with 'variable ‘x’ set but not used'.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="4497285485" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1947" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1947/hovercard" href="https://github.com/asterisk/asterisk/issues/1947">#1947</a></p>
+<p dir="auto"><strong>compat.h: Ensure check for <code class="notranslate">__STDC_VERSION__</code> is not attempted for c++.</strong><br>
+Author: George Joseph<br>
+Date:   2026-04-27</p>
+<p dir="auto"><code class="notranslate">__STDC_VERSION__</code> is specific to C but up until gcc 16, the g++ compiler<br>
+also defined it.  With g++ 16.0 it's no longer defined (which is the correct<br>
+behavior) so compiling channelstorage_cpp_map_name_id.cc fails.  The<br>
+check for <code class="notranslate">__STDC_VERSION__</code> in compat.h is now skipped if we're compiling<br>
+a C++ source file.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="4337800191" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/1903" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/1903/hovercard" href="https://github.com/asterisk/asterisk/issues/1903">#1903</a></p>
+<p dir="auto"><strong>SECURITY.md: Update with additional instructions.</strong><br>
+Author: George Joseph<br>
+Date:   2026-03-19</p>
+<p dir="auto">Also added line breaks for people reading this file directly<br>
+from the code base.</p>
+</body></html>
