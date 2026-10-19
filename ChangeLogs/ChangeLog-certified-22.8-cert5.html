@@ -1,0 +1,50 @@
+<html><head><title>ChangeLog for asterisk-certified-22.8-cert5</title></head><body>
+
+<h2 dir="auto">Change Log for Release asterisk-certified-22.8-cert5</h2>
+<h3 dir="auto">Links:</h3>
+<ul dir="auto">
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/releases/ChangeLog-certified-22.8-cert5.html" rel="nofollow">Full ChangeLog</a></li>
+<li><a href="https://github.com/asterisk/asterisk/compare/certified-22.8-cert4...certified-22.8-cert5">GitHub Diff</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk/asterisk-certified-22.8-cert5.tar.gz" rel="nofollow">Tarball</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/certified-asterisk" rel="nofollow">Downloads</a></li>
+</ul>
+<h3 dir="auto">Summary:</h3>
+<ul dir="auto">
+<li>Commits: 1</li>
+<li>Commit Authors: 1</li>
+<li>Issues Resolved: 1</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3 dir="auto">User Notes:</h3>
+<h3 dir="auto">Upgrade Notes:</h3>
+<h3 dir="auto">Developer Notes:</h3>
+<h3 dir="auto">Commit Authors:</h3>
+<ul dir="auto">
+<li>Mike Bradeen: (1)</li>
+</ul>
+<h2 dir="auto">Issue and Commit Detail:</h2>
+<h3 dir="auto">Closed Issues:</h3>
+<ul dir="auto">
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5835957039" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2230" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2230/hovercard" href="https://github.com/asterisk/asterisk/issues/2230">#2230</a>: [bug]: The timestamp on the first packet after in-band digit generation is incorrect</li>
+</ul>
+<h3 dir="auto">Commits By Author:</h3>
+<ul dir="auto">
+<li><strong>Mike Bradeen</strong> (1):
+<ul dir="auto">
+<li>res_rtp_asterisk: Fix rtp timestamp calculation during DTMF generation</li>
+</ul>
+</li>
+</ul>
+<h3 dir="auto">Commit List:</h3>
+<ul dir="auto">
+<li>res_rtp_asterisk: Fix rtp timestamp calculation during DTMF generation</li>
+</ul>
+<h3 dir="auto">Commit Details:</h3>
+<p dir="auto"><strong>res_rtp_asterisk: Fix rtp timestamp calculation during DTMF generation</strong><br>
+Author: Mike Bradeen<br>
+Date:   2026-10-13</p>
+<p dir="auto">Avoid advancing the last tx timestamp when audio is suppressed during DTMF<br>
+generation to avoid mis-calculating the timestamp on the first packet after<br>
+the RTP Event end.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5835957039" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2230" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2230/hovercard" href="https://github.com/asterisk/asterisk/issues/2230">#2230</a></p>
+</body></html>
