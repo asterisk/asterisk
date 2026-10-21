@@ -1491,6 +1491,8 @@ static int handle_registration_response(void *data)
 					server_uri, client_uri);
 			pjsip_tx_data_add_ref(tdata);
 
+			save_response_fields_to_transport(response);
+
 			res = registration_client_send(response->client_state, tdata);
 
 			/* Save the cseq that actually got sent. */
