@@ -305,7 +305,9 @@ static void refer_progress_bridge(void *data, struct stasis_subscription *sub,
 		if (ast_sip_push_task(progress->serializer, refer_progress_notify, notification)) {
 			ao2_cleanup(notification);
 		}
+		ao2_lock(progress);
 		progress->bridge_sub = stasis_unsubscribe(progress->bridge_sub);
+		ao2_unlock(progress);
 	}
 
 	chan = ast_channel_get_by_name(progress->transferee);
@@ -470,9 +472,11 @@ static void refer_progress_framehook_destroy(void *data)
 		}
 	}
 
+	ao2_lock(progress);
 	if (progress->bridge_sub) {
 		progress->bridge_sub = stasis_unsubscribe(progress->bridge_sub);
 	}
+	ao2_unlock(progress);
 
 	ao2_cleanup(progress);
 	SCOPE_EXIT_RTN("%p\n", progress);
@@ -834,6 +838,7 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 			.data = refer->progress,
 			.disable_inheritance = 1,
 		};
+		int subscribed;
 
 		refer->progress->transferee = ast_strdup(ast_channel_uniqueid(chan));
 		if (!refer->progress->transferee) {
@@ -881,9 +886,22 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 		ao2_ref(refer->progress, +1);
 		/* We also will need to detect if the transferee enters a bridge. This is currently the only reliable way to
 		 * detect if the transfer target has answered the call
+		 *
+		 * The subscription is live as soon as it is created and another thread may unsubscribe
+		 * it while the filters below are applied, so hold the progress lock across both. The
+		 * unsubscribe sites take the same lock.
 		 */
+		ao2_lock(refer->progress);
 		refer->progress->bridge_sub = stasis_subscribe_pool(ast_bridge_topic_all(), refer_progress_bridge, refer->progress);
-		if (!refer->progress->bridge_sub) {
+		subscribed = refer->progress->bridge_sub != NULL;
+		if (subscribed) {
+			stasis_subscription_accept_message_type(refer->progress->bridge_sub, ast_channel_entered_bridge_type());
+			stasis_subscription_accept_message_type(refer->progress->bridge_sub, stasis_subscription_change_type());
+			stasis_subscription_set_filter(refer->progress->bridge_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
+		}
+		ao2_unlock(refer->progress);
+
+		if (!subscribed) {
 			struct refer_progress_notification *notification = refer_progress_notification_alloc(refer->progress, 200,
 				PJSIP_EVSUB_STATE_TERMINATED);
 
@@ -901,10 +919,6 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 			ast_channel_unlock(chan);
 
 			ao2_cleanup(refer->progress);
-		} else {
-			stasis_subscription_accept_message_type(refer->progress->bridge_sub, ast_channel_entered_bridge_type());
-			stasis_subscription_accept_message_type(refer->progress->bridge_sub, stasis_subscription_change_type());
-			stasis_subscription_set_filter(refer->progress->bridge_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 		}
 	}
 
