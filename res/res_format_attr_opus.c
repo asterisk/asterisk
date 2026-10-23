@@ -240,6 +240,32 @@ static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 	}
 }
 
+static enum ast_format_cmp_res opus_cmp(const struct ast_format *format1, const struct ast_format *format2)
+{
+	const struct opus_attr *attr1 = ast_format_get_attribute_data(format1);
+	const struct opus_attr *attr2 = ast_format_get_attribute_data(format2);
+
+	attr1 = attr1 ? attr1 : &default_opus_attr;
+	attr2 = attr2 ? attr2 : &default_opus_attr;
+
+	if (ast_format_get_channel_count(format1) == ast_format_get_channel_count(format2)
+		&& attr1->maxbitrate == attr2->maxbitrate
+		&& attr1->maxplayrate == attr2->maxplayrate
+		&& attr1->ptime == attr2->ptime
+		&& attr1->stereo == attr2->stereo
+		&& attr1->cbr == attr2->cbr
+		&& attr1->fec == attr2->fec
+		&& attr1->dtx == attr2->dtx
+		&& attr1->spropmaxcapturerate == attr2->spropmaxcapturerate
+		&& attr1->spropstereo == attr2->spropstereo
+		&& attr1->maxptime == attr2->maxptime) {
+		return AST_FORMAT_CMP_EQUAL;
+	}
+
+	/* Different Opus attributes can still be negotiated by opus_getjoint(). */
+	return AST_FORMAT_CMP_SUBSET;
+}
+
 static struct ast_format *opus_getjoint(const struct ast_format *format1, const struct ast_format *format2)
 {
 	struct opus_attr *attr1 = ast_format_get_attribute_data(format1);
@@ -388,6 +414,7 @@ static const void *opus_get(const struct ast_format *format, const char *name)
 static struct ast_format_interface opus_interface = {
 	.format_destroy = opus_destroy,
 	.format_clone = opus_clone,
+	.format_cmp = opus_cmp,
 	.format_get_joint = opus_getjoint,
 	.format_attribute_set = opus_set,
 	.format_parse_sdp_fmtp = opus_parse_sdp_fmtp,
