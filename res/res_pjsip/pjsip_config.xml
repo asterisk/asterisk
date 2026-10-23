@@ -2087,6 +2087,28 @@
 					</note>
 					</description>
 				</configOption>
+				<configOption name="device_feature_key_autoapprove">
+					<synopsis>Whether or not to automatically approve any device feature key change requests.</synopsis>
+					<description>
+						<para>This setting controls whether or not auto approval is enabled for the endpoint.</para>
+						<para>If enabled, res_pjsip_device_features will automatically honor changes made
+						using a phone's device feature keys and they will be automatically persisted by Asterisk.
+						Other AORs for the same endpoint will be notified that a feature key status has changed.</para>
+						<para>Note that no behavioral change actually occurs as a result of the change; for example,
+						res_pjsip_device_features does not implement any "Do Not Disturb" functionality.
+						You can retrieve the current status of a feature key reading the <literal>PJSIP_DEVICE_FEATURES</literal>
+						function, for example, in the dialplan.</para>
+						<para>If disabled, res_pjsip_device_features does not automatically honor changes made
+						using a phone's device feature keys. Instead, you will need to use AMI to receive feature key updates
+						and process them. Your program will determine if the endpoint is allowed to make a change and,
+						if so, will update res_pjsip_device_features of the change by writing to the <literal>PJSIP_DEVICE_FEATURES</literal>
+						module to inform it of the change. Then the module will update other AORs of the new status.</para>
+						<para>This setting is enabled by default for ease of use.
+						However, if you need to synchronize feature state outside of PJSIP, it is recommended that you disable
+						this setting so that you can process changes according to your own business logic and synchronize external
+						state as required.</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<since>
