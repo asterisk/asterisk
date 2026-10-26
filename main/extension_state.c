@@ -1314,6 +1314,96 @@ struct stasis_topic *ast_extension_state_topic(const char *exten, const char *co
 	return topic;
 }
 
+/*!
+ * \internal
+ * \brief Refresh the device snapshot of an extension state if it contains invalid device states
+ *
+ * \param state The extension state to refresh
+ *
+ * \pre The extension state must be locked by the caller before calling this function.
+ *
+ * This function checks whether any of the cached device states of the extension state are invalid
+ * and if so attempts to retrieve the latest device state. If a valid device state is retrieved then
+ * the source is updated and an update message is published to any subscribers.
+ */
+static void extension_state_device_snapshot_refresh(struct extension_state *state)
+{
+	struct ast_devstate_aggregate agg;
+	enum ast_extension_states new_device_state;
+	int i;
+	int invalid = 0;
+
+	/* If no cached device state is invalid then there is nothing to refresh */
+	for (i = 0; i < AST_VECTOR_SIZE(&state->device_state_sources); i++) {
+		struct extension_state_device_source *source = AST_VECTOR_GET(&state->device_state_sources, i);
+
+		if (source->info->state == AST_DEVICE_INVALID) {
+			invalid = 1;
+			break;
+		}
+	}
+	if (!invalid) {
+		return;
+	}
+
+	ast_devstate_aggregate_init(&agg);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&state->device_state_sources); i++) {
+		struct extension_state_device_source *source = AST_VECTOR_GET(&state->device_state_sources, i);
+
+		/*
+		 * An invalid state may be because the device state provider was not available when the
+		 * state was last queried, such as when the hint was created before the provider was
+		 * loaded. Since a caller is explicitly requesting the state we make another attempt to
+		 * retrieve it and if it has changed update it and notify any subscribers.
+		 */
+		if (source->info->state == AST_DEVICE_INVALID) {
+			enum ast_device_state device_state = ast_device_state(source->info->device);
+
+			if (device_state != source->info->state) {
+				struct ast_extension_state_device_state_info *info;
+
+				info = extension_state_device_state_info_alloc(source->info->device, device_state);
+				if (info) {
+					ao2_replace(source->info, info);
+					ao2_ref(info, -1);
+				}
+			}
+		}
+
+		ast_devstate_aggregate_add(&agg, source->info->state);
+	}
+
+	new_device_state = ast_devstate_to_extenstate(ast_devstate_aggregate_result(&agg));
+	if (new_device_state != state->device_snapshot->state) {
+		struct ast_extension_state_device_snapshot *device_snapshot;
+		struct ast_extension_state_update_message *update_message;
+
+		device_snapshot = extension_state_device_snapshot_create(new_device_state, &state->device_state_sources, NULL);
+		if (!device_snapshot) {
+			return;
+		}
+
+		update_message = extension_state_update_message_create(state->dialplan_context, state->dialplan_extension,
+			state->device_snapshot, device_snapshot, state->presence_snapshot, state->presence_snapshot);
+
+		/* Even if we can't publish an update message we still ensure the local cached snapshot is up to date */
+		ao2_replace(state->device_snapshot, device_snapshot);
+		ao2_ref(device_snapshot, -1);
+
+		if (update_message) {
+			struct stasis_message *message = stasis_message_create(ast_extension_state_update_message_type(), update_message);
+
+			if (message) {
+				stasis_publish(state->extension_state_topic, message);
+				ao2_ref(message, -1);
+			}
+
+			ao2_ref(update_message, -1);
+		}
+	}
+}
+
 struct ast_extension_state_device_snapshot *ast_extension_state_get_latest_device_snapshot(struct ast_channel *chan,
 	const char *exten, const char *context)
 {
@@ -1326,6 +1416,7 @@ struct ast_extension_state_device_snapshot *ast_extension_state_get_latest_devic
 	}
 
 	ao2_lock(state);
+	extension_state_device_snapshot_refresh(state);
 	device_snapshot = ao2_bump(state->device_snapshot);
 	ao2_unlock(state);
 	ao2_ref(state, -1);
@@ -1455,6 +1546,8 @@ static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	i = ao2_iterator_init(extension_states, 0);
 	for (; (state = ao2_iterator_next(&i)); ao2_ref(state, -1)) {
 		ao2_lock(state);
+		extension_state_device_snapshot_refresh(state);
+		extension_state_presence_snapshot_refresh(state);
 		ast_cli(a->fd, "%-30.30s: %-60.60s  State:%-15.15s Presence:%-15.15s Watchers %2zd\n",
 			state->extension,
 			state->hint_extension ? ast_get_extension_app(state->hint_extension) : "None",
@@ -1559,6 +1652,8 @@ static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	for (; (extstate = ao2_iterator_next(&i)); ao2_ref(extstate, -1)) {
 		ao2_lock(extstate);
 		if (!strncasecmp(extstate->extension, a->argv[3], extenlen)) {
+			extension_state_device_snapshot_refresh(extstate);
+			extension_state_presence_snapshot_refresh(extstate);
 			ast_cli(a->fd, "%-30.30s: %-60.60s  State:%-15.15s Presence:%-15.15s Watchers %2zd\n",
 				extstate->extension,
 				extstate->hint_extension ? ast_get_extension_app(extstate->hint_extension) : "None",
