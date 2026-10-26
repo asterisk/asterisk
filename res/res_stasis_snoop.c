@@ -249,6 +249,7 @@ static struct ast_channel_tech snoop_tech = {
 	.read = snoop_read,
 	.hangup = snoop_hangup,
 	.fixup = snoop_fixup,
+	.exception = snoop_read,
 };
 
 /*! \brief Thread used for running the Stasis application */
