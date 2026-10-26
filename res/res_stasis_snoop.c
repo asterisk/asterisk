@@ -251,7 +251,7 @@ static struct ast_channel_tech snoop_tech = {
 	.fixup = snoop_fixup,
         .exception = snoop_read ,
 };
-
+/*! \exception_added_above for the snoop */
 /*! \brief Thread used for running the Stasis application */
 static void *snoop_stasis_thread(void *obj)
 {
