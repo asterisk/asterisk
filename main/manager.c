@@ -7532,7 +7532,17 @@ static int purge_sessions(int n_max)
 
 	/* The order of operations is significant */
 	while (n_max > 0 && (session = ao2_iterator_next(&i))) {
-		ao2_lock(session);
+		/*
+		 * This runs in the AMI accept thread. Only HTTP sessions have a
+		 * session timeout, so skip non-HTTP sessions (managerid of zero)
+		 * without taking their lock. If an HTTP session is locked by another
+		 * thread, skip it rather than stall new connections; cleanup is
+		 * opportunistic and it will be examined again on a later pass.
+		 */
+		if (!session->managerid || ao2_trylock(session)) {
+			unref_mansession(session);
+			continue;
+		}
 		if (session->sessiontimeout && (now > session->sessiontimeout) && !session->inuse) {
 			if (session->authenticated
 				&& VERBOSITY_ATLEAST(2)
