@@ -657,8 +657,7 @@ static int extension_state_update_sources(struct extension_state *state, struct 
 	}
 
 	/* If the presence state has changed, create a new snapshot */
-	if ((!state->presence_sources_string && presence_state_sources) ||
-		(state->presence_sources_string && strcmp(state->presence_sources_string, presence_state_sources))) {
+	if (strcmp(S_OR(state->presence_sources_string, ""), S_OR(presence_state_sources, ""))) {
 		enum ast_presence_state presence_state = AST_PRESENCE_NOT_SET;
 		char *presence_subtype = NULL, *presence_message = NULL;
 
