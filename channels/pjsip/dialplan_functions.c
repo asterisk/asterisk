@@ -92,7 +92,7 @@ static int channel_read_rtp(struct ast_channel *chan, struct ast_rtp_instance *r
 		return -1;
 	}
 
-	if (!ast_strlen_zero(field) && strcmp(field, "audio") && strcmp(field, "video")) {
+	if (!ast_strlen_zero(field) && strcmp(field, "audio") && strcmp(field, "video") && strcmp(field, "text")) {
 		ast_log(AST_LOG_WARNING, "Unknown media type field '%s' for 'rtp' information\n", field);
 		return -1;
 	}
@@ -134,7 +134,7 @@ static int channel_read_rtcp(struct ast_channel *chan, struct ast_rtp_instance *
 		return -1;
 	}
 
-	if (!ast_strlen_zero(field) && strcmp(field, "audio") && strcmp(field, "video")) {
+	if (!ast_strlen_zero(field) && strcmp(field, "audio") && strcmp(field, "video") && strcmp(field, "text")) {
 		ast_log(AST_LOG_WARNING, "Unknown media type field '%s' for 'rtcp' information\n", field);
 		return -1;
 	}
@@ -432,18 +432,32 @@ int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data
 		unsigned int secure;
 		unsigned int held;
 		int video = !strcmp(S_OR(args.field, "audio"), "video");
+		int text = !strcmp(S_OR(args.field, "audio"), "text");
 
 		if (!info) {
 			res = -1;
 		} else {
 			/* The channel lock keeps these retained instances alive throughout the read. */
-			rtp = video ? info->video_rtp : info->audio_rtp;
-			media = channel->session->active_media_state
-				? channel->session->active_media_state->default_session[video
-					? AST_MEDIA_TYPE_VIDEO : AST_MEDIA_TYPE_AUDIO] : NULL;
+			if (video) {
+				rtp = info->video_rtp;
+				media = channel->session->active_media_state
+					? channel->session->active_media_state->default_session[AST_MEDIA_TYPE_VIDEO] : NULL;
+				secure = info->video_secure;
+				held = info->video_held;
+			} else if (text) {
+				rtp = info->text_rtp;
+				media = channel->session->active_media_state
+					? channel->session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT] : NULL;
+				secure = info->text_secure;
+				held = info->text_held;
+			} else {
+				rtp = info->audio_rtp;
+				media = channel->session->active_media_state
+					? channel->session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO] : NULL;
+				secure = info->audio_secure;
+				held = info->audio_held;
+			}
 			direct_media_addr = media ? &media->direct_media_addr : &no_address;
-			secure = video ? info->video_secure : info->audio_secure;
-			held = video ? info->video_held : info->audio_held;
 			if (!strcmp(args.param, "rtp")) {
 				res = channel_read_rtp(chan, rtp, direct_media_addr, secure, held,
 					args.type, args.field, buf, len);
@@ -889,6 +903,8 @@ int pjsip_acf_media_offer_read(struct ast_channel *chan, const char *cmd, char *
 		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_AUDIO);
 	} else if (!strcmp(data, "video")) {
 		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_VIDEO);
+	} else if (!strcmp(data, "text")) {
+		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_TEXT);
 	} else {
 		/* Ensure that the buffer is empty */
 		buf[0] = '\0';
@@ -921,6 +937,8 @@ int pjsip_acf_media_offer_write(struct ast_channel *chan, const char *cmd, char 
 		mdata.media_type = AST_MEDIA_TYPE_AUDIO;
 	} else if (!strcmp(data, "video")) {
 		mdata.media_type = AST_MEDIA_TYPE_VIDEO;
+	} else if (!strcmp(data, "text")) {
+		mdata.media_type = AST_MEDIA_TYPE_TEXT;
 	}
 
 	return ast_sip_push_task_wait_serializer(channel->session->serializer, media_offer_write_av, &mdata);
