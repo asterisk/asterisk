@@ -279,8 +279,10 @@ struct ast_cdr_config {
  * \brief Responsible for call detail data
  */
 struct ast_cdr {
-	/*! Caller*ID with text */
-	char clid[AST_MAX_EXTENSION];
+	/*! Caller*ID with text, "name" <number>.  Sized independently of
+	 *  AST_MAX_EXTENSION to hold an 80 character value of up to 4 byte
+	 *  (utf8mb4) characters, matching the clid column of the schema. */
+	char clid[512];
 	/*! Caller*ID number */
 	char src[AST_MAX_EXTENSION];
 	/*! Destination extension */
