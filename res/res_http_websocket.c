@@ -124,6 +124,8 @@ struct websocket_client {
 	int ping_sched_timer;
 	/*! How many missed pong responses currently */
 	int missed_pong_count;
+	/*! Are we currently running from the scheduler callback? */
+	int in_scheduler_callback;
 };
 
 /*! \brief Structure definition for session */
@@ -413,7 +415,13 @@ static void ping_scheduler_cancel(struct ast_websocket *session)
 	if (!enabled) {
 		SCOPE_EXIT_RTN("%s: Not enabled, cancel not needed\n", WS_SESSION_REMOTE(session));
 	}
-	AST_SCHED_DEL(ping_scheduler, session->client->ping_sched_timer);
+	if (!session->client->in_scheduler_callback) {
+		ast_trace(-1, "%s: Stopping scheduler", WS_SESSION_REMOTE(session));
+		AST_SCHED_DEL(ping_scheduler, session->client->ping_sched_timer);
+	} else {
+		ast_trace(-1, "%s: Called from callback.  Stopping the scheduler will happen elsewhere", WS_SESSION_REMOTE(session));
+	}
+	session->client->ping_sched_timer = -1;
 	ao2_ref(session, -1);
 	SCOPE_EXIT_RTN("%s: Cancelled PING/PONG keepalives\n", WS_SESSION_REMOTE(session));
 }
@@ -504,7 +512,7 @@ static int websocket_close(struct ast_websocket *session, uint16_t reason, int f
 static int websocket_handled_pong_or_close(struct ast_websocket *session, char *payload, uint64_t payload_len,
 	enum ast_websocket_opcode opcode)
 {
-	SCOPE_ENTER(4, "%s: Opcode: %s\n", WS_SESSION_REMOTE(session), websocket_opcode2str(opcode));
+	SCOPE_ENTER(3, "%s: Opcode: %s\n", WS_SESSION_REMOTE(session), websocket_opcode2str(opcode));
 
 	if (opcode == AST_WEBSOCKET_OPCODE_PONG) {
 		/*
@@ -880,8 +888,10 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			SCOPE_EXIT_RTN_VALUE(0, "%s: PING received.  Sent PONG\n", WS_SESSION_REMOTE(session));
 		}
 
-		if (websocket_handled_pong_or_close(session, *payload, *payload_len, *opcode)) {
-			SCOPE_EXIT_RTN_VALUE(0, "%s: Handled PONG or CLOSE\n", WS_SESSION_REMOTE(session));
+		if (*opcode == AST_WEBSOCKET_OPCODE_PONG || *opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
+			if (websocket_handled_pong_or_close(session, *payload, *payload_len, *opcode)) {
+				SCOPE_EXIT_RTN_VALUE(0, "%s: Handled PONG or CLOSE\n", WS_SESSION_REMOTE(session));
+			}
 		}
 
 		/* Below this point we are handling TEXT, BINARY or CONTINUATION opcodes */
@@ -1928,7 +1938,14 @@ struct ast_websocket *AST_OPTIONAL_API_NAME(ast_websocket_client_create)
 
 static int ping_scheduler_callback(const void *obj)
 {
-	struct ast_websocket *session = (struct ast_websocket *)obj;
+	/*
+	 * We need  our own reference to the session because we could call websocket_close
+	 * and we don't want the session pulled out from under us.
+	 */
+	RAII_VAR(struct ast_websocket *, session, ao2_bump((struct ast_websocket *)obj), ao2_cleanup);
+	int res = 0;
+	SCOPE_ENTER(3, "%s: PING.  Current missed PONG count: %d\n",
+		WS_SESSION_REMOTE(session), session->client->missed_pong_count);
 
 	if (!session->client) {
 		/*
@@ -1941,28 +1958,47 @@ static int ping_scheduler_callback(const void *obj)
 	ao2_lock(session);
 	if (session->closing) {
 		ao2_unlock(session);
-		return 0;
+		SCOPE_EXIT_RTN_VALUE(0, "%s: Close already sent. Stopping reschedule\n",
+			WS_SESSION_REMOTE(session));
 	}
-
-	if (session->client->missed_pong_count > 1) {
-		ast_debug(2, "%s: Missed PONG count is now %d\n", WS_SESSION_REMOTE(session),
-			session->client->missed_pong_count);
-	}
+	session->client->in_scheduler_callback = 1;
 
 	if (session->client->missed_pong_count >= session->client->options->pingpong_probes) {
 		ao2_unlock(session);
-		ast_log(LOG_WARNING, "%s: %d missed PONGs. Closing connection.\n",
+		/*
+		 * websocket_close() will call ping_scheduler_cancel() which will
+		 * release the scheduler's reference to session which is why we
+		 * bumped it above. Hoever, ping_scheduler_cancel can't actually
+		 * stop the scheduler in this case because we're in the scheduler's
+		 * thread. The scheduler will stop when we return 0 below.
+		 */
+		ast_trace(-1, "%s: %d PONGs missed. Closing connection\n",
 			WS_SESSION_REMOTE(session), session->client->missed_pong_count);
-		session->client->ping_sched_timer = -1;
 		websocket_close(session, AST_WEBSOCKET_STATUS_GOING_AWAY, 1);
+		session->client->in_scheduler_callback = 0;
+		SCOPE_EXIT_LOG_RTN_VALUE(0, LOG_WARNING, "%s: Stopping reschedule\n",
+			WS_SESSION_REMOTE(session));
+	}
+
+	res = ast_websocket_write(session, AST_WEBSOCKET_OPCODE_PING, WS_PING_PAYLOAD, WS_PING_PAYLOAD_LEN);
+	if (res != 0) {
+		session->client->in_scheduler_callback = 0;
+		ao2_unlock(session);
+		/*
+		 * See comment above.
+		 * ast_websocket_write will have called websocket_close() already
+		 * but the rest of the comment applies.
+		 */
+		SCOPE_EXIT_RTN_VALUE(0, "%s: Unable to send PING. %d PONGs missed.  Stopping reschedule\n",
+			WS_SESSION_REMOTE(session), session->client->missed_pong_count);
 		return 0;
 	}
 
-	ast_websocket_write(session, AST_WEBSOCKET_OPCODE_PING, WS_PING_PAYLOAD, WS_PING_PAYLOAD_LEN);
 	session->client->missed_pong_count++;
-
+	session->client->in_scheduler_callback = 0;
 	ao2_unlock(session);
-	return session->client->options->pingpong_interval * 1000;
+	SCOPE_EXIT_RTN_VALUE(session->client->options->pingpong_interval * 1000, "%s: PING sent\n",
+		WS_SESSION_REMOTE(session));
 }
 
 /*
