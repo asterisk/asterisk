@@ -668,6 +668,27 @@ static struct ast_frame *webchan_read(struct ast_channel *ast)
 	return native_frame;
 }
 
+/*!
+ * \brief Result of queue_frame_from_buffer() when the frame was dropped
+ * because the queue is already at QUEUE_LENGTH_MAX.
+ *
+ * This is not an error; the caller should stop queueing frames from the
+ * current message but otherwise carry on.
+ */
+#define QUEUE_FRAME_DROPPED_FULL 1
+
+/*!
+ * \brief Create a frame from \a buffer and append it to the frame queue.
+ *
+ * The QUEUE_LENGTH_MAX limit is enforced here, per frame, rather than
+ * once per WebSocket message.  A single binary message can carry many
+ * frames' worth of audio, so a per-message check alone lets the queue
+ * grow well past its limit.
+ *
+ * \retval 0 Frame queued.
+ * \retval QUEUE_FRAME_DROPPED_FULL Queue is full; frame dropped.
+ * \retval -1 Failure creating the frame.
+ */
 static int queue_frame_from_buffer(struct websocket_pvt *instance,
 	char *buffer, size_t len)
 {
@@ -681,6 +702,12 @@ static int queue_frame_from_buffer(struct websocket_pvt *instance,
 	{
 		SCOPED_LOCK(frame_queue_lock, &instance->frame_queue, AST_LIST_LOCK,
 			AST_LIST_UNLOCK);
+		if (instance->frame_queue_length >= QUEUE_LENGTH_MAX) {
+			ast_frfree(duped_frame);
+			ast_debug(4, "%s: WebSocket queue is full (%d frames). Dropping %d byte frame.\n",
+				ast_channel_name(instance->channel), instance->frame_queue_length, (int)len);
+			return QUEUE_FRAME_DROPPED_FULL;
+		}
 		AST_LIST_INSERT_TAIL(&instance->frame_queue, duped_frame, frame_list);
 		instance->frame_queue_length++;
 		if (!instance->queue_full && instance->frame_queue_length >= QUEUE_LENGTH_XOFF_LEVEL) {
@@ -835,7 +862,7 @@ static int handle_command(struct websocket_pvt *instance, char *buffer)
 		instance->unbuffered = instance->last_unbuffered;
 		if (instance->leftover_len > 0) {
 			res = queue_frame_from_buffer(instance, instance->leftover_data, instance->leftover_len);
-			if (res != 0) {
+			if (res < 0) {
 				return res;
 			}
 		}
@@ -1022,6 +1049,12 @@ static int process_binary_message(struct websocket_pvt *instance,
 	int res = 0;
 	size_t bytes_left = 0;
 
+	/*
+	 * Fast path: if the queue is already full, don't bother splitting
+	 * the message into frames.  This check alone isn't sufficient since
+	 * one message can hold many frames; queue_frame_from_buffer()
+	 * enforces QUEUE_LENGTH_MAX on every frame it queues.
+	 */
 	{
 		SCOPED_LOCK(frame_queue_lock, &instance->frame_queue, AST_LIST_LOCK,
 			AST_LIST_UNLOCK);
@@ -1037,7 +1070,7 @@ static int process_binary_message(struct websocket_pvt *instance,
 
 	if (instance->unbuffered) {
 		res = queue_frame_from_buffer(instance, payload, payload_len);
-		return res;
+		return res < 0 ? res : 0;
 	}
 
 	if (instance->bulk_media_in_progress && instance->leftover_len > 0) {
@@ -1075,6 +1108,11 @@ static int process_binary_message(struct websocket_pvt *instance,
 		if (res < 0) {
 			return -1;
 		}
+		if (res == QUEUE_FRAME_DROPPED_FULL) {
+			/* Queue filled up. Drop the rest of this message. */
+			instance->leftover_len = 0;
+			return 0;
+		}
 
 		/*
 		 * We stole data from the current payload so decrement payload_len
@@ -1111,6 +1149,17 @@ static int process_binary_message(struct websocket_pvt *instance,
 			instance->optimal_frame_size);
 		if (res < 0) {
 			break;
+		}
+		if (res == QUEUE_FRAME_DROPPED_FULL) {
+			/*
+			 * Queue filled up part way through this message. Drop the
+			 * remainder, including any partial frame, so we don't later
+			 * splice non-contiguous audio together via leftover_data.
+			 */
+			ast_debug(4, "%s: WebSocket queue filled mid-message. Dropping remaining %d bytes.\n",
+				ast_channel_name(instance->channel), (int)bytes_left);
+			instance->leftover_len = 0;
+			return 0;
 		}
 		bytes_read += instance->optimal_frame_size;
 		next_frame_ptr += instance->optimal_frame_size;
