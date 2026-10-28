@@ -903,7 +903,7 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 			strerror(errno));
 		goto error;
 	}
-	if (listen(desc->accept_fd, 10)) {
+	if (listen(desc->accept_fd, SOMAXCONN)) {
 		ast_log(LOG_ERROR, "Unable to listen for %s!\n", desc->name);
 		goto error;
 	}
