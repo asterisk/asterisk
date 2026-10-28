@@ -2419,10 +2419,16 @@ static int external_media_rtp_udp(struct ast_ari_channels_external_media_args *a
 	char *endpoint;
 	struct ast_channel *chan;
 	struct varshead *vars;
+	char payload_type[16] = "";
 
-	if (ast_asprintf(&endpoint, "UnicastRTP/%s/c(%s)",
+	if (args->payload_type) {
+		snprintf(payload_type, sizeof(payload_type), "p(%d)", args->payload_type);
+	}
+
+	if (ast_asprintf(&endpoint, "UnicastRTP/%s/c(%s)%s",
 			args->external_host,
-			args->format) == -1) {
+			args->format,
+			payload_type) == -1) {
 		return 1;
 	}
 
@@ -2677,6 +2683,17 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 			ast_ari_response_error(
 				response, 400, "Bad Request",
 				"Invalid direction specified");
+			return;
+		}
+	}
+
+	if (args->payload_type) {
+		if (strcasecmp(args->encapsulation, "rtp")) {
+			ast_ari_response_error(response, 400, "Bad Request", "payload_type is only valid for the rtp encapsulation");
+			return;
+		}
+		if (args->payload_type < AST_RTP_PT_FIRST_DYNAMIC || args->payload_type >= AST_RTP_MAX_PT) {
+			ast_ari_response_error(response, 400, "Bad Request", "payload_type must be in the dynamic range 96-127");
 			return;
 		}
 	}
