@@ -2137,6 +2137,19 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "payload_type",
+							"description": "RTP payload type to send and receive media with, in the dynamic range 96-127. Only valid for the rtp encapsulation.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 96,
+								"max": 127
+							}
 						}
 					],
 					"errorResponses": [
