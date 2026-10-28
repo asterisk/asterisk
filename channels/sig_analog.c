@@ -2415,6 +2415,37 @@ static void *__analog_ss_thread(void *data)
 		 */
 		p->dialmode = p->permdialmode;
 
+		if (p->subs[ANALOG_SUB_REAL].owner) {
+			/* Check if this is CPE going off hook to download an incoming ADSI script.
+			 * If the CPE went off-hook in response, then program it.
+			 * (It doesn't matter whether immediate=yes or not).
+			 * Note we don't have access to the DAHDI pivot, so we can't check p->adsi
+			 * (that's on the DAHDI pivot, not the analog sig pivot)
+			 */
+			unsigned int ms_since_alert = ast_tvdiff_ms(ast_tvnow(), p->adsionhooktime);
+			memset(&p->adsionhooktime, 0, sizeof(p->adsionhooktime)); /* Reset */
+			/* CPE must go off-hook within 500 ms.
+			 * However, there is a delay between when we queued the FSK spill,
+			 * and it actually gets sent and received. So tack on an extra 2000ms for that. */
+			if (ms_since_alert < 2500) {
+				ast_verb(3, "Automatic ADSI download of %s initiated on %s\n", p->adsionhookscript, ast_channel_name(p->subs[ANALOG_SUB_REAL].owner));
+				ast_setstate(chan, AST_STATE_UP);
+				analog_set_echocanceller(p, 1);
+				/* We just want to execute ADSIProg(p->adsionhookscript), really, but we have to start the PBX,
+				 * so send the channel to the "adsi" extension and set ADSIAUTOSCRIPT so it knows what to do. */
+				ast_channel_exten_set(p->subs[ANALOG_SUB_REAL].owner, "adsi");
+				pbx_builtin_setvar_helper(p->subs[ANALOG_SUB_REAL].owner, "ADSIAUTOSCRIPT", p->adsionhookscript);
+				res = ast_pbx_run(chan);
+				if (res) {
+					ast_log(LOG_WARNING, "PBX exited non-zero\n");
+					res = analog_play_tone(p, idx, ANALOG_TONE_CONGESTION);
+				}
+				goto quit;
+			} else {
+				ast_debug(1, "Elapsed time since ADSI on-hook spill is %u\n", ms_since_alert);
+			}
+		}
+
 		/* Read the first digit */
 		timeout = analog_get_firstdigit_timeout(p);
 		/* If starting a threeway call, never timeout on the first digit so someone
