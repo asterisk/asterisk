@@ -1153,55 +1153,64 @@ static int read_from_ws_and_queue(struct websocket_pvt *instance)
 		return -1;
 	}
 
-	res = ast_websocket_read(instance->websocket, &payload, &payload_len,
-		&opcode, &fragmented);
-
-	if (res) {
-		ast_debug(3, "%s: WebSocket read error\n",
-			ast_channel_name(instance->channel));
-		websocket_request_hangup(instance, AST_CAUSE_NETWORK_OUT_OF_ORDER, AST_WEBSOCKET_STATUS_GOING_AWAY);
-		return -1;
-	}
-	ast_debug(5, "%s: WebSocket read %d bytes\n", ast_channel_name(instance->channel),
-		(int)payload_len);
-
-	if (opcode == AST_WEBSOCKET_OPCODE_TEXT) {
-		return process_text_message(instance, payload, payload_len);
-	}
-
 	/*
-	 * PINGs and PONGs will have been handled by res_http_websocket.
-	 * We also need to ignore CONTINUATION frames as they will be accumulated
-	 * by res_http_websocket until the threshold set in websocket_handoff_to_channel()
-	 * is reached, then it will send us a TEXT or BINARY frame.
+	 * OpenSSL may already have buffered additional frames from the same TLS
+	 * record. Drain available input so those frames do not wait for another
+	 * socket-readiness event.
 	 */
-	if (opcode == AST_WEBSOCKET_OPCODE_PING || opcode == AST_WEBSOCKET_OPCODE_PONG
-		|| opcode == AST_WEBSOCKET_OPCODE_CONTINUATION) {
-		return 0;
-	}
+	do {
+		res = ast_websocket_read(instance->websocket, &payload, &payload_len,
+			&opcode, &fragmented);
 
-	if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
-		ast_debug(3, "%s: WebSocket closed by remote\n",
-			ast_channel_name(instance->channel));
-		websocket_request_hangup(instance, AST_CAUSE_NORMAL, AST_WEBSOCKET_STATUS_GOING_AWAY);
-		return -1;
-	}
-
-	if (opcode == AST_WEBSOCKET_OPCODE_BINARY) {
-		/* If the application's media direction is 'in', drop any media we receive from it */
-		if (instance->media_direction == WEBCHAN_MEDIA_DIRECTION_IN) {
-			ast_debug(5, "%s: WebSocket dropped frame (application media direction is 'in')\n",
+		if (res) {
+			ast_debug(3, "%s: WebSocket read error\n",
 				ast_channel_name(instance->channel));
-			return 0;
+			websocket_request_hangup(instance, AST_CAUSE_NETWORK_OUT_OF_ORDER, AST_WEBSOCKET_STATUS_GOING_AWAY);
+			return -1;
 		}
-	} else {
-		ast_log(LOG_WARNING, "%s: WebSocket frame type %d not supported\n",
-			ast_channel_name(instance->channel), (int)opcode);
-		websocket_request_hangup(instance, AST_CAUSE_FAILURE, AST_WEBSOCKET_STATUS_UNSUPPORTED_DATA);
-		return 0;
-	}
+		ast_debug(5, "%s: WebSocket read %d bytes\n", ast_channel_name(instance->channel),
+			(int)payload_len);
 
-	return process_binary_message(instance, payload, payload_len);
+		if (opcode == AST_WEBSOCKET_OPCODE_TEXT) {
+			res = process_text_message(instance, payload, payload_len);
+		} else {
+			/*
+			 * PINGs and PONGs will have been handled by res_http_websocket.
+			 * We also need to ignore CONTINUATION frames as they will be accumulated
+			 * by res_http_websocket until the threshold set in websocket_handoff_to_channel()
+			 * is reached, then it will send us a TEXT or BINARY frame.
+			 */
+			if (opcode == AST_WEBSOCKET_OPCODE_PING || opcode == AST_WEBSOCKET_OPCODE_PONG
+				|| opcode == AST_WEBSOCKET_OPCODE_CONTINUATION) {
+				res = 0;
+			} else if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
+				ast_debug(3, "%s: WebSocket closed by remote\n",
+					ast_channel_name(instance->channel));
+				websocket_request_hangup(instance, AST_CAUSE_NORMAL, AST_WEBSOCKET_STATUS_GOING_AWAY);
+				return -1;
+			} else if (opcode == AST_WEBSOCKET_OPCODE_BINARY) {
+				/* If the application's media direction is 'in', drop any media we receive from it */
+				if (instance->media_direction == WEBCHAN_MEDIA_DIRECTION_IN) {
+					ast_debug(5, "%s: WebSocket dropped frame (application media direction is 'in')\n",
+						ast_channel_name(instance->channel));
+					res = 0;
+				} else {
+					res = process_binary_message(instance, payload, payload_len);
+				}
+			} else {
+				ast_log(LOG_WARNING, "%s: WebSocket frame type %d not supported\n",
+					ast_channel_name(instance->channel), (int)opcode);
+				websocket_request_hangup(instance, AST_CAUSE_FAILURE, AST_WEBSOCKET_STATUS_UNSUPPORTED_DATA);
+				return 0;
+			}
+		}
+
+		if (res) {
+			return res;
+		}
+	} while (ast_websocket_wait_for_input(instance->websocket, 0) > 0);
+
+	return 0;
 }
 
 static int websocket_handoff_to_channel(struct websocket_pvt *instance)
