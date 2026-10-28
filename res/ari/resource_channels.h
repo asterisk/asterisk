@@ -921,6 +921,8 @@ struct ast_ari_channels_external_media_args {
 	const char *data;
 	/*! Transport-specific data. For websocket this is appended to the dialstring. */
 	const char *transport_data;
+	/*! RTP payload type to send and receive media with, in the dynamic range 96-127. Only valid for the rtp encapsulation. */
+	int payload_type;
 };
 /*!
  * \brief Body parsing function for /channels/externalMedia.
