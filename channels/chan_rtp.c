@@ -41,6 +41,7 @@
 #include "asterisk/app.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/causes.h"
+#include "asterisk/conversions.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/multicast_rtp.h"
 #include "asterisk/dns_core.h"
@@ -253,11 +254,13 @@ enum {
 	OPT_RTP_CODEC =  (1 << 0),
 	OPT_RTP_ENGINE = (1 << 1),
 	OPT_RTP_GLUE = (1 << 2),
+	OPT_RTP_PAYLOAD = (1 << 3),
 };
 
 enum {
 	OPT_ARG_RTP_CODEC,
 	OPT_ARG_RTP_ENGINE,
+	OPT_ARG_RTP_PAYLOAD,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE
 };
@@ -269,6 +272,8 @@ AST_APP_OPTIONS(unicast_rtp_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('e', OPT_RTP_ENGINE, OPT_ARG_RTP_ENGINE),
 	/*! Provide RTP glue for the channel */
 	AST_APP_OPTION('g', OPT_RTP_GLUE),
+	/*! Set the dynamic payload type (96-127) to send and receive with */
+	AST_APP_OPTION_ARG('p', OPT_RTP_PAYLOAD, OPT_ARG_RTP_PAYLOAD),
 END_OPTIONS );
 
 static const struct ast_datastore_info chan_rtp_datastore_info = {
@@ -285,6 +290,7 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 	struct ast_channel *chan;
 	struct ast_format_cap *caps = NULL;
 	struct ast_format *fmt = NULL;
+	int payload = -1;
 	const char *engine_name;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(destination);
@@ -348,6 +354,15 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 		}
 	}
 
+	if (ast_test_flag(&opts, OPT_RTP_PAYLOAD)
+		&& (ast_str_to_int(opt_args[OPT_ARG_RTP_PAYLOAD], &payload)
+			|| payload < AST_RTP_PT_FIRST_DYNAMIC || payload >= AST_RTP_MAX_PT)) {
+		ast_log(LOG_ERROR, "Payload type '%s' for sending RTP to '%s' is not in the dynamic range %d-%d\n",
+			opt_args[OPT_ARG_RTP_PAYLOAD], args.destination,
+			AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT - 1);
+		goto failure;
+	}
+
 	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!caps) {
 		goto failure;
@@ -368,6 +383,18 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 			"Could not create %s RTP instance for sending media to '%s'\n",
 			S_OR(engine_name, "default"), args.destination);
 		goto failure;
+	}
+
+	if (payload >= 0) {
+		struct ast_rtp_codecs *codecs = ast_rtp_instance_get_codecs(instance);
+
+		if (ast_rtp_codecs_payload_replace_format(codecs, payload, fmt)
+			|| ast_rtp_codecs_payload_set_rx(codecs, payload, fmt) < 0) {
+			ast_log(LOG_ERROR, "Could not set payload type %d for sending RTP to '%s'\n",
+				payload, args.destination);
+			ast_rtp_instance_destroy(instance);
+			goto failure;
+		}
 	}
 
 	chan = ast_channel_alloc(1, AST_STATE_DOWN, "", "", "", "", "", assignedids,
