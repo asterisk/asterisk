@@ -1,0 +1,101 @@
+<html><head><title>ChangeLog for asterisk-22.12.0-rc4</title></head><body>
+
+<h2 dir="auto">Change Log for Release asterisk-22.12.0-rc4</h2>
+<h3 dir="auto">Links:</h3>
+<ul dir="auto">
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-22.12.0-rc4.html" rel="nofollow">Full ChangeLog</a></li>
+<li><a href="https://github.com/asterisk/asterisk/compare/22.12.0-rc3...22.12.0-rc4">GitHub Diff</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22.12.0-rc4.tar.gz" rel="nofollow">Tarball</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk" rel="nofollow">Downloads</a></li>
+</ul>
+<h3 dir="auto">Summary:</h3>
+<ul dir="auto">
+<li>Commits: 3</li>
+<li>Commit Authors: 3</li>
+<li>Issues Resolved: 3</li>
+<li>Security Advisories Resolved: 0</li>
+</ul>
+<h3 dir="auto">User Notes:</h3>
+<h3 dir="auto">Upgrade Notes:</h3>
+<h3 dir="auto">Developer Notes:</h3>
+<h3 dir="auto">Commit Authors:</h3>
+<ul dir="auto">
+<li>AbdurahmanZA: (1)</li>
+<li>Joshua C. Colp: (1)</li>
+<li>kaos-kult: (1)</li>
+</ul>
+<h2 dir="auto">Issue and Commit Detail:</h2>
+<h3 dir="auto">Closed Issues:</h3>
+<ul dir="auto">
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5913911383" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2242" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2242/hovercard" href="https://github.com/asterisk/asterisk/issues/2242">#2242</a>: [bug]: pbx_config: each dialplan reload leaks a stasis/p:manager:core subscription when users.conf exists</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="6032283440" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2249" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2249/hovercard" href="https://github.com/asterisk/asterisk/issues/2249">#2249</a>: [bug]: Park slot hints stuck at Unavailable after startup (regression in 22.11.0)</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="6040175536" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2257" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2257/hovercard" href="https://github.com/asterisk/asterisk/issues/2257">#2257</a>: [bug]: Segfault in extension_state_update_sources() when a hint loses its presence part (strcmp on NULL, regression in 22.11.0)</li>
+</ul>
+<h3 dir="auto">Commits By Author:</h3>
+<ul dir="auto">
+<li>
+<p dir="auto"><strong>AbdurahmanZA</strong> (1):</p>
+<ul dir="auto">
+<li>extension_state: Fix crash when a hint loses its presence sources.</li>
+</ul>
+</li>
+<li>
+<p dir="auto"><strong>Joshua C. Colp</strong> (1):</p>
+<ul dir="auto">
+<li>extstate: Handle lack of or late loading of device state.</li>
+</ul>
+</li>
+<li>
+<p dir="auto"><strong>kaos-kult</strong> (1):</p>
+<ul dir="auto">
+<li>pbx_config: Don't leak a stasis subscription on each reload with users.conf</li>
+</ul>
+</li>
+</ul>
+<h3 dir="auto">Commit List:</h3>
+<ul dir="auto">
+<li>extstate: Handle lack of or late loading of device state.</li>
+<li>extension_state: Fix crash when a hint loses its presence sources.</li>
+<li>pbx_config: Don't leak a stasis subscription on each reload with users.conf</li>
+</ul>
+<h3 dir="auto">Commit Details:</h3>
+<p dir="auto"><strong>extstate: Handle lack of or late loading of device state.</strong><br>
+Author: Joshua C. Colp<br>
+Date:   2026-10-26</p>
+<p dir="auto">The extension state implementation is stateful resulting in state<br>
+not being updated if a device state provider does not publish an<br>
+update after loading. To handle providers which don't do this we<br>
+query for updated state if we are asked for it and the existing<br>
+state is invalid. This ensures that if the device state provider<br>
+is loaded later we will get the updated state when asked.</p>
+<p dir="auto">The "core show hints" and "core show hint" CLI commands have also<br>
+been changed so that they will update invalid sources for both<br>
+device and presence before displaying the information.</p>
+<p dir="auto">Fixes: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="6032283440" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2249" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2249/hovercard" href="https://github.com/asterisk/asterisk/issues/2249">#2249</a></p>
+<p dir="auto"><strong>extension_state: Fix crash when a hint loses its presence sources.</strong><br>
+Author: AbdurahmanZA<br>
+Date:   2026-10-26</p>
+<p dir="auto">If an existing hint with a presence part ("devices,presence") was<br>
+updated to a hint without one, extension_state_update_sources()<br>
+passed a NULL presence_state_sources to strcmp() and crashed.</p>
+<p dir="auto">This is triggered by "dialplan add extension ,hint,... replace"<br>
+from the CLI or the AMI Command action, because pbx_config always<br>
+places the presence part in the application data, and by a dialplan<br>
+reload that removes the presence part of a hint.</p>
+<p dir="auto">The presence sources are now compared NULL-safely.</p>
+<p dir="auto">Fixes: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="6040175536" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2257" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2257/hovercard" href="https://github.com/asterisk/asterisk/issues/2257">#2257</a></p>
+<p dir="auto">Co-Authored-By: Claude Opus 5.5 <a href="mailto:noreply@anthropic.com">noreply@anthropic.com</a></p>
+<p dir="auto"><strong>pbx_config: Don't leak a stasis subscription on each reload with users.conf</strong><br>
+Author: kaos-kult<br>
+Date:   2026-10-19</p>
+<p dir="auto">pbx_load_users() runs on every load and reload of pbx_config. When<br>
+users.conf exists it subscribed to the manager topic so it could log<br>
+the users.conf deprecation warning once Asterisk was fully booted.<br>
+FullyBooted is only published at startup, so the subscription made by<br>
+each later reload was never removed: every dialplan reload left a<br>
+stasis/p:manager:core taskprocessor behind, each of which goes on<br>
+receiving every manager message.</p>
+<p dir="auto">Only subscribe while Asterisk is still starting and no subscription<br>
+exists yet. The warning is still logged once, at startup.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5913911383" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2242" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2242/hovercard" href="https://github.com/asterisk/asterisk/issues/2242">#2242</a></p>
+</body></html>
