@@ -40,6 +40,7 @@
 #include "asterisk/callerid.h"
 #include "asterisk/fskmodem.h"
 #include "asterisk/utils.h"
+#include "asterisk/utf8.h"
 #include "asterisk/format_cache.h"
 
 struct callerid_state {
@@ -1272,13 +1273,43 @@ int ast_callerid_callwaiting_full_tz_generate(unsigned char *buf, const char *na
 
 char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown)
 {
+	if (bufsiz <= 0) {
+		return buf;
+	}
 	if (!unknown)
 		unknown = "<unknown>";
 	if (name && num) {
-		char name_buf[128];
+		char name_buf[512];
+		/* Room left for the name after the number, quotes, " <", ">" and NUL */
+		int room = bufsiz - (int) strlen(num) - 6;
 
-		ast_escape_quoted(name, name_buf, sizeof(name_buf));
-		snprintf(buf, bufsiz, "\"%s\" <%s>", name_buf, num);
+		if (room > 0) {
+			size_t len;
+
+			ast_escape_quoted(name, name_buf, sizeof(name_buf));
+			len = strlen(name_buf);
+			if (len > (size_t) room || len == sizeof(name_buf) - 1) {
+				char escaped[512];
+
+				/*
+				 * Preserve the full number when it fits, shortening the name.
+				 * ast_escape_quoted() never splits an escape sequence and
+				 * ast_utf8_copy_string() never splits a UTF-8 character.
+				 */
+				ast_escape_quoted(name, escaped, MIN((int) sizeof(escaped), room + 1));
+				ast_utf8_copy_string(name_buf, escaped, sizeof(name_buf));
+			}
+		}
+
+		if (room > 0 && (!ast_strlen_zero(name_buf) || ast_strlen_zero(name))) {
+			snprintf(buf, bufsiz, "\"%s\" <%s>", name_buf, num);
+		} else if (bufsiz >= (int) strlen(num) + 3) {
+			/* No room for any of the name, keep the number in its brackets */
+			snprintf(buf, bufsiz, "<%s>", num);
+		} else {
+			/* Not even <number> fits, truncate the number as before */
+			ast_copy_string(buf, num, bufsiz);
+		}
 	} else if (name) {
 		ast_copy_string(buf, name, bufsiz);
 	} else if (num) {
