@@ -4204,7 +4204,7 @@ static int odbc_retrieve_message(char *dir, int msgnum)
 	SQLULEN colsize;
 	SQLLEN colsize2;
 	FILE *f = NULL;
-	char rowdata[80];
+	char rowdata[512];
 	char *fn = MAKE_FILE_PTRA(dir, msgnum);
 	char *full_fn = MAKE_FILE_EXT_PTRA(dir, msgnum, "txt");
 	char msgnums[80];
