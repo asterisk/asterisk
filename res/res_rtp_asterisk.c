@@ -8690,7 +8690,16 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	/* If symmetric RTP is enabled see if the remote side is not what we expected and change where we are sending audio */
 	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT)) {
-		if (ast_sockaddr_cmp(&remote_address, &addr)) {
+		struct ast_sockaddr target_address;
+
+		/*
+		 * Only change where we are sending RTP when symmetric RTP is enabled if the remote
+		 * side has explicitly requested we send media to them. After the instance was stopped
+		 * for a remote hold there is no such request, so the remote's own RTP must not start
+		 * us sending to it.
+		 */
+		ast_rtp_instance_get_requested_target_address(instance, &target_address);
+		if (!ast_sockaddr_isnull(&target_address) && ast_sockaddr_cmp(&remote_address, &addr)) {
 			/* do not update the originally given address, but only the remote */
 			ast_rtp_instance_set_incoming_source_address(instance, &addr);
 			ast_sockaddr_copy(&remote_address, &addr);
