@@ -97,11 +97,35 @@ static const char name[] = "mp3";
 
 static int mp3_open(struct ast_filestream *s)
 {
-	struct mp3_private *p = s->_private;
-	InitMP3(&p->mp, OUTSCALE);
-	return 0;
-}
+        struct mp3_private *p = s->_private;
+        unsigned char header[12];
+        long current_pos;
 
+        InitMP3(&p->mp, OUTSCALE);
+
+        current_pos = ftell(s->f);
+        if (current_pos < 0) {
+                ast_log(LOG_WARNING, "Unable to determine MP3 file position\n");
+                return -1;
+        }
+
+        if (fread(header, 1, sizeof(header), s->f) == sizeof(header)) {
+                if (!memcmp(header, "RIFF", 4) &&
+                        !memcmp(header + 8, "WAVE", 4)) {
+                        ast_log(LOG_WARNING,
+                                "File contains WAV data but has an MP3 extension\n");
+                        fseek(s->f, current_pos, SEEK_SET);
+                        return -1;
+                }
+        }
+
+        if (fseek(s->f, current_pos, SEEK_SET)) {
+                ast_log(LOG_WARNING, "Unable to restore MP3 file position\n");
+                return -1;
+        }
+
+        return 0;
+}
 
 static void mp3_close(struct ast_filestream *s)
 {
