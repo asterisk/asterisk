@@ -3174,6 +3174,7 @@ static struct ast_frame *fax_gateway_detect_v21(struct fax_gateway *gateway, str
 				ast_debug(1, "sending T.38 negotiation request to %s\n", ast_channel_name(other));
 				return fp;
 			}
+			ast_frfree(fp);
 		} else {
 			ast_debug(1, "neither %s nor %s support T.38 for T.38 gateway session\n", ast_channel_name(active), ast_channel_name(other));
 		}
@@ -3479,6 +3480,9 @@ static void fax_gateway_framehook_destroy(void *data)
  *
  * \pre chan is locked on entry
  *
+ * \note Read frames replaced by the gateway are released here. Write frames
+ * remain owned by the caller.
+ *
  * \return processed frame or NULL when f is NULL or a null frame
  */
 static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data)
@@ -3656,13 +3660,25 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 	/* handle control frames */
 	if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_T38_PARAMETERS) {
-		return fax_gateway_detect_t38(gateway, chan, peer, active, f);
+		struct ast_frame *result = fax_gateway_detect_t38(gateway, chan, peer, active, f);
+
+		if (event == AST_FRAMEHOOK_EVENT_READ && result != f) {
+			/* On READ hooks, replacing/dropping the frame leaves us owning it, so we must free it here. */
+			ast_frfree(f);
+		}
+		return result;
 	}
 
 	if (!gateway->detected_v21 && gateway->t38_state == T38_STATE_UNAVAILABLE && f->frametype == AST_FRAME_VOICE) {
+		struct ast_frame *result;
+
 		/* not in gateway mode and have not detected v21 yet, listen
 		 * for v21 */
-		return fax_gateway_detect_v21(gateway, chan, peer, active, f);
+		result = fax_gateway_detect_v21(gateway, chan, peer, active, f);
+		if (event == AST_FRAMEHOOK_EVENT_READ && result != f) {
+			ast_frfree(f);
+		}
+		return result;
 	}
 
 	/* in gateway mode, gateway some packets */
@@ -3690,6 +3706,9 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			ast_frfree(f);
 		} else {
 			gateway->s->tech->write(gateway->s, f);
+			if (event == AST_FRAMEHOOK_EVENT_READ) {
+				ast_frfree(f);
+			}
 		}
 
 		f = &ast_null_frame;
@@ -3700,6 +3719,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	if (gateway->t38_state != T38_STATE_UNAVAILABLE && gateway->t38_state != T38_STATE_REJECTED) {
 		if (f->frametype == AST_FRAME_VOICE &&
 			(ast_format_cmp(f->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL)) {
+			struct ast_frame *silence;
 			short silence_buf[f->samples];
 			struct ast_frame silence_frame = {
 				.frametype = AST_FRAME_VOICE,
@@ -3709,8 +3729,15 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 				.datalen = sizeof(silence_buf),
 			};
 			memset(silence_buf, 0, sizeof(silence_buf));
-			return ast_frisolate(&silence_frame);
+			silence = ast_frisolate(&silence_frame);
+			if (event == AST_FRAMEHOOK_EVENT_READ) {
+				ast_frfree(f);
+			}
+			return silence;
 		} else {
+			if (event == AST_FRAMEHOOK_EVENT_READ) {
+				ast_frfree(f);
+			}
 			return &ast_null_frame;
 		}
 	}

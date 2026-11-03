@@ -954,6 +954,8 @@ static struct ast_frame *chan_pjsip_read_stream(struct ast_channel *ast)
 	struct ast_frame *f;
 	int fdno = ast_channel_fdno(ast) - AST_EXTENDED_FDS;
 	struct ast_frame *cur;
+	struct ast_frame *next;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) frames;
 
 	if (fdno >= AST_VECTOR_SIZE(&session->active_media_state->read_callbacks)) {
 		return &ast_null_frame;
@@ -962,9 +964,27 @@ static struct ast_frame *chan_pjsip_read_stream(struct ast_channel *ast)
 	callback_state = AST_VECTOR_GET_ADDR(&session->active_media_state->read_callbacks, fdno);
 	f = callback_state->read_callback(session, callback_state->session);
 
-	if (!f) {
+	if (!f || f == &ast_null_frame) {
 		return f;
 	}
+
+	/* Framehooks and the bridge may use these frames after the channel is unlocked. */
+	AST_LIST_HEAD_INIT_NOLOCK(&frames);
+	for (cur = f; cur; cur = next) {
+		struct ast_frame *dup;
+
+		next = AST_LIST_NEXT(cur, frame_list);
+		AST_LIST_NEXT(cur, frame_list) = NULL;
+		dup = ast_frdup(cur);
+		ast_frfree(cur);
+		if (!dup) {
+			ast_frfree(next);
+			ast_frfree(AST_LIST_FIRST(&frames));
+			return &ast_null_frame;
+		}
+		AST_LIST_INSERT_TAIL(&frames, dup, frame_list);
+	}
+	f = AST_LIST_FIRST(&frames);
 
 	for (cur = f; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 		if (cur->frametype == AST_FRAME_VOICE) {
