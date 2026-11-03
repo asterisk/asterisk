@@ -496,7 +496,7 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_
 	char key[IP6ADDR_COLON_PORT_BUFLEN];
 
 	AST_SIP_MAKE_REMOTE_IPADDR_PORT_STR(transport, key);
-	return ast_sip_transport_monitor_register_replace_key(key, cb, ao2_data, NULL);
+	return ast_sip_transport_monitor_register_replace_key(key, cb, ao2_data, matches);
 }
 
 enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace_key(const char *transport_key,
