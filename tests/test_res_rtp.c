@@ -747,6 +747,50 @@ AST_TEST_DEFINE(mes)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(symmetric_rtp_stopped)
+{
+	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ast_rtp_instance_destroy);
+	RAII_VAR(struct ast_rtp_instance *, instance2, NULL, ast_rtp_instance_destroy);
+	RAII_VAR(struct ast_sched_context *, test_sched, NULL, ast_sched_context_destroy_wrapper);
+	struct ast_sockaddr remote;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "symmetric_rtp_stopped";
+		info->category = "/res/res_rtp/";
+		info->summary = "symmetric RTP does not restart a stopped instance";
+		info->description =
+			"Stops an instance that has symmetric RTP enabled, as a "
+			"remote hold does, then sends it RTP from its old remote "
+			"address. Validates that the instance does not take that "
+			"address back as where to send its own RTP.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	test_sched = ast_sched_context_create();
+
+	if ((test_init_rtp_instances(&instance1, &instance2, test_sched, TEST_TYPE_NONE)) < 0) {
+		ast_log(LOG_ERROR, "Failed to initialize test!\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_rtp_instance_set_prop(instance1, AST_RTP_PROPERTY_NAT, 1);
+	test_write_frames(instance2, 1000, 1);
+	test_read_frames(instance1, 1);
+
+	ast_rtp_instance_stop(instance1);
+	test_write_frames(instance2, 1001, 1);
+	test_read_frames(instance1, 1);
+
+	ast_rtp_instance_get_remote_address(instance1, &remote);
+	ast_test_validate(test, ast_sockaddr_isnull(&remote),
+		"Stopped instance took the sender's address as its remote address");
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(payload_merge_abandoned_offer)
 {
 	struct ast_rtp_codecs offered = AST_RTP_CODECS_NULL_INIT;
@@ -901,6 +945,7 @@ static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(rtp_port_exhaustion);
 	AST_TEST_UNREGISTER(payload_merge_preserves_preferences);
+	AST_TEST_UNREGISTER(symmetric_rtp_stopped);
 	AST_TEST_UNREGISTER(payload_merge_abandoned_offer);
 	AST_TEST_UNREGISTER(mes);
 	AST_TEST_UNREGISTER(nack_no_packet_loss);
@@ -925,6 +970,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(sr_rr_nominal);
 	AST_TEST_REGISTER(fir_nominal);
 	AST_TEST_REGISTER(mes);
+	AST_TEST_REGISTER(symmetric_rtp_stopped);
 	AST_TEST_REGISTER(payload_merge_abandoned_offer);
 	AST_TEST_REGISTER(payload_merge_preserves_preferences);
 	return AST_MODULE_LOAD_SUCCESS;
