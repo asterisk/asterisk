@@ -66,7 +66,7 @@ on:
         default: false
       send_email:
         description: |
-          Send announcement emails?
+          Send announcements?
         required: true
         type: boolean
         default: false
@@ -92,3 +92,5 @@ jobs:
       asteriskteam_email_secret: ${{secrets.ASTERISKTEAM_SES_KEY_SECRET}}
       deploy_ssh_priv_key: ${{secrets.DOWNLOADS_DEPLOY_SSH_PRIV_KEY}}
       deploy_ssh_username: ${{secrets.DOWNLOADS_DEPLOY_SSH_USERNAME}}
+      asterisk_wordpress_auth_user: ${{ secrets.ASTERISK_WORDPRESS_AUTH_USER }}
+      asterisk_wordpress_auth_password: ${{ secrets.ASTERISK_WORDPRESS_AUTH_PASSWORD }}
