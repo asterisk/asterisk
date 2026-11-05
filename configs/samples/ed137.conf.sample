@@ -1,0 +1,64 @@
+;
+; ED-137 radio channel driver configuration (chan_ed137).
+;
+; [general] describes this VCS. Every other section describes one radio.
+; The section name is the radio name used in the dialplan:
+;   Dial(ED137/<radio>)                 listen to the radio, attach a call
+;   ED137Key(<radio>,on|off[,owner])    take or release the PTT
+;
+; Comments are on their own lines. Required options are marked.
+
+[general]
+; Local address and port for the radio SIP sessions.
+bindaddr = 0.0.0.0
+; Local SIP port (required).
+bindport = 5061
+; This VCS as seen by the radios (required).
+vcs_host = 192.0.2.10
+; From URI. It must be in the allowed URI list of the radio (required).
+vcs_uri = sip:VCS@192.0.2.10
+; WG67KEY-IN subscription expiry, in seconds.
+expires = 30
+; Base INVITE retransmission timeout, in seconds.
+invite_timeout = 5
+
+[radio1]
+; Radio address (required).
+ip = 192.0.2.40
+; Radio SIP port.
+sip_port = 5060
+; Radio Own URI (required).
+uri = sip:RADIO1@192.0.2.40
+; Fallback RTP port of the radio. The port from the 200 OK is used when present.
+radio_rtp_port = 5002
+; Our RTP port for this radio (required).
+local_rtp_port = 9346
+; R2S keepalive period in milliseconds. Keep at 200 or less.
+keepalive_ms = 200
+; idle, rxonly or txrx. txrx allows transmission.
+mode = txrx
+; WG67KEY-IN subscription (radio state reporting only): auto, yes or no.
+; auto turns it off after a rejection until the next session drop.
+subscribe = auto
+; ignore or ack: a repeated PTT request from the owner.
+ptt_repeat = ignore
+; accept or reject a NOTIFY with a lower CSeq.
+notify_cseq = accept
+; Do not send received audio to the listeners while our PTT is held (and 0.5 s after).
+rx_mute_on_tx = yes
+; The PTT is released after this many seconds (1..600).
+ptt_max_s = 60
+; PTT-id 1..63, written in TxRx mode. Use a different value for each source that can key the radio.
+ptt_id = 1
+; audio: RX is open while audio arrives. squelch: RX follows the SQU bit of the extension.
+rx_detect = audio
+; R2S: SDP lines, keepalive and liveness check. Required by the radios tested so far.
+r2s = yes
+; WG67-Version header: auto (send it, and on 501 cause 2016 retry without it), yes, or no.
+wg67 = auto
+; No packet from the radio for this long ends the session (r2s only).
+liveness_ms = 3000
+; The PTT is released when the owner's audio stops for this long (1..60).
+tx_idle_s = 2
+; Calls stay up this many seconds when the session drops (0 ends them at once).
+session_grace_s = 0
