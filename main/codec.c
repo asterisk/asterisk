@@ -383,6 +383,7 @@ unsigned int ast_codec_samples_count(struct ast_frame *frame)
 
 	if ((frame->frametype != AST_FRAME_VOICE) &&
 		(frame->frametype != AST_FRAME_VIDEO) &&
+		(frame->frametype != AST_FRAME_TEXT) &&
 		(frame->frametype != AST_FRAME_IMAGE)) {
 		return 0;
 	}
