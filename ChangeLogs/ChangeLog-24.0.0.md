@@ -1,18 +1,18 @@
 
-## Change Log for Release asterisk-24.0.0-rc1
+## Change Log for Release asterisk-24.0.0
 
 ### Links:
 
- - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-24.0.0-rc1.html)  
- - [GitHub Diff](https://github.com/asterisk/asterisk/compare/24.0.0-pre1...24.0.0-rc1)  
- - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-24.0.0-rc1.tar.gz)  
+ - [Full ChangeLog](https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-24.0.0.html)  
+ - [GitHub Diff](https://github.com/asterisk/asterisk/compare/24.0.0-pre1...24.0.0)  
+ - [Tarball](https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-24.0.0.tar.gz)  
  - [Downloads](https://downloads.asterisk.org/pub/telephony/asterisk)  
 
 ### Summary:
 
-- Commits: 37
-- Commit Authors: 20
-- Issues Resolved: 26
+- Commits: 43
+- Commit Authors: 22
+- Issues Resolved: 32
 - Security Advisories Resolved: 0
 
 ### User Notes:
@@ -77,6 +77,10 @@
 
 ### Developer Notes:
 
+- #### Audiohooks: Fix whisper framehook timer leak and masquerade handling
+  ast_channel_fd_add() now returns -1 if it fails to allocate
+  space for the descriptor.
+
 - #### ARI, chan_websocket, res_websocket_client: Handle non-blocking and timeout correctly.
   A new "write_timeout" field has been added to the
   ast_websocket_client_options structure that allows setting the maximum
@@ -94,6 +98,7 @@
 
 ### Commit Authors:
 
+- AbdurahmanZA: (1)
 - Alexandre Fournier: (1)
 - Ben Ford: (1)
 - Fran Vicente: (1)
@@ -102,10 +107,11 @@
 - Jacky W J Li: (1)
 - Jaco Kroon: (1)
 - Jeremy Lainé: (2)
+- Joshua C. Colp: (3)
 - Maksym Tushkov: (1)
 - Mehrdad Seifzadeh: (1)
 - Michal Hajek: (1)
-- Mike Bradeen: (5)
+- Mike Bradeen: (7)
 - Naveen Albert: (4)
 - OMAR.A: (1)
 - Peter Lemenkov: (1)
@@ -138,6 +144,7 @@
   - #2123: [bug]: ChanSpy delays spyee channel destroy / Hangup by the spy wait timeout when the spy path has no reverse media
   - #2131: [improvement]: Add an option to disable the ConfBridge announcer channel
   - #2132: [bug]: Bundled pjproject aconfigure fails on PIE-default toolchains — ambient CFLAGS discarded
+  - #2134: [bug]: Bridging channels which have been spied on with ChanSpy fails
   - #2138: [improvement]: chan_dahdi: Device state is uncachable, preventing device state synchronization
   - #2140: [bug]: Cascading locks when chan websocket is connected to a server that stops reading packets.
   - #2150: [bug]: Asterisk crashes (SIGSEGV) when CHANNEL(channeltype) is evaluated on a dummy channel
@@ -145,8 +152,16 @@
   - #2154: [bug]: app_amd: AMD documentation does not match the implementation
   - #2159: [improvement]: chan_dahdi: Avoid INUSE -> RINGING device state transitions for analog lines
   - #2164: [bug]: func_env: Line mode doesn't work for CR LF (DOS) line endings
+  - #2179: [bug]: No initial NOTIFY for dialog subscriptions when hint references CustomPresence without AstDB entry (regression in 22.11.0)
+  - #2186: [bug]: dialog-info NOTIFY for ringing extension no longer contains <remote> identity (caller ID) since 22.11.0
+  - #2232: [bug]:  Update pjsip_options.c WebSocket contacts results in PJSIP_EUNSUPTRANSPORT
+  - #2249: [bug]: Park slot hints stuck at Unavailable after startup (regression in 22.11.0)
+  - #2257: [bug]: Segfault in extension_state_update_sources() when a hint loses its presence part (strcmp on NULL, regression in 22.11.0)
 
 ### Commits By Author:
+
+- **AbdurahmanZA** (1):
+  - extension_state: Fix crash when a hint loses its presence sources.
 
 - **Alexandre Fournier** (1):
   - func_channel: add NULL checks on channel tech for dummy channels
@@ -179,6 +194,11 @@
   - app_amd: Correct and clarify the AMD documentation.
   - main/file.c: Log the reason a file could not be opened.
 
+- **Joshua C. Colp** (3):
+  - extstate: Handle lack of or late loading of device state.
+  - extstate/pjsip: Handle lack of or late loading of presence state.
+  - extstate: Include causing device channel details in legacy callbacks.
+
 - **Maksym Tushkov** (1):
   - pjsip_wizard.conf.sample: Add IP authentication and TLS examples.
 
@@ -188,7 +208,9 @@
 - **Michal Hajek** (1):
   - res_pjsip_config_wizard: Fix concurrent Named ACL reloads
 
-- **Mike Bradeen** (5):
+- **Mike Bradeen** (7):
+  - res_pjsip: Preserve target hostname for qualified OPTIONS destination
+  - Audiohooks: Fix whisper framehook timer leak and masquerade handling
   - res_pjsip: Qualify all resolved contact targets
   - res_rtp_asterisk: Fix reported packet loss to use current report's difference
   - res_rtp_asterisk: rtt stored before validation
@@ -229,6 +251,12 @@
 
 -  Prepare master for Asterisk 24
 -  Update version for Asterisk 24
+-  extstate: Handle lack of or late loading of device state.
+-  extension_state: Fix crash when a hint loses its presence sources.
+-  res_pjsip: Preserve target hostname for qualified OPTIONS destination
+-  Audiohooks: Fix whisper framehook timer leak and masquerade handling
+-  extstate/pjsip: Handle lack of or late loading of presence state.
+-  extstate: Include causing device channel details in legacy callbacks.
 -  res_geolocation: Fix alembic scripts for MySQL.
 -  res_pjsip: Qualify all resolved contact targets
 -  func_env: Fix line counting in FILE function for DOS (CR LF) endings.
@@ -282,6 +310,116 @@ __Update version for Asterisk 24__
   Date:   2026-08-12
 
 
+
+__extstate: Handle lack of or late loading of device state.__
+  Author: Joshua C. Colp
+  Date:   2026-10-26
+
+  The extension state implementation is stateful resulting in state
+  not being updated if a device state provider does not publish an
+  update after loading. To handle providers which don't do this we
+  query for updated state if we are asked for it and the existing
+  state is invalid. This ensures that if the device state provider
+  is loaded later we will get the updated state when asked.
+
+  The "core show hints" and "core show hint" CLI commands have also
+  been changed so that they will update invalid sources for both
+  device and presence before displaying the information.
+
+  Fixes: #2249
+
+__extension_state: Fix crash when a hint loses its presence sources.__
+  Author: AbdurahmanZA
+  Date:   2026-10-26
+
+  If an existing hint with a presence part ("devices,presence") was
+  updated to a hint without one, extension_state_update_sources()
+  passed a NULL presence_state_sources to strcmp() and crashed.
+
+  This is triggered by "dialplan add extension <exten>,hint,... replace"
+  from the CLI or the AMI Command action, because pbx_config always
+  places the presence part in the application data, and by a dialplan
+  reload that removes the presence part of a hint.
+
+  The presence sources are now compared NULL-safely.
+
+  Fixes: #2257
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+__res_pjsip: Preserve target hostname for qualified OPTIONS destination__
+  Author: Mike Bradeen
+  Date:   2026-10-16
+
+  As Asterisk now does the endpoint resolution manually, we need to also manually
+  copy the hostname from the resolution target as PJProject only does this when
+  resolving the endpoint itself.
+
+  Fixes: #2232
+
+__Audiohooks: Fix whisper framehook timer leak and masquerade handling__
+  Author: Mike Bradeen
+  Date:   2026-09-25
+
+  Resolves several issues with the framehook added to allow whispering without
+  an underlying stream.
+
+  The timer is now owned by the audiohook list rather than the framehook.  It is
+  retired on both channels during a masquerade and recreated when the audiohook(s)
+  are moved.
+
+  If the timer cannot be started, whisper audio is still mixed into the outbound
+  media as it was previously (requiring an underlying stream.)
+
+  An audiohook that cannot be moved to the new channel is now left DONE so that
+  its owner does not wait on it forever.
+
+  Resolves: #2134
+
+  DeveloperNote: ast_channel_fd_add() now returns -1 if it fails to allocate
+  space for the descriptor.
+
+__extstate/pjsip: Handle lack of or late loading of presence state.__
+  Author: Joshua C. Colp
+  Date:   2026-09-25
+
+  The extension state implementation is stateful resulting in state
+  not being updated if a presence state provider does not publish an
+  update after loading. To handle providers which don't do this we
+  query for updated state if we are asked for it and the existing
+  state is invalid. This ensures that if the presence state provider
+  is loaded later we will get the updated state when asked.
+
+  The func_presencestate module is written to publish the persisted
+  custom presence states at load time. This failed for entries with
+  a not_set state as this resulted in querying the presence provider
+  that was not yet registered. The provider is now registered before
+  this ensuring the update can be published.
+
+  This change also fixes an issue in PJSIP where a SUBSCRIBE for a
+  hint that had an invalid presence state configuration would not
+  send an initial NOTIFY. We now treat an invalid presence state as
+  not set instead.
+
+  Fixes: #2179
+
+__extstate: Include causing device channel details in legacy callbacks.__
+  Author: Joshua C. Colp
+  Date:   2026-09-29
+
+  When a legacy extension state callback registers it can optionally
+  do so in a way that it will receive the channel(s) that have caused
+  a device to ring. This is used in PJSIP for the dialog-info+xml
+  support so that phones can display who is calling the monitored
+  extension.
+
+  An issue was introduced in the extension state rewrite where this
+  did not occur for the actual device that caused the extension state
+  update. It was only being done for additional devices that could be
+  involved. This has been fixed so that it is now done for the causing
+  device.
+
+  Fixes: #2186
 
 __res_geolocation: Fix alembic scripts for MySQL.__
   Author: George Joseph
