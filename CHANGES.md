@@ -1,1 +1,1 @@
-ChangeLogs/ChangeLog-20.22.0-rc4.md
+ChangeLogs/ChangeLog-20.22.0.md

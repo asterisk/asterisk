@@ -1,18 +1,18 @@
-<html><head><title>ChangeLog for asterisk-20.22.0-rc1</title></head><body>
+<html><head><title>ChangeLog for asterisk-20.22.0</title></head><body>
 
-<h2 dir="auto">Change Log for Release asterisk-20.22.0-rc1</h2>
+<h2 dir="auto">Change Log for Release asterisk-20.22.0</h2>
 <h3 dir="auto">Links:</h3>
 <ul dir="auto">
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.22.0-rc1.html" rel="nofollow">Full ChangeLog</a></li>
-<li><a href="https://github.com/asterisk/asterisk/compare/20.21.0...20.22.0-rc1">GitHub Diff</a></li>
-<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.22.0-rc1.tar.gz" rel="nofollow">Tarball</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-20.22.0.html" rel="nofollow">Full ChangeLog</a></li>
+<li><a href="https://github.com/asterisk/asterisk/compare/20.21.0...20.22.0">GitHub Diff</a></li>
+<li><a href="https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20.22.0.tar.gz" rel="nofollow">Tarball</a></li>
 <li><a href="https://downloads.asterisk.org/pub/telephony/asterisk" rel="nofollow">Downloads</a></li>
 </ul>
 <h3 dir="auto">Summary:</h3>
 <ul dir="auto">
-<li>Commits: 40</li>
-<li>Commit Authors: 20</li>
-<li>Issues Resolved: 31</li>
+<li>Commits: 46</li>
+<li>Commit Authors: 22</li>
+<li>Issues Resolved: 37</li>
 <li>Security Advisories Resolved: 0</li>
 </ul>
 <h3 dir="auto">User Notes:</h3>
@@ -108,6 +108,11 @@ installations are unaffected. Rows already written at whole-second precision wil
 <h3 dir="auto">Developer Notes:</h3>
 <ul dir="auto">
 <li>
+<h4 dir="auto">Audiohooks: Fix whisper framehook timer leak and masquerade handling</h4>
+<p dir="auto">ast_channel_fd_add() now returns -1 if it fails to allocate<br>
+space for the descriptor.</p>
+</li>
+<li>
 <h4 dir="auto">ARI, chan_websocket, res_websocket_client: Handle non-blocking and timeout correctly.</h4>
 <p dir="auto">A new "write_timeout" field has been added to the<br>
 ast_websocket_client_options structure that allows setting the maximum<br>
@@ -127,6 +132,7 @@ The MARK_MEDIA chan_websocket command can now be used</p>
 </ul>
 <h3 dir="auto">Commit Authors:</h3>
 <ul dir="auto">
+<li>AbdurahmanZA: (1)</li>
 <li>Alexandre Fournier: (1)</li>
 <li>Fran Vicente: (1)</li>
 <li>George Joseph: (5)</li>
@@ -134,10 +140,11 @@ The MARK_MEDIA chan_websocket command can now be used</p>
 <li>Jacky W J Li: (1)</li>
 <li>Jaco Kroon: (1)</li>
 <li>Jeremy Lainé: (2)</li>
+<li>Joshua C. Colp: (3)</li>
 <li>Maksym Tushkov: (2)</li>
 <li>Mehrdad Seifzadeh: (2)</li>
 <li>Michal Hajek: (1)</li>
-<li>Mike Bradeen: (5)</li>
+<li>Mike Bradeen: (7)</li>
 <li>Naveen Albert: (4)</li>
 <li>OMAR.A: (1)</li>
 <li>Peter Lemenkov: (1)</li>
@@ -175,6 +182,7 @@ The MARK_MEDIA chan_websocket command can now be used</p>
 <li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5255812496" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2123" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2123/hovercard" href="https://github.com/asterisk/asterisk/issues/2123">#2123</a>: [bug]: ChanSpy delays spyee channel destroy / Hangup by the spy wait timeout when the spy path has no reverse media</li>
 <li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5309933659" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2131" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2131/hovercard" href="https://github.com/asterisk/asterisk/issues/2131">#2131</a>: [improvement]: Add an option to disable the ConfBridge announcer channel</li>
 <li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5310446851" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2132" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2132/hovercard" href="https://github.com/asterisk/asterisk/issues/2132">#2132</a>: [bug]: Bundled pjproject aconfigure fails on PIE-default toolchains — ambient CFLAGS discarded</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5312945362" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2134" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2134/hovercard" href="https://github.com/asterisk/asterisk/issues/2134">#2134</a>: [bug]: Bridging channels which have been spied on with ChanSpy fails</li>
 <li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5338078083" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2138" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2138/hovercard" href="https://github.com/asterisk/asterisk/issues/2138">#2138</a>: [improvement]: chan_dahdi: Device state is uncachable, preventing device state synchronization</li>
 <li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5338785295" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2140" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2140/hovercard" href="https://github.com/asterisk/asterisk/issues/2140">#2140</a>: [bug]: Cascading locks when chan websocket is connected to a server that stops reading packets.</li>
 <li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5404749506" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2150" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2150/hovercard" href="https://github.com/asterisk/asterisk/issues/2150">#2150</a>: [bug]: Asterisk crashes (SIGSEGV) when CHANNEL(channeltype) is evaluated on a dummy channel</li>
@@ -182,9 +190,20 @@ The MARK_MEDIA chan_websocket command can now be used</p>
 <li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5410435852" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2154" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2154/hovercard" href="https://github.com/asterisk/asterisk/issues/2154">#2154</a>: [bug]: app_amd: AMD documentation does not match the implementation</li>
 <li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5424848309" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2159" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2159/hovercard" href="https://github.com/asterisk/asterisk/issues/2159">#2159</a>: [improvement]: chan_dahdi: Avoid INUSE -&gt; RINGING device state transitions for analog lines</li>
 <li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5449273537" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2164" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2164/hovercard" href="https://github.com/asterisk/asterisk/issues/2164">#2164</a>: [bug]: func_env: Line mode doesn't work for CR LF (DOS) line endings</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5582663148" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2179" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2179/hovercard" href="https://github.com/asterisk/asterisk/issues/2179">#2179</a>: [bug]: No initial NOTIFY for dialog subscriptions when hint references CustomPresence without AstDB entry (regression in 22.11.0)</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5611923243" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2186" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2186/hovercard" href="https://github.com/asterisk/asterisk/issues/2186">#2186</a>: [bug]: dialog-info NOTIFY for ringing extension no longer contains  identity (caller ID) since 22.11.0</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5845217540" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2232" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2232/hovercard" href="https://github.com/asterisk/asterisk/issues/2232">#2232</a>: [bug]:  Update pjsip_options.c WebSocket contacts results in PJSIP_EUNSUPTRANSPORT</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="6032283440" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2249" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2249/hovercard" href="https://github.com/asterisk/asterisk/issues/2249">#2249</a>: [bug]: Park slot hints stuck at Unavailable after startup (regression in 22.11.0)</li>
+<li><a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="6040175536" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2257" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2257/hovercard" href="https://github.com/asterisk/asterisk/issues/2257">#2257</a>: [bug]: Segfault in extension_state_update_sources() when a hint loses its presence part (strcmp on NULL, regression in 22.11.0)</li>
 </ul>
 <h3 dir="auto">Commits By Author:</h3>
 <ul dir="auto">
+<li>
+<p dir="auto"><strong>AbdurahmanZA</strong> (1):</p>
+<ul dir="auto">
+<li>extension_state: Fix crash when a hint loses its presence sources.</li>
+</ul>
+</li>
 <li>
 <p dir="auto"><strong>Alexandre Fournier</strong> (1):</p>
 <ul dir="auto">
@@ -234,6 +253,14 @@ The MARK_MEDIA chan_websocket command can now be used</p>
 </ul>
 </li>
 <li>
+<p dir="auto"><strong>Joshua C. Colp</strong> (3):</p>
+<ul dir="auto">
+<li>extstate: Handle lack of or late loading of device state.</li>
+<li>extstate/pjsip: Handle lack of or late loading of presence state.</li>
+<li>extstate: Include causing device channel details in legacy callbacks.</li>
+</ul>
+</li>
+<li>
 <p dir="auto"><strong>Maksym Tushkov</strong> (2):</p>
 <ul dir="auto">
 <li>pjsip_wizard.conf.sample: Add IP authentication and TLS examples.</li>
@@ -254,8 +281,10 @@ The MARK_MEDIA chan_websocket command can now be used</p>
 </ul>
 </li>
 <li>
-<p dir="auto"><strong>Mike Bradeen</strong> (5):</p>
+<p dir="auto"><strong>Mike Bradeen</strong> (7):</p>
 <ul dir="auto">
+<li>res_pjsip: Preserve target hostname for qualified OPTIONS destination</li>
+<li>Audiohooks: Fix whisper framehook timer leak and masquerade handling</li>
 <li>res_pjsip: Qualify all resolved contact targets</li>
 <li>res_rtp_asterisk: Fix reported packet loss to use current report's difference</li>
 <li>res_rtp_asterisk: rtt stored before validation</li>
@@ -328,6 +357,12 @@ The MARK_MEDIA chan_websocket command can now be used</p>
 </ul>
 <h3 dir="auto">Commit List:</h3>
 <ul dir="auto">
+<li>extstate: Handle lack of or late loading of device state.</li>
+<li>extension_state: Fix crash when a hint loses its presence sources.</li>
+<li>res_pjsip: Preserve target hostname for qualified OPTIONS destination</li>
+<li>Audiohooks: Fix whisper framehook timer leak and masquerade handling</li>
+<li>extstate/pjsip: Handle lack of or late loading of presence state.</li>
+<li>extstate: Include causing device channel details in legacy callbacks.</li>
 <li>res_geolocation: Fix alembic scripts for MySQL.</li>
 <li>res_pjsip: Qualify all resolved contact targets</li>
 <li>func_env: Fix line counting in FILE function for DOS (CR LF) endings.</li>
@@ -370,6 +405,87 @@ The MARK_MEDIA chan_websocket command can now be used</p>
 <li>res_agi.c: Prevent out-of-bounds array access when parsing arguments</li>
 </ul>
 <h3 dir="auto">Commit Details:</h3>
+<p dir="auto"><strong>extstate: Handle lack of or late loading of device state.</strong><br>
+Author: Joshua C. Colp<br>
+Date:   2026-10-26</p>
+<p dir="auto">The extension state implementation is stateful resulting in state<br>
+not being updated if a device state provider does not publish an<br>
+update after loading. To handle providers which don't do this we<br>
+query for updated state if we are asked for it and the existing<br>
+state is invalid. This ensures that if the device state provider<br>
+is loaded later we will get the updated state when asked.</p>
+<p dir="auto">The "core show hints" and "core show hint" CLI commands have also<br>
+been changed so that they will update invalid sources for both<br>
+device and presence before displaying the information.</p>
+<p dir="auto">Fixes: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="6032283440" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2249" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2249/hovercard" href="https://github.com/asterisk/asterisk/issues/2249">#2249</a></p>
+<p dir="auto"><strong>extension_state: Fix crash when a hint loses its presence sources.</strong><br>
+Author: AbdurahmanZA<br>
+Date:   2026-10-26</p>
+<p dir="auto">If an existing hint with a presence part ("devices,presence") was<br>
+updated to a hint without one, extension_state_update_sources()<br>
+passed a NULL presence_state_sources to strcmp() and crashed.</p>
+<p dir="auto">This is triggered by "dialplan add extension ,hint,... replace"<br>
+from the CLI or the AMI Command action, because pbx_config always<br>
+places the presence part in the application data, and by a dialplan<br>
+reload that removes the presence part of a hint.</p>
+<p dir="auto">The presence sources are now compared NULL-safely.</p>
+<p dir="auto">Fixes: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="6040175536" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2257" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2257/hovercard" href="https://github.com/asterisk/asterisk/issues/2257">#2257</a></p>
+<p dir="auto">Co-Authored-By: Claude Opus 5.5 <a href="mailto:noreply@anthropic.com">noreply@anthropic.com</a></p>
+<p dir="auto"><strong>res_pjsip: Preserve target hostname for qualified OPTIONS destination</strong><br>
+Author: Mike Bradeen<br>
+Date:   2026-10-16</p>
+<p dir="auto">As Asterisk now does the endpoint resolution manually, we need to also manually<br>
+copy the hostname from the resolution target as PJProject only does this when<br>
+resolving the endpoint itself.</p>
+<p dir="auto">Fixes: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5845217540" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2232" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2232/hovercard" href="https://github.com/asterisk/asterisk/issues/2232">#2232</a></p>
+<p dir="auto"><strong>Audiohooks: Fix whisper framehook timer leak and masquerade handling</strong><br>
+Author: Mike Bradeen<br>
+Date:   2026-09-25</p>
+<p dir="auto">Resolves several issues with the framehook added to allow whispering without<br>
+an underlying stream.</p>
+<p dir="auto">The timer is now owned by the audiohook list rather than the framehook.  It is<br>
+retired on both channels during a masquerade and recreated when the audiohook(s)<br>
+are moved.</p>
+<p dir="auto">If the timer cannot be started, whisper audio is still mixed into the outbound<br>
+media as it was previously (requiring an underlying stream.)</p>
+<p dir="auto">An audiohook that cannot be moved to the new channel is now left DONE so that<br>
+its owner does not wait on it forever.</p>
+<p dir="auto">Resolves: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5312945362" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2134" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2134/hovercard" href="https://github.com/asterisk/asterisk/issues/2134">#2134</a></p>
+<p dir="auto">DeveloperNote: ast_channel_fd_add() now returns -1 if it fails to allocate<br>
+space for the descriptor.</p>
+<p dir="auto"><strong>extstate/pjsip: Handle lack of or late loading of presence state.</strong><br>
+Author: Joshua C. Colp<br>
+Date:   2026-09-25</p>
+<p dir="auto">The extension state implementation is stateful resulting in state<br>
+not being updated if a presence state provider does not publish an<br>
+update after loading. To handle providers which don't do this we<br>
+query for updated state if we are asked for it and the existing<br>
+state is invalid. This ensures that if the presence state provider<br>
+is loaded later we will get the updated state when asked.</p>
+<p dir="auto">The func_presencestate module is written to publish the persisted<br>
+custom presence states at load time. This failed for entries with<br>
+a not_set state as this resulted in querying the presence provider<br>
+that was not yet registered. The provider is now registered before<br>
+this ensuring the update can be published.</p>
+<p dir="auto">This change also fixes an issue in PJSIP where a SUBSCRIBE for a<br>
+hint that had an invalid presence state configuration would not<br>
+send an initial NOTIFY. We now treat an invalid presence state as<br>
+not set instead.</p>
+<p dir="auto">Fixes: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5582663148" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2179" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2179/hovercard" href="https://github.com/asterisk/asterisk/issues/2179">#2179</a></p>
+<p dir="auto"><strong>extstate: Include causing device channel details in legacy callbacks.</strong><br>
+Author: Joshua C. Colp<br>
+Date:   2026-09-29</p>
+<p dir="auto">When a legacy extension state callback registers it can optionally<br>
+do so in a way that it will receive the channel(s) that have caused<br>
+a device to ring. This is used in PJSIP for the dialog-info+xml<br>
+support so that phones can display who is calling the monitored<br>
+extension.</p>
+<p dir="auto">An issue was introduced in the extension state rewrite where this<br>
+did not occur for the actual device that caused the extension state<br>
+update. It was only being done for additional devices that could be<br>
+involved. This has been fixed so that it is now done for the causing<br>
+device.</p>
+<p dir="auto">Fixes: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5611923243" data-permission-text="Title is private" data-url="https://github.com/asterisk/asterisk/issues/2186" data-hovercard-type="issue" data-hovercard-url="/asterisk/asterisk/issues/2186/hovercard" href="https://github.com/asterisk/asterisk/issues/2186">#2186</a></p>
 <p dir="auto"><strong>res_geolocation: Fix alembic scripts for MySQL.</strong><br>
 Author: George Joseph<br>
 Date:   2026-09-17</p>
