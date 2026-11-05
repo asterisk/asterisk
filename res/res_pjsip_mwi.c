@@ -1293,8 +1293,19 @@ static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, void *dat
 static int unsubscribe(void *obj, void *arg, int flags)
 {
 	struct mwi_subscription *mwi_sub = obj;
+	struct mwi_stasis_subscription *mwi_stasis;
 
-	ao2_callback(mwi_sub->stasis_subs, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe_stasis, NULL);
+	/*
+	 * Unlink the stasis subscriptions one at a time, then unsubscribe each one
+	 * outside of the container lock. ast_mwi_unsubscribe_and_join() waits for
+	 * the final message to be processed by the stasis taskpool, so it must not
+	 * be called while a container lock is held. Unlinking a single object does
+	 * not allocate, so there is no failure path that leaves entries behind.
+	 */
+	while ((mwi_stasis = ao2_callback(mwi_sub->stasis_subs, OBJ_UNLINK, NULL, NULL))) {
+		unsubscribe_stasis(mwi_stasis, NULL, 0);
+		ao2_ref(mwi_stasis, -1);
+	}
 
 	return CMP_MATCH;
 }
@@ -1305,6 +1316,8 @@ static void create_mwi_subscriptions(void)
 	struct ao2_container *solicited_mwi;
 	struct ao2_container *endpoints;
 	struct ast_variable *var;
+	struct ao2_iterator *old_subs;
+	struct mwi_subscription *mwi_sub;
 
 	unsolicited_mwi = ao2_global_obj_ref(mwi_unsolicited);
 	if (!unsolicited_mwi) {
@@ -1330,8 +1343,26 @@ static void create_mwi_subscriptions(void)
 	 * and resubscribing, up-to-date mailbox state will be sent out to the endpoint when the
 	 * new stasis subscription is established
 	 */
+	old_subs = ao2_callback(unsolicited_mwi, OBJ_UNLINK | OBJ_MULTIPLE, NULL, NULL);
+	if (old_subs) {
+		/* Unsubscribe outside of the container lock, see unsubscribe() */
+		for (; (mwi_sub = ao2_iterator_next(old_subs)); ao2_ref(mwi_sub, -1)) {
+			unsubscribe(mwi_sub, NULL, 0);
+		}
+		ao2_iterator_destroy(old_subs);
+	} else {
+		/*
+		 * Nothing was unlinked. The existing subscriptions remain in place and
+		 * the recreate below only adds those that are missing.
+		 */
+		ast_log(LOG_ERROR, "Unable to remove existing unsolicited MWI subscriptions on reload, keeping them\n");
+	}
+
+	/*
+	 * A contact may have been added while the container was unlocked. Any
+	 * subscription created for it is detected and skipped when recreating.
+	 */
 	ao2_lock(unsolicited_mwi);
-	ao2_callback(unsolicited_mwi, OBJ_NOLOCK | OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe, NULL);
 	ao2_callback_data(endpoints, OBJ_NODATA, create_mwi_subscriptions_for_endpoint, unsolicited_mwi, solicited_mwi);
 	ao2_unlock(unsolicited_mwi);
 
@@ -1447,16 +1478,20 @@ static void mwi_contact_deleted(const void *object)
 		return;
 	}
 
-	ao2_lock(unsolicited_mwi);
+	/*
+	 * Unlink under the container lock, but unsubscribe after releasing it.
+	 * ast_mwi_unsubscribe_and_join() waits on the stasis taskpool, and holding
+	 * unsolicited_mwi while waiting can deadlock with PJSIP serializers that
+	 * need it to process MWI SUBSCRIBE requests.
+	 */
 	mwi_subs = ao2_find(unsolicited_mwi, contact->endpoint_name,
-		OBJ_SEARCH_KEY | OBJ_MULTIPLE | OBJ_NOLOCK | OBJ_UNLINK);
+		OBJ_SEARCH_KEY | OBJ_MULTIPLE | OBJ_UNLINK);
 	if (mwi_subs) {
 		for (; (mwi_sub = ao2_iterator_next(mwi_subs)); ao2_cleanup(mwi_sub)) {
 			unsubscribe(mwi_sub, NULL, 0);
 		}
 		ao2_iterator_destroy(mwi_subs);
 	}
-	ao2_unlock(unsolicited_mwi);
 	ao2_ref(unsolicited_mwi, -1);
 }
 
