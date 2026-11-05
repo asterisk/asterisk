@@ -9001,7 +9001,12 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	if (ast_test_flag(&opts, OPT_PREDIAL_CALLEE)
 		&& !ast_strlen_zero(opt_args[OPT_ARG_PREDIAL_CALLEE])) {
 		ast_replace_subargument_delimiter(opt_args[OPT_ARG_PREDIAL_CALLEE]);
-		qe.predial_callee = opt_args[OPT_ARG_PREDIAL_CALLEE];
+		/*
+		 * The Gosub runs on the member's channel. Take a missing context
+		 * and extension from the caller instead, as Dial() does.
+		 */
+		qe.predial_callee = ast_app_expand_sub_args(chan,
+			opt_args[OPT_ARG_PREDIAL_CALLEE]);
 	}
 
 	/* PREDIAL: Run gosub on the caller's channel */
@@ -9208,6 +9213,7 @@ stop:
 		ast_free(qe.withdraw_info);
 		qe.withdraw_info = NULL;
 	}
+	ast_free((char *) qe.predial_callee);
 
 	/* Don't allow return code > 0 */
 	if (res >= 0) {
