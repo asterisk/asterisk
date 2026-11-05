@@ -94,14 +94,117 @@ static const char name[] = "mp3";
 #endif
 #endif
 
+static int mp3_validate(struct ast_filestream *s)
+{
+        struct mpstr validation_mp;
+        unsigned char header[12];
+        char input[MP3_SCACHE];
+        char output[MP3_DCACHE];
+        int decoded = 0;
+        int result = MP3_NEED_MORE;
+        size_t bytes;
+        long current_pos;
+        int valid = 0;
+
+        current_pos = ftell(s->f);
+        if (current_pos < 0) {
+                ast_log(LOG_WARNING,
+                        "Unable to determine MP3 file position\n");
+                return -1;
+        }
+
+        /* Reject WAV data incorrectly stored with an MP3 extension. */
+        if (fread(header, 1, sizeof(header), s->f) == sizeof(header)) {
+                if (!memcmp(header, "RIFF", 4) &&
+                        !memcmp(header + 8, "WAVE", 4)) {
+                        ast_log(LOG_WARNING,
+                                "File contains WAV data but has an MP3 extension\n");
+                        goto done;
+                }
+        }
+
+        if (fseek(s->f, current_pos, SEEK_SET)) {
+                ast_log(LOG_WARNING,
+                        "Unable to restore MP3 file position\n");
+                return -1;
+        }
+
+        if (!InitMP3(&validation_mp, OUTSCALE)) {
+                ast_log(LOG_WARNING,
+                        "Unable to initialize MP3 validation decoder\n");
+                return -1;
+        }
+
+        while ((bytes = fread(input, 1, sizeof(input), s->f)) > 0) {
+                decoded = 0;
+
+                result = decodeMP3(&validation_mp, input, bytes,
+                        output, sizeof(output), &decoded);
+
+                if (result == MP3_ERR) {
+                        break;
+                }
+
+                if (result == MP3_OK && decoded > 0) {
+                        valid = 1;
+                        break;
+                }
+        }
+
+        if (ferror(s->f)) {
+                ast_log(LOG_WARNING,
+                        "Error reading MP3 file during validation: %s\n",
+                        strerror(errno));
+                valid = 0;
+        }
+
+        ExitMP3(&validation_mp);
+
+done:
+        if (fseek(s->f, current_pos, SEEK_SET)) {
+                ast_log(LOG_WARNING,
+                        "Unable to restore MP3 file position\n");
+                return -1;
+        }
+
+        return valid ? 0 : -1;
+}
+
 
 static int mp3_open(struct ast_filestream *s)
 {
-	struct mp3_private *p = s->_private;
-	InitMP3(&p->mp, OUTSCALE);
-	return 0;
-}
+        struct mp3_private *p = s->_private;
 
+        /*
+         * Initialize the playback decoder first. If validation fails,
+         * the stream cleanup callback can safely call mp3_close().
+         */
+        if (!InitMP3(&p->mp, OUTSCALE)) {
+                ast_log(LOG_WARNING,
+                        "Unable to initialize MP3 playback decoder\n");
+                return -1;
+        }
+
+        /*
+         * Validate the MP3 stream by attempting to decode an MPEG
+         * audio frame. If validation fails, the core file helper
+         * can try another compatible format with the same basename.
+         */
+        if (mp3_validate(s)) {
+                ast_log(LOG_WARNING,
+                        "Invalid MP3 stream; unable to decode audio data\n");
+                return -1;
+        }
+
+        p->sbuflen = 0;
+        p->dbuflen = 0;
+        p->dbufoffset = 0;
+        p->buflen = 0;
+        p->offset = 0;
+        p->seek = 0;
+
+        return 0;
+}
 
 static void mp3_close(struct ast_filestream *s)
 {
