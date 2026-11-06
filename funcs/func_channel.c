@@ -101,6 +101,10 @@
 	<function name="CHANNEL" language="en_US">
 		<since>
 			<version>1.2.0</version>
+			<version>20.23.0</version>
+			<version>22.13.0</version>
+			<version>23.7.0</version>
+			<version>24.1.0</version>
 		</since>
 		<synopsis>
 			Gets/sets various pieces of information about the channel.
@@ -131,6 +135,12 @@
 							<enum name="unavailable" />
 							<enum name="unknown" />
 						</enumlist>
+					</enum>
+					<enum name="audiorawreadformat">
+						<para>R/O raw format currently being read, before read translation.</para>
+					</enum>
+					<enum name="audiorawwriteformat">
+						<para>R/O raw format currently being written, after write translation.</para>
 					</enum>
 					<enum name="audioreadformat">
 						<para>R/O format currently being read.</para>
@@ -419,6 +429,10 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 			ast_copy_string(buf, ast_format_cap_get_names(tmpcap, &codec_buf), len);
 			ao2_ref(tmpcap, -1);
 		}
+	} else if (!strcasecmp(data, "audiorawreadformat")) {
+		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_rawreadformat(chan)), len);
+	} else if (!strcasecmp(data, "audiorawwriteformat")) {
+		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_rawwriteformat(chan)), len);
 	} else if (!strcasecmp(data, "audioreadformat")) {
 		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_readformat(chan)), len);
 	} else if (!strcasecmp(data, "audiowriteformat")) {
