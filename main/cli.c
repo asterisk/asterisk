@@ -1816,6 +1816,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"    DNID Digits: %s\n"
 		"       Language: %s\n"
 		"          State: %s (%u)\n"
+		" RawWriteFormat: %s\n"
+		"  RawReadFormat: %s\n"
 		"  NativeFormats: %s\n"
 		"    WriteFormat: %s\n"
 		"     ReadFormat: %s\n"
@@ -1854,6 +1856,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_channel_language(chan),
 		ast_state2str(ast_channel_state(chan)),
 		ast_channel_state(chan),
+		ast_format_get_name(ast_channel_rawwriteformat(chan)),
+		ast_format_get_name(ast_channel_rawreadformat(chan)),
 		ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf),
 		ast_format_get_name(ast_channel_writeformat(chan)),
 		ast_format_get_name(ast_channel_readformat(chan)),
