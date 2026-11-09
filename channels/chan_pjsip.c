@@ -2167,6 +2167,15 @@ static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 				status_line.reason = msg->line.status.reason;
 			}
 		} else {
+			if (event->type == PJSIP_EVENT_TSX_STATE) {
+				ast_log(LOG_WARNING, "Unexpected transfer event %d, type %d on channel %s\n",
+						event->type, event->body.tsx_state.type,
+						ast_channel_name(chan));
+			} else {
+				ast_log(LOG_WARNING, "Unexpected transfer event %d on channel %s\n",
+						event->type,
+						ast_channel_name(chan));
+			}
 			status_line.code = 500;
 			status_line.reason = *pjsip_get_status_text(500);
 		}
@@ -2223,6 +2232,9 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 	char local_info[pj_strlen(&session->inv_session->dlg->local.info_str) + 1];
 	struct pjsip_evsub_user xfer_cb;
 	struct ast_channel *chan = session->channel;
+	char *chan_name;
+
+	chan_name = ast_strdupa(ast_channel_name(chan));
 
 	pj_bzero(&xfer_cb, sizeof(xfer_cb));
 	xfer_cb.on_evsub_state = &xfer_client_on_evsub_state;
@@ -2257,6 +2269,10 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 	}
 
 failure:
+	if (!pjsip_evsub_get_mod_data(sub, chan_pjsip_module.id)) {
+		ast_log(LOG_WARNING, "Transfer failure channel %s, but channel already deleted.\n", chan_name);
+		return;
+	}
 	message = AST_TRANSFER_FAILED;
 	ast_queue_control_data(chan, AST_CONTROL_TRANSFER, &message, sizeof(message));
 	pjsip_evsub_set_mod_data(sub, chan_pjsip_module.id, NULL);
