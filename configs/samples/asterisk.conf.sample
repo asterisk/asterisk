@@ -95,6 +95,15 @@ documentation_language = en_US	; Set the language you want documentation
 				; gosub - Invoke the stdexten using a gosub as
 				;         documented in extensions.conf.sample.
 				; Default gosub.
+;safe_system_spawn = no		; Start the children of System(), TrySystem(),
+				; voicemail mailcmd/externnotify etc. with
+				; posix_spawn() instead of fork(). fork() copies
+				; the page tables of the whole Asterisk process,
+				; which on large systems can delay other threads
+				; (including timing) by tens of milliseconds
+				; per call.
+				; Requires glibc 2.34 or later; otherwise fork()
+				; is used. Default no.
 ;live_dangerously = no		; Enable the execution of 'dangerous' dialplan
 				; functions and configuration file access from
 				; external sources (AMI, etc.) These functions
