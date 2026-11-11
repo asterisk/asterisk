@@ -65,6 +65,17 @@ static char *default_voicemail_extension;
 /*! Pool of serializers to use if not supplied. */
 static struct ast_serializer_pool *mwi_serializer_pool;
 
+/*!
+ * \brief Set, under the write lock, once module unload starts tearing down
+ *
+ * Stasis subscriptions are not joined at runtime, and solicited subscriptions
+ * are not unsubscribed at unload, so mwi_stasis_cb() can still be called
+ * after unload. It holds the read lock while it queues work, so it has either
+ * queued its task before the serializer pool is destroyed or does nothing.
+ */
+AST_RWLOCK_DEFINE_STATIC(mwi_unload_lock);
+static int mwi_unloaded;
+
 static void mwi_subscription_shutdown(struct ast_sip_subscription *sub);
 static void mwi_to_ami(struct ast_sip_subscription *sub, struct ast_str **buf);
 static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
@@ -570,7 +581,33 @@ static void send_mwi_notify(struct mwi_subscription *sub)
 	send_unsolicited_mwi_notify(sub, &counter);
 }
 
+/*!
+ * \internal
+ * \brief Remove a stasis subscription without waiting for its final message
+ *
+ * \note This must not join. It runs on PJSIP serializers (subscription
+ * shutdown, MWI SUBSCRIBE) and on the contact observer, in places with
+ * container locks held. A join waits on the stasis taskpool, and a stasis
+ * executor can itself be waiting on a PJSIP serializer, for example in
+ * subscription_tree_destructor() called from an extension state callback.
+ *
+ * The stasis subscription holds its own reference to the mwi_subscription,
+ * released by serialized_cleanup() when the final message is processed, so
+ * the mwi_subscription stays valid for any message still pending.
+ */
 static int unsubscribe_stasis(void *obj, void *arg, int flags)
+{
+	struct mwi_stasis_subscription *mwi_stasis = obj;
+
+	if (mwi_stasis->mwi_subscriber) {
+		ast_debug(3, "Removing stasis subscription to mailbox %s\n", mwi_stasis->mailbox);
+		mwi_stasis->mwi_subscriber = ast_mwi_unsubscribe(mwi_stasis->mwi_subscriber);
+	}
+	return CMP_MATCH;
+}
+
+/*! \internal \brief Remove a stasis subscription and wait for it, for module unload only */
+static int unsubscribe_stasis_and_join(void *obj, void *arg, int flags)
 {
 	struct mwi_stasis_subscription *mwi_stasis = obj;
 
@@ -1159,17 +1196,25 @@ static void mwi_stasis_cb(void *userdata, struct stasis_subscription *sub,
 {
 	struct mwi_subscription *mwi_sub = userdata;
 
+	ast_rwlock_rdlock(&mwi_unload_lock);
+	if (mwi_unloaded) {
+		/*
+		 * The serializer pool is gone or going. The reference held by the
+		 * stasis subscription is not released, the process is exiting.
+		 */
+		ast_rwlock_unlock(&mwi_unload_lock);
+		return;
+	}
+
 	if (stasis_subscription_final_message(sub, msg)) {
 		if (ast_sip_push_task(ast_serializer_pool_get(mwi_serializer_pool),
 				serialized_cleanup, ao2_bump(mwi_sub))) {
 			ao2_ref(mwi_sub, -1);
 		}
-		return;
-	}
-
-	if (ast_mwi_state_type() == stasis_message_type(msg)) {
+	} else if (ast_mwi_state_type() == stasis_message_type(msg)) {
 		send_notify(mwi_sub, NULL, 0);
 	}
+	ast_rwlock_unlock(&mwi_unload_lock);
 }
 
 /*!
@@ -1295,6 +1340,15 @@ static int unsubscribe(void *obj, void *arg, int flags)
 	struct mwi_subscription *mwi_sub = obj;
 
 	ao2_callback(mwi_sub->stasis_subs, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe_stasis, NULL);
+
+	return CMP_MATCH;
+}
+
+static int unsubscribe_and_join(void *obj, void *arg, int flags)
+{
+	struct mwi_subscription *mwi_sub = obj;
+
+	ao2_callback(mwi_sub->stasis_subs, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe_stasis_and_join, NULL);
 
 	return CMP_MATCH;
 }
@@ -1544,11 +1598,21 @@ static int unload_module(void)
 
 		unsolicited_mwi = ao2_global_obj_replace(mwi_unsolicited, NULL);
 		if (unsolicited_mwi) {
-			ao2_callback(unsolicited_mwi, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe, NULL);
+			ao2_callback(unsolicited_mwi, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe_and_join, NULL);
 			ao2_ref(unsolicited_mwi, -1);
 		}
 
 		ao2_global_obj_release(mwi_solicited);
+
+		/*
+		 * Guard the serializer pool teardown: from here on mwi_stasis_cb() no
+		 * longer queues anything. This is done after the join above so the
+		 * final messages of the subscriptions just removed are still cleaned
+		 * up. Tasks already queued are left to the pool's own shutdown wait.
+		 */
+		ast_rwlock_wrlock(&mwi_unload_lock);
+		mwi_unloaded = 1;
+		ast_rwlock_unlock(&mwi_unload_lock);
 
 		if (ast_serializer_pool_destroy(mwi_serializer_pool)) {
 			ast_log(LOG_WARNING, "Unload incomplete. Try again later\n");
