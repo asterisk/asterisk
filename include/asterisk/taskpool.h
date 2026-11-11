@@ -346,6 +346,12 @@ int __ast_taskpool_serializer_push_wait(struct ast_taskprocessor *serializer, in
  * \retval -1 failure
  *
  * \note May only be invoked from outside of the taskpool
+ *
+ * \note The suspension takes effect immediately, ahead of any tasks already
+ * queued on the serializer. Those tasks are not executed before this function
+ * returns, they stay queued until the serializer is unsuspended. If tasks of
+ * the serializer are being executed when this is called, it waits for that
+ * execution to stop first.
  */
 int ast_taskpool_serializer_suspend(struct ast_taskprocessor *serializer);
 
