@@ -132,6 +132,12 @@
 							<enum name="unknown" />
 						</enumlist>
 					</enum>
+					<enum name="audiorawreadformat">
+						<para>R/O raw format currently being read from channel technology, before read translation.</para>
+					</enum>
+					<enum name="audiorawwriteformat">
+						<para>R/O raw format currently being written to channel technology, after write translation.</para>
+					</enum>
 					<enum name="audioreadformat">
 						<para>R/O format currently being read.</para>
 					</enum>
@@ -419,6 +425,10 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 			ast_copy_string(buf, ast_format_cap_get_names(tmpcap, &codec_buf), len);
 			ao2_ref(tmpcap, -1);
 		}
+	} else if (!strcasecmp(data, "audiorawreadformat")) {
+		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_rawreadformat(chan)), len);
+	} else if (!strcasecmp(data, "audiorawwriteformat")) {
+		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_rawwriteformat(chan)), len);
 	} else if (!strcasecmp(data, "audioreadformat")) {
 		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_readformat(chan)), len);
 	} else if (!strcasecmp(data, "audiowriteformat")) {
