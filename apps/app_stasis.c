@@ -37,6 +37,7 @@
 #include "asterisk/pbx.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_app_impl.h"
+#include "asterisk/strings.h"
 
 /*** DOCUMENTATION
 	<application name="Stasis" language="en_US">
@@ -47,6 +48,14 @@
 		<syntax>
 			<parameter name="app_name" required="true">
 				<para>Name of the application to invoke.</para>
+				<para>If the name ends in <literal>*</literal>, that character
+				selects the active registered application whose name begins
+				with the text before the asterisk and is greatest in string
+				order. <literal>Stasis(my-app-*)</literal> enters
+				<literal>my-app-v002</literal> when both
+				<literal>my-app-v001</literal> and
+				<literal>my-app-v002</literal> are registered. A channel
+				already in an application stays there.</para>
 			</parameter>
 			<parameter name="args">
 				<para>Optional comma-delimited arguments for the
@@ -90,6 +99,8 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	char *parse = NULL;
 	char *connection_id;
 	int ret = -1;
+	int wildcard;
+	RAII_VAR(char *, app_name, NULL, ast_free);
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(app_name);
@@ -105,30 +116,54 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (args.argc < 1) {
+	if (args.argc < 1 || ast_strlen_zero(args.app_name)) {
 		ast_log(LOG_WARNING, "Stasis app_name argument missing\n");
 		goto done;
 	}
 
-	if (stasis_app_is_registered(args.app_name)) {
-		ast_debug(3, "%s: App '%s' is already registered\n",
+	wildcard = ast_ends_with(args.app_name, "*");
+	app_name = stasis_app_resolve_name(args.app_name);
+	if (!app_name) {
+		ast_log(LOG_WARNING,
+			"%s: Stasis app '%s' doesn't exist\n",
 			ast_channel_name(chan), args.app_name);
-		ret = stasis_app_exec(chan, args.app_name, args.argc - 1, args.app_argv);
+		goto done;
+	}
+	if (wildcard) {
+		ast_debug(1, "%s: Stasis app '%s' resolved to '%s'\n",
+			ast_channel_name(chan), args.app_name, app_name);
+	}
+
+	if (stasis_app_is_registered(app_name)) {
+		ast_debug(3, "%s: App '%s' is already registered\n",
+			ast_channel_name(chan), app_name);
+		ret = stasis_app_exec(chan, app_name, args.argc - 1, args.app_argv);
+		goto done;
+	}
+	/*
+	 * A wildcard only enters an application that was active at resolve
+	 * time. Do not fall through to a per-call websocket for the pattern
+	 * or for a version that disappeared.
+	 */
+	if (wildcard) {
+		ast_log(LOG_WARNING,
+			"%s: Stasis app '%s' doesn't exist\n",
+			ast_channel_name(chan), args.app_name);
 		goto done;
 	}
 	ast_debug(3, "%s: App '%s' is NOT already registered\n",
-		ast_channel_name(chan), args.app_name);
+		ast_channel_name(chan), app_name);
 
 	/*
 	 * The app isn't registered so we need to see if we have a
 	 * per-call outbound websocket config we can use.
 	 * connection_id will be freed by ast_ari_close_per_call_websocket().
 	 */
-	connection_id = ast_ari_create_per_call_websocket(args.app_name, chan);
+	connection_id = ast_ari_create_per_call_websocket(app_name, chan);
 	if (ast_strlen_zero(connection_id)) {
 		ast_log(LOG_WARNING,
 			"%s: Stasis app '%s' doesn't exist\n",
-			ast_channel_name(chan), args.app_name);
+			ast_channel_name(chan), app_name);
 		goto done;
 	}
 

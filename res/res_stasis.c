@@ -1784,6 +1784,74 @@ int stasis_app_is_registered(const char *name)
 	return app != NULL;
 }
 
+struct app_name_pick {
+	const char *prefix;
+	size_t prefix_len;
+	char *best;
+	int failed;
+};
+
+static int highest_app_cb(void *obj, void *arg, int flags)
+{
+	struct stasis_app *app = obj;
+	struct app_name_pick *pick = arg;
+	const char *candidate;
+	char *copy;
+
+	if (!app_is_active(app)) {
+		return 0;
+	}
+
+	candidate = stasis_app_name(app);
+	if (strncmp(candidate, pick->prefix, pick->prefix_len) != 0) {
+		return 0;
+	}
+	if (pick->best && strcmp(candidate, pick->best) <= 0) {
+		return 0;
+	}
+
+	copy = ast_strdup(candidate);
+	if (!copy) {
+		pick->failed = 1;
+		return CMP_STOP;
+	}
+
+	ast_free(pick->best);
+	pick->best = copy;
+	return 0;
+}
+
+char *stasis_app_resolve_name(const char *name)
+{
+	size_t len;
+	struct app_name_pick pick;
+
+	if (ast_strlen_zero(name)) {
+		return NULL;
+	}
+
+	len = strlen(name);
+	if (name[len - 1] != '*') {
+		return ast_strdup(name);
+	}
+	if (!apps_registry) {
+		return NULL;
+	}
+
+	pick.prefix = name;
+	pick.prefix_len = len - 1;
+	pick.best = NULL;
+	pick.failed = 0;
+
+	ao2_callback(apps_registry, OBJ_NODATA, highest_app_cb, &pick);
+	if (pick.failed) {
+		ast_free(pick.best);
+		return NULL;
+	}
+
+	return pick.best;
+}
+
 static int append_name(void *obj, void *arg, int flags)
 {
 	struct stasis_app *app = obj;
