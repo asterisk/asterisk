@@ -107,6 +107,7 @@
 #include "asterisk/mixmonitor.h"
 #include "asterisk/bridge_basic.h"
 #include "asterisk/max_forwards.h"
+#include "asterisk/vector.h"
 
 /*!
  * \par Please read before modifying this file.
@@ -2062,6 +2063,8 @@ static void update_realtime_members(struct call_queue *q);
 static struct member *interface_exists(struct call_queue *q, const char *interface);
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused);
 static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl, time_t starttime);
+static int update_queue_local(struct call_queue *q, struct member *member, int callcompletedinsl, time_t starttime);
+static void update_queue_shared_members(struct call_queue *q, struct member *member);
 
 static struct member *find_member_by_queuename_and_interface(const char *queuename, const char *interface);
 /*! \brief sets the QUEUESTATUS channel variable */
@@ -2734,16 +2737,29 @@ static void pending_members_remove(struct member *mem)
  *
  * Lock interface list find sc, iterate through each queues queue_member list for member to
  * update state inside queues
+ *
+ * \note Called with the queue locked.
+ *
+ * \retval 1 if the member just completed a call that must still be propagated to
+ *         the other queues (shared_lastcall). The caller must do so by calling
+ *         update_queue_shared_members() once it has released the queue lock.
+ * \retval 0 otherwise
 */
-static void update_status(struct call_queue *q, struct member *m, const int status)
+static int update_status(struct call_queue *q, struct member *m, const int status)
 {
+	int propagate = 0;
+
 	if (m->status != status) {
 		/* If this member has transitioned to being available then update their queue
 		 * information. If they are currently in a call then the leg to the agent will be
 		 * considered done and the call finished.
+		 *
+		 * Only this queue is updated here since its lock is held. Locking any other
+		 * queue now would invert the lock order and can deadlock.
 		 */
 		if (status == AST_DEVICE_NOT_INUSE) {
-			update_queue(q, m, m->callcompletedinsl, m->starttime);
+			propagate = update_queue_local(q, m, m->callcompletedinsl, m->starttime)
+				&& shared_lastcall;
 		}
 
 		m->status = status;
@@ -2758,6 +2774,8 @@ static void update_status(struct call_queue *q, struct member *m, const int stat
 
 		queue_publish_member_blob(queue_member_status_type(), queue_member_blob_create(q, m));
 	}
+
+	return propagate;
 }
 
 /*!
@@ -2811,6 +2829,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 	int found = 0;			/* Found this member in any queue */
 	int found_member;		/* Found this member in this queue */
 	int avail = 0;			/* Found an available member in this queue */
+	struct member *propagate;	/* Member whose completed call must reach other queues */
 
 	if (ast_device_state_message_type() != stasis_message_type(msg)) {
 		return;
@@ -2828,6 +2847,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 
 		avail = 0;
 		found_member = 0;
+		propagate = NULL;
 		miter = ao2_iterator_init(q->members, 0);
 		for (; (m = ao2_iterator_next(&miter)); ao2_ref(m, -1)) {
 			if (!found_member) {
@@ -2841,7 +2861,9 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 
 				if (!strcasecmp(interface, dev_state->device)) {
 					found_member = 1;
-					update_status(q, m, dev_state->state);
+					if (update_status(q, m, dev_state->state)) {
+						propagate = ao2_bump(m);
+					}
 				}
 			}
 
@@ -2868,6 +2890,13 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 		ao2_iterator_destroy(&miter);
 
 		ao2_unlock(q);
+
+		/* Must be done without the queue lock held to avoid deadlocks. */
+		if (propagate) {
+			update_queue_shared_members(q, propagate);
+			ao2_ref(propagate, -1);
+		}
+
 		queue_t_unref(q, "Done with iterator");
 	}
 	ao2_iterator_destroy(&qiter);
@@ -2973,11 +3002,16 @@ static int extension_state_cb(const char *context, const char *exten, struct ast
 	struct call_queue *q;
 	int state = info->exten_state;
 	int found = 0, device_state = extensionstate2devicestate(state);
+	int i;
+	/* Members whose completed call must reach other queues */
+	AST_VECTOR(, struct member *) propagate;
 
 	/* only interested in extension state updates involving device states */
 	if (info->reason != AST_HINT_UPDATE_DEVICE) {
 		return 0;
 	}
+
+	AST_VECTOR_INIT(&propagate, 0);
 
 	qiter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&qiter, "Iterate through queues"))) {
@@ -2989,15 +3023,30 @@ static int extension_state_cb(const char *context, const char *exten, struct ast
 				(!strcmp(m->state_context, context) || context_included(m->state_context, context))) {
 				/* context could be included in m->state_context. We need to check. */
 				found = 1;
-				update_status(q, m, device_state);
+				if (update_status(q, m, device_state)) {
+					ao2_ref(m, +1);
+					if (AST_VECTOR_APPEND(&propagate, m)) {
+						ast_log(LOG_WARNING, "Unable to share last call of member '%s' from queue '%s' with other queues\n",
+							m->membername, q->name);
+						ao2_ref(m, -1);
+					}
+				}
 			}
 		}
 		ao2_iterator_destroy(&miter);
 
 		ao2_unlock(q);
+
+		/* Must be done without the queue lock held to avoid deadlocks. */
+		for (i = 0; i < AST_VECTOR_SIZE(&propagate); i++) {
+			update_queue_shared_members(q, AST_VECTOR_GET(&propagate, i));
+		}
+		AST_VECTOR_RESET(&propagate, ao2_cleanup);
+
 		queue_t_unref(q, "Done with iterator");
 	}
 	ao2_iterator_destroy(&qiter);
+	AST_VECTOR_FREE(&propagate);
 
 	if (found) {
 		ast_debug(1, "Extension '%s@%s' changed to state '%d' (%s)\n", exten, context, device_state, ast_devstate2str(device_state));
@@ -6159,18 +6208,19 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 }
 
 /*!
- * \brief update the queue status
- * \retval 0 always
-*/
-static int update_queue(struct call_queue *q, struct member *member,
+ * \internal
+ * \brief Account a completed call for a member in its own queue only.
+ *
+ * \note Safe to call with the queue already locked.
+ *
+ * \retval 1 if the call was accounted for
+ * \retval 0 if there was nothing to do (already accounted for or no call)
+ */
+static int update_queue_local(struct call_queue *q, struct member *member,
 	int callcompletedinsl, time_t starttime)
 {
 	int oldtalktime;
 	int newtalktime;
-	struct member *mem;
-	struct call_queue *qtmp;
-	struct ao2_iterator queue_iter;
-	int did_increment_any = 0;
 
 	if (!starttime) {
 		return 0;
@@ -6188,33 +6238,25 @@ static int update_queue(struct call_queue *q, struct member *member,
 		return 0;
 	}
 	member->starttime = 0;
+
+	time(&member->lastcall);
+	member->callcompletedinsl = 0;
+	member->calls++;
+	member->lastqueue = q;
+
+	q->callscompleted++;
+	if (callcompletedinsl) {
+		q->callscompletedinsl++;
+	}
+	if (q->callscompleted == 1) {
+		q->talktime = newtalktime;
+	} else {
+		/* Calculate talktime using the same exponential average as holdtime code */
+		oldtalktime = q->talktime;
+		q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
+	}
 	ao2_unlock(q);
 
-	if (shared_lastcall) {
-		queue_iter = ao2_iterator_init(queues, 0);
-		while ((qtmp = ao2_t_iterator_next(&queue_iter, "Iterate queues"))) {
-			ao2_lock(qtmp);
-			if ((mem = ao2_find(qtmp->members, member, OBJ_POINTER))) {
-				time(&mem->lastcall);
-				mem->calls++;
-				mem->callcompletedinsl = 0;
-				mem->lastqueue = q;
-				did_increment_any = 1;
-				ao2_ref(mem, -1);
-			}
-			ao2_unlock(qtmp);
-			queue_t_unref(qtmp, "queue iteration done");
-		}
-		ao2_iterator_destroy(&queue_iter);
-	} else {
-		ao2_lock(q);
-		time(&member->lastcall);
-		member->callcompletedinsl = 0;
-		member->calls++;
-		member->lastqueue = q;
-		did_increment_any = 1;
-		ao2_unlock(q);
-	}
 	/* Member might never experience any direct status change (local
 	 * channel with forwarding in particular). If that's the case,
 	 * this is the last chance to remove it from pending or subsequent
@@ -6222,20 +6264,59 @@ static int update_queue(struct call_queue *q, struct member *member,
 	 */
 	pending_members_remove(member);
 
-	if (did_increment_any) {
-		ao2_lock(q);
-		q->callscompleted++;
-		if (callcompletedinsl) {
-			q->callscompletedinsl++;
+	return 1;
+}
+
+/*!
+ * \internal
+ * \brief Share a member's completed call with the other queues it belongs to (shared_lastcall).
+ *
+ * \note Must NOT be called with any queue locked. This iterates the queues
+ * container and locks each queue in turn; holding another queue's lock here
+ * inverts the lock order and can deadlock with reload_queues() or with a
+ * concurrent device/extension state callback.
+ *
+ * \param q The queue the call was completed in (already updated by update_queue_local())
+ * \param member The member that completed the call
+ */
+static void update_queue_shared_members(struct call_queue *q, struct member *member)
+{
+	struct member *mem;
+	struct call_queue *qtmp;
+	struct ao2_iterator queue_iter;
+
+	queue_iter = ao2_iterator_init(queues, 0);
+	while ((qtmp = ao2_t_iterator_next(&queue_iter, "Iterate queues"))) {
+		if (qtmp == q) {
+			queue_t_unref(qtmp, "queue iteration done");
+			continue;
 		}
-		if (q->callscompleted == 1) {
-			q->talktime = newtalktime;
-		} else {
-			/* Calculate talktime using the same exponential average as holdtime code */
-			oldtalktime = q->talktime;
-			q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
+		ao2_lock(qtmp);
+		if ((mem = ao2_find(qtmp->members, member, OBJ_POINTER))) {
+			time(&mem->lastcall);
+			mem->calls++;
+			mem->callcompletedinsl = 0;
+			mem->lastqueue = q;
+			ao2_ref(mem, -1);
 		}
-		ao2_unlock(q);
+		ao2_unlock(qtmp);
+		queue_t_unref(qtmp, "queue iteration done");
+	}
+	ao2_iterator_destroy(&queue_iter);
+}
+
+/*!
+ * \brief update the queue status
+ *
+ * \note Must NOT be called with any queue locked when shared_lastcall is enabled.
+ *
+ * \retval 0 always
+*/
+static int update_queue(struct call_queue *q, struct member *member,
+	int callcompletedinsl, time_t starttime)
+{
+	if (update_queue_local(q, member, callcompletedinsl, starttime) && shared_lastcall) {
+		update_queue_shared_members(q, member);
 	}
 
 	return 0;
