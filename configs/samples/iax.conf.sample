@@ -20,17 +20,36 @@
 ;
 
 ;bindport=4569           ; The default port to listen on
+                         ;
                          ; NOTE: bindport must be specified BEFORE bindaddr or
                          ; may be specified on a specific bindaddr if followed by
-                         ; colon and port (e.g. bindaddr=192.168.0.1:4569) or for
-                         ; IPv6 the address needs to be in brackets then colon
-                         ; and port (e.g. bindaddr=[2001:db8::1]:4569).
+                         ; a colon and port (e.g. bindaddr=192.168.0.1:4569). For
+                         ; IPv6, the address must be enclosed in brackets, followed
+                         ; by a colon and port (e.g. bindaddr=[2001:db8::1]:4569).
 
-;bindaddr=192.168.0.1    ; You can specify 'bindaddr' more than once to bind to
-                         ; multiple addresses, but the first will be the
-                         ; default. IPv6 addresses are accepted.
+;bindaddr=0.0.0.0        ; Address to bind to. The default address is 0.0.0.0,
+                         ; which listens for IPv4 connections on all available
+                         ; interfaces.
 
-;
+;bindaddr=::             ; Use :: to listen for both IPv4 and IPv6 connections
+                         ; on all available interfaces.
+                         ;
+                         ; NOTE: with register_dual_stack=yes (see below), this
+                         ; binding will be limited to IPv6 connections.
+
+;bindaddr=192.168.0.1    ; Specify a particular local address to listen on.
+
+                         ; You can specify 'bindaddr' more than once to bind
+                         ; to multiple addresses. The first address specified
+                         ; will be the default.
+                         ;
+                         ; For example, with register_dual_stack=yes, use the
+                         ; following to explicitly listen for both IPv4 and IPv6
+                         ; connections:
+
+;bindaddr=0.0.0.0
+;bindaddr=::
+
 ; Set 'iaxcompat' to yes if you plan to use layered switches or some other
 ; scenario which may cause some delay when doing a lookup in the dialplan. It
 ; incurs a small performance hit to enable it. This option causes Asterisk to
@@ -316,6 +335,19 @@ encryption=yes
 ;
 ;register => sean:secure@[2001:0db8::42]:4570
 ;
+
+;
+; With dual-stack networking, set 'register_dual_stack = yes' if you need to register
+; both IPv4 and IPv6 addresses.  This will result in one registration for every bound
+; IP address to each of the specified 'register =' IAX2 server(s).
+;
+; Accepted values: yes, no
+; Default value:   no
+;
+;register_dual_stack = yes
+;
+
+;
 ; Through the use of the res_stun_monitor module, Asterisk has the ability to detect when the
 ; perceived external network address has changed.  When the stun_monitor is installed and
 ; configured, chan_iax will renew all outbound registrations when the monitor detects any sort
@@ -352,6 +384,12 @@ encryption=yes
 ; See 'qualify' for individual peers to turn on for just a specific peer.
 ;
 autokill=yes
+;
+; When an outbound call has multiple peer addresses, this controls how long
+; to wait for a response from one address before trying the next address.
+; The default value is 200ms.  Set to 0 to disable trying additional addresses.
+;
+;peer_no_response_delay=200
 ;
 ; codecpriority controls the codec negotiation of an inbound IAX2 call.
 ; This option is inherited to all user entities.  It can also be defined

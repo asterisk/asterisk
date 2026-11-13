@@ -54,6 +54,25 @@ struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
 				     struct ast_sockaddr *addr);
 
 /*!
+ * \brief Select a socket suitable for sending to a remote address.
+ *
+ * The selection is based on the address family of \a addr.
+ *
+ * Selection rules:
+ * \li Prefer a same-family wildcard (any) socket.
+ * \li If there is no same-family wildcard (any) socket, return the sole same-family specific socket.
+ * \li Return NULL if no same-family socket exists.
+ * \li Return NULL if multiple same-family specific sockets exist and no same-family wildcard (any) socket exists.
+ *
+ * \param list Socket list to search.
+ * \param addr Remote destination address.
+ *
+ * \retval ast_netsock on unambiguous match.
+ * \retval NULL if no suitable or unambiguous socket is found.
+ */
+struct ast_netsock *ast_netsock_select(struct ast_netsock_list *list, const struct ast_sockaddr *addr);
+
+/*!
  * \deprecated Use ast_seq_qos in netsock2.h which properly handles IPv4 and IPv6
  *             sockets, instead.
  */
