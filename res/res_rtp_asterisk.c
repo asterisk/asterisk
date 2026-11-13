@@ -3763,11 +3763,48 @@ static int stun_address_is_blacklisted(const struct ast_sockaddr *addr)
 	return result;
 }
 
+struct rtp_ice_host_candidate {
+	struct ast_sockaddr address;
+	unsigned int additional_mapping;
+};
+
+/*!
+ * \internal
+ * \brief Collect a unique host address for this component.
+ */
+static void rtp_ice_collect_host_candidate(struct rtp_ice_host_candidate *candidates,
+	unsigned int *count, unsigned int maximum, const struct ast_sockaddr *address,
+	unsigned int additional_mapping)
+{
+	unsigned int i;
+
+	for (i = 0; i < *count; ++i) {
+		if (!ast_sockaddr_cmp_addr(&candidates[i].address, address)) {
+			/* Keep the higher preference when addresses match. */
+			candidates[i].additional_mapping &= additional_mapping;
+			return;
+		}
+	}
+
+	if (*count >= maximum) {
+		return;
+	}
+
+	ast_sockaddr_copy(&candidates[*count].address, address);
+	candidates[*count].additional_mapping = additional_mapping;
+	++*count;
+}
+
 /*! \pre instance is locked */
 static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_sockaddr *addr, int port, int component,
 				      int transport)
 {
 	unsigned int count = 0;
+	struct rtp_ice_host_candidate candidates[PJ_ICE_MAX_CAND];
+	unsigned int maximum;
+	unsigned int preferred_count = 0;
+	unsigned int preferred_index = 0, mapped_index = 0;
+	unsigned int i;
 	struct ifaddrs *ifa, *ia;
 	struct ast_sockaddr tmp;
 	pj_sockaddr pjtmp;
@@ -3776,6 +3813,13 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	struct sockaddr_in stunaddr_copy;
 	int stunaddr_ttl_copy = 0;
 	char *stun_hostname_copy = NULL;
+
+	if (!rtp->ice || !rtp->ice->real_ice) {
+		return;
+	}
+
+	maximum = rtp->ice->real_ice->lcand_cnt > PJ_ICE_MAX_CAND ? 0 :
+		PJ_ICE_MAX_CAND - rtp->ice->real_ice->lcand_cnt;
 
 	if (ast_sockaddr_is_ipv4(addr)) {
 		af_inet_ok = 1;
@@ -3791,10 +3835,8 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 				instance, strerror(errno));
 	} else {
 		ast_debug_ice(2, "(%p) ICE add system candidates\n", instance);
-		/* Iterate through the list of addresses obtained from the system,
-		 * until we've iterated through all of them, or accepted
-		 * PJ_ICE_MAX_CAND candidates */
-		for (ia = ifa; ia && count < PJ_ICE_MAX_CAND; ia = ia->ifa_next) {
+		/* Collect unique host addresses up to the session limit. */
+		for (ia = ifa; ia && count < maximum; ia = ia->ifa_next) {
 			/* Interface is either not UP or doesn't have an address assigned,
 			 * eg, a ppp that just completed LCP but no IPCP yet */
 			if (!ia->ifa_addr || (ia->ifa_flags & IFF_UP) == 0) {
@@ -3846,12 +3888,8 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 					 * a local address to a blacklisted address, but honour it
 					 * anyway. */
 					if (!rtp_address_is_ice_blacklisted(&candidate->advertised)) {
-						ast_sockaddr_to_pj_sockaddr(&candidate->advertised, &pjtmp);
-						pj_sockaddr_set_port(&pjtmp, port);
-						ast_rtp_ice_add_cand(instance, rtp, component, transport,
-								PJ_ICE_CAND_TYPE_HOST, 65535, &pjtmp, &pjtmp, NULL,
-								pj_sockaddr_get_len(&pjtmp));
-						++count;
+						rtp_ice_collect_host_candidate(candidates, &count, maximum,
+							&candidate->advertised, candidate->include_local);
 					}
 
 					if (!candidate->include_local) {
@@ -3864,10 +3902,8 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 			}
 			AST_RWLIST_UNLOCK(&host_candidates);
 
-			/* we had an entry in [ice_host_candidates] that matched, and
-			 * didn't have include_local_address set.  Alternatively, adding
-			 * that match resulted in us going to PJ_ICE_MAX_CAND */
-			if (ast_sockaddr_isnull(&tmp) || count == PJ_ICE_MAX_CAND) {
+			/* Omit the local address for replacement-only mappings. */
+			if (ast_sockaddr_isnull(&tmp)) {
 				continue;
 			}
 
@@ -3875,14 +3911,25 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 				continue;
 			}
 
-			ast_sockaddr_to_pj_sockaddr(&tmp, &pjtmp);
-			pj_sockaddr_set_port(&pjtmp, port);
-			ast_rtp_ice_add_cand(instance, rtp, component, transport,
-					PJ_ICE_CAND_TYPE_HOST, 65535, &pjtmp, &pjtmp, NULL,
-					pj_sockaddr_get_len(&pjtmp));
-			++count;
+			rtp_ice_collect_host_candidate(candidates, &count, maximum, &tmp, 0);
 		}
 		freeifaddrs(ifa);
+	}
+
+	/* Assign unique preferences from 65535 (RFC 8445, section 5.1.2.1).
+	 * Rank additional mappings last. Count first to preserve group order. */
+	for (i = 0; i < count; ++i) {
+		preferred_count += !candidates[i].additional_mapping;
+	}
+	for (i = 0; i < count; ++i) {
+		unsigned int rank = candidates[i].additional_mapping
+			? preferred_count + mapped_index++ : preferred_index++;
+
+		ast_sockaddr_to_pj_sockaddr(&candidates[i].address, &pjtmp);
+		pj_sockaddr_set_port(&pjtmp, port);
+		ast_rtp_ice_add_cand(instance, rtp, component, transport,
+			PJ_ICE_CAND_TYPE_HOST, 65535 - rank, &pjtmp, &pjtmp, NULL,
+			pj_sockaddr_get_len(&pjtmp));
 	}
 
 	/*
@@ -3899,7 +3946,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	if ( (!ast_strlen_zero(stun_hostname_copy) || stunaddr_copy.sin_addr.s_addr)
 		&& !stun_address_is_blacklisted(addr) &&
 		(ast_sockaddr_is_ipv4(addr) || ast_sockaddr_is_any(addr)) &&
-		count < PJ_ICE_MAX_CAND) {
+		count < maximum) {
 		struct sockaddr_in answer;
 		int rsp;
 
