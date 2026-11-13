@@ -5016,6 +5016,13 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		if (cb) {
 			cb(session, e->body.tsx_state.src.rdata);
 		}
+		/* A received 408 or 481 terminates a BYE without a later timer callback. */
+		if (tsx->role == PJSIP_ROLE_UAC
+			&& tsx->method.id == PJSIP_BYE_METHOD
+			&& tsx->state == PJSIP_TSX_STATE_TERMINATED
+			&& session_end_if_disconnected(id, inv)) {
+			SCOPE_EXIT_RTN("Completed BYE\n");
+		}
 		break;
 	case PJSIP_EVENT_TRANSPORT_ERROR:
 	case PJSIP_EVENT_TIMER:
