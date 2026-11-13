@@ -627,6 +627,7 @@ static struct ast_sip_session_supplement caller_id_supplement = {
 	.incoming_response = caller_id_incoming_response,
 	.outgoing_request = caller_id_outgoing_request,
 	.outgoing_response = caller_id_outgoing_response,
+	.flags = { AST_SIP_SUPPLEMENT_RESPONSE_ONCE },
 };
 
 static int load_module(void)

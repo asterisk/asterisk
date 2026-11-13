@@ -58,6 +58,7 @@
 #define SDP_HANDLER_BUCKETS 11
 
 #define MOD_DATA_ON_RESPONSE "on_response"
+#define MOD_DATA_RESPONSE_SEEN "response_seen"
 
 /* Most common case is one audio and one video stream */
 #define DEFAULT_NUM_SESSION_MEDIA 2
@@ -4609,6 +4610,8 @@ static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_d
 	struct ast_sip_session_supplement *supplement;
 	struct pjsip_status_line status = tdata->msg->line.status;
 	pjsip_cseq_hdr *cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL);
+	int seen;
+	int repeat;
 	SCOPE_ENTER(3, "%s: Method is %.*s, Response is %d %.*s\n", ast_sip_session_get_name(session),
 		(int) pj_strlen(&cseq->method.name),
 		pj_strbuf(&cseq->method.name), status.code, (int) pj_strlen(&status.reason),
@@ -4621,9 +4624,25 @@ static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_d
 	}
 
 	ast_sip_message_apply_transport(session->endpoint->transport, tdata);
-
+	/*
+	 * An unchanged retransmission uses the previously encoded buffer.
+	 * A changed response invalidates that buffer and must be processed
+	 * again, even when it reuses the same tdata.
+	 */
+	seen = ast_sip_mod_data_get(tdata->mod_data, session_module.id,
+		MOD_DATA_RESPONSE_SEEN) != NULL;
+	repeat = seen && pjsip_tx_data_is_valid(tdata);
+	if (!seen) {
+		ast_sip_mod_data_set(tdata->pool, tdata->mod_data, session_module.id,
+			MOD_DATA_RESPONSE_SEEN, &session_module);
+	}
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
 		if (supplement->outgoing_response && does_method_match(&cseq->method.name, supplement->method)) {
+			if (repeat && ast_test_flag(&supplement->flags, AST_SIP_SUPPLEMENT_RESPONSE_ONCE)) {
+				ast_debug(3, "%s: Not repeating outgoing_response for %d on retransmission\n",
+					ast_sip_session_get_name(session), status.code);
+				continue;
+			}
 			supplement->outgoing_response(session, tdata);
 		}
 	}
