@@ -1949,6 +1949,44 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Determine the address family of our connection address
+ *
+ * rtp_ipv6=yes uses IPv6 and rtp_ipv6=no IPv4. With rtp_ipv6=follow_offer,
+ * if there is a remote SDP (an offer being answered, or the active one when
+ * re-offering) whose connection address for this stream, or else the session
+ * level one, is IPv4, use IPv4 provided the RTP instance can receive it. The
+ * default RTP socket is bound to the IPv6 wildcard address and is dual stack,
+ * so it can. Otherwise follow_offer uses IPv6 like yes.
+ */
+static int get_media_address_family(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media, const pjmedia_sdp_session *remote, int index)
+{
+	const pjmedia_sdp_conn *conn = NULL;
+	struct ast_sockaddr local;
+
+	if (session->endpoint->media.rtp.ipv6 != AST_SIP_RTP_IPV6_FOLLOW_OFFER) {
+		return session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET();
+	}
+
+	if (remote && index < remote->media_count) {
+		conn = remote->media[index]->conn ? remote->media[index]->conn : remote->conn;
+	}
+	if (!conn || pj_stricmp2(&conn->addr_type, "IP4")
+		|| ast_strlen_zero(ast_sip_get_host_ip_string(pj_AF_INET()))) {
+		return pj_AF_INET6();
+	}
+
+	/* A socket bound to one IPv6 address does not receive IPv4 */
+	ast_rtp_instance_get_local_address(session_media->rtp, &local);
+	if (ast_sockaddr_is_ipv6(&local) && !ast_sockaddr_is_any(&local)) {
+		return pj_AF_INET6();
+	}
+
+	return pj_AF_INET();
+}
+
 /*! \brief Function which creates an outgoing stream */
 static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
 				      struct pjmedia_sdp_session *sdp, const struct pjmedia_sdp_session *remote, struct ast_stream *stream)
@@ -2080,7 +2118,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		if (direct_media_enabled) {
 			hostip = ast_sockaddr_stringify_fmt(&session_media->direct_media_addr, AST_SOCKADDR_STR_ADDR);
 		} else if (ast_strlen_zero(session->endpoint->media.address)) {
-			hostip = ast_sip_get_host_ip_string(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET());
+			hostip = ast_sip_get_host_ip_string(get_media_address_family(session, session_media,
+				remote, ast_stream_get_position(stream)));
 		} else {
 			hostip = session->endpoint->media.address;
 		}

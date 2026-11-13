@@ -723,6 +723,9 @@
                         ; must be provided (default: "")
 ;rewrite_contact=no     ; Allow Contact header to be rewritten with the source
                         ; IP address port (default: "no")
+;rtp_ipv6=no            ; Allow use of IPv6 for RTP traffic. "yes", "no" or
+                        ; "follow_offer", which answers an SDP offer in the
+                        ; address family of the offer (default: "no")
 ;rtp_symmetric=no       ; Enforce that RTP must be symmetric (default: "no")
 ;send_diversion=yes     ; Send the Diversion header conveying the diversion
                         ; information to the called user agent (default: "yes")

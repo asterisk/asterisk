@@ -789,6 +789,25 @@
 						<version>12.0.0</version>
 					</since>
 					<synopsis>Allow use of IPv6 for RTP traffic</synopsis>
+					<description>
+						<enumlist>
+							<enum name="no">
+							<para>Do not use IPv6 for RTP.</para>
+							</enum>
+							<enum name="yes">
+							<para>Use IPv6 for RTP.</para>
+							</enum>
+							<enum name="follow_offer">
+							<para>Like <literal>yes</literal>, but an SDP answer uses the
+							address family of the remote offer, even if the signaling transport
+							is of the other family. A client that registers over IPv6 and
+							offers IPv4 media is answered with an IPv4 address, provided the
+							RTP socket also receives IPv4, as the default socket bound to the
+							IPv6 wildcard address does. SDP offers are the same as with
+							<literal>yes</literal>.</para>
+							</enum>
+						</enumlist>
+					</description>
 				</configOption>
 				<configOption name="rtp_symmetric" default="no">
 					<since>
