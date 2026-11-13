@@ -100,7 +100,9 @@ enum ast_option_flags {
 	/*! Generic PLC */
 	AST_OPT_FLAG_GENERIC_PLC = (1 << 30),
 	/*! Generic PLC onm equal codecs */
-	AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS = (1 << 31),
+	AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS = (1ULL << 31),
+	/*! Start ast_safe_system() children with posix_spawn() instead of fork() */
+	AST_OPT_FLAG_SAFE_SYSTEM_SPAWN = (1ULL << 32),
 	/*!
 	 * ast_options is now an ast_flags64 structure so if you add more
 	 * options, make sure to use (1ULL << <bits>) to ensure that the
@@ -146,6 +148,7 @@ enum ast_option_flags {
 #define ast_opt_generic_plc_on_equal_codecs  ast_test_flag64(&ast_options, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS)
 #define ast_opt_hide_messaging_ami_events  ast_test_flag64(&ast_options, AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS)
 #define ast_opt_sounds_search_custom ast_test_flag64(&ast_options, AST_OPT_FLAG_SOUNDS_SEARCH_CUSTOM)
+#define ast_opt_safe_system_spawn	ast_test_flag64(&ast_options, AST_OPT_FLAG_SAFE_SYSTEM_SPAWN)
 
 /*! Maximum log level defined by PJPROJECT. */
 #define MAX_PJ_LOG_MAX_LEVEL		6

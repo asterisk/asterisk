@@ -127,4 +127,22 @@ int ast_parking_stasis_init(void);
  */
 int ast_endpoint_init(void);
 
+/*!
+ * \brief Start "/bin/sh -c s" for ast_safe_system() with posix_spawn().
+ *
+ * Only when the asterisk.conf option safe_system_spawn is enabled and the
+ * C library supports it (glibc >= 2.34).  On success ast_replace_sigchld()
+ * has been called; the caller waits for the child and then calls
+ * ast_unreplace_sigchld().
+ *
+ * \return pid of the child
+ * \retval -1 not enabled or not possible: use the fork() path
+ */
+pid_t ast_safe_system_spawn(const char *s);
+
+/*!
+ * \brief State of the safe_system_spawn option, for "core show settings".
+ */
+const char *ast_safe_system_spawn_status(void);
+
 #endif /* _ASTERISK__PRIVATE_H */
