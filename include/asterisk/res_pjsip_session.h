@@ -51,6 +51,7 @@ struct pjmedia_sdp_media;
 struct pjmedia_sdp_session;
 struct ast_dsp;
 struct ast_udptl;
+struct ast_rtp_codecs;
 
 /*! \brief T.38 states for a session */
 enum ast_sip_session_t38state {
@@ -127,7 +128,27 @@ struct ast_sip_session_media {
 	char *remote_label;
 	/*! \brief Stream name */
 	char *stream_name;
+	/*! \brief AO2 managed common mappings, set when direct media is requested,
+	 * updated when the peer mappings change, and cleared when direct media ends. */
+	struct ast_rtp_codecs *direct_media_payloads;
 };
+
+/*!
+ * \brief Replace the direct media payload snapshot with mappings common to two RTP instances
+ * \since 24.0.0
+ * \since 23.6.0
+ * \since 22.12.0
+ * \since 20.22.0
+ *
+ * \param session_media Session media to update
+ * \param rtp Direct media peer, or NULL to clear the snapshot
+ *
+ * \retval 1 Snapshot changed
+ * \retval 0 Snapshot did not change
+ * \retval -1 Allocation failure
+ */
+int ast_sip_session_media_set_direct_media_payloads(
+	struct ast_sip_session_media *session_media, struct ast_rtp_instance *rtp);
 
 /*!
  * \brief Structure which contains read callback information
