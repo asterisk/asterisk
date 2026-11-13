@@ -1235,6 +1235,57 @@ int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance,
 void ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
 
 /*!
+ * \brief Set the source address to send RTP and RTCP from
+ *
+ * \param instance The RTP instance to change the address on
+ * \param address The local address to send from, or NULL to let the
+ *        kernel choose (the default)
+ *
+ * When the instance is bound to a wildcard address, outgoing packets
+ * normally leave from whatever address the routing table selects. This
+ * pins the source of outgoing RTP and RTCP to the given local address
+ * (normally the address advertised in SDP), keeping the port the instance
+ * is bound to. It does not change the address the instance receives on,
+ * and does not apply to packets sent through ICE. It is ignored when the
+ * instance is bound to a specific address, which it keeps sending from.
+ * While the kernel rejects the address, packets are sent from the address
+ * it chooses and the address is tried again periodically (see
+ * ast_sendto_from_source()).
+ *
+ * \since 20.23.0
+ * \since 22.13.0
+ * \since 23.7.0
+ * \since 24.1.0
+ */
+void ast_rtp_instance_set_source_address(struct ast_rtp_instance *instance,
+	const struct ast_sockaddr *address);
+
+/*!
+ * \brief Send an RTP or RTCP packet from the source address of an instance
+ *
+ * For RTP engines: sends with ast_sendto_from_source() from the address set by
+ * ast_rtp_instance_set_source_address().
+ *
+ * \param instance The RTP instance
+ * \param sockfd The socket to send on
+ * \param buf The data to send
+ * \param len The length of the data
+ * \param flags Flags as for sendto(2)
+ * \param dest_addr The destination address
+ *
+ * \pre instance is locked
+ *
+ * \return As for sendto(2)
+ *
+ * \since 20.23.0
+ * \since 22.13.0
+ * \since 23.7.0
+ * \since 24.1.0
+ */
+ssize_t ast_rtp_instance_sendto(struct ast_rtp_instance *instance, int sockfd, const void *buf,
+	size_t len, int flags, const struct ast_sockaddr *dest_addr);
+
+/*!
  * \brief Get the address of the local endpoint that we are sending RTP to, comparing its address to another
  *
  * \param instance The instance that we want to get the local address for

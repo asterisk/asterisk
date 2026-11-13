@@ -36,8 +36,11 @@
 #include "asterisk/rtp_engine.h"
 #include "asterisk/data_buffer.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/poll-compat.h"
+#include "asterisk/config.h" /* PARSE_PORT_* */
 #include <assert.h>
 #include <sched.h>
+#include <unistd.h>
 
 enum test_type {
 	TEST_TYPE_NONE = 0,	/* No special setup required */
@@ -709,6 +712,192 @@ AST_TEST_DEFINE(fir_nominal)
 	return AST_TEST_PASS;
 }
 
+/*!
+ * \internal
+ * \brief Bind a UDP socket to \a address and \a port (0 for an ephemeral port)
+ *
+ * \return The socket, or -1 on failure
+ */
+static int test_udp_socket(const char *address, int port, struct ast_sockaddr *bound)
+{
+	struct ast_sockaddr addr;
+	int fd;
+
+	ast_sockaddr_parse(&addr, address, PARSE_PORT_FORBID);
+	ast_sockaddr_set_port(&addr, port);
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		return -1;
+	}
+	if (ast_bind(fd, &addr) || ast_getsockname(fd, bound)) {
+		close(fd);
+		return -1;
+	}
+	return fd;
+}
+
+/*!
+ * \internal
+ * \brief Receive one datagram within a second and check its source
+ *
+ * \param bind The address the RTP instance is bound to, for messages
+ * \param what What is received, for messages
+ * \param expected The source address expected
+ * \param port The source port expected, or 0 for any
+ *
+ * \retval 0 received from the expected source
+ * \retval -1 nothing received, or received from another source
+ */
+static int test_udp_expect(struct ast_test *test, int fd, const char *bind, const char *what,
+	const struct ast_sockaddr *expected, int port)
+{
+	struct pollfd pfd = { .fd = fd, .events = POLLIN };
+	struct ast_sockaddr from;
+	char buf[1500];
+
+	if (ast_poll(&pfd, 1, 1000) != 1 || ast_recvfrom(fd, buf, sizeof(buf), 0, &from) < 0) {
+		ast_test_status_update(test, "Bind %s: no %s received\n", bind, what);
+		return -1;
+	}
+	if (ast_sockaddr_cmp_addr(&from, expected) || (port && ast_sockaddr_port(&from) != port)) {
+		ast_test_status_update(test, "Bind %s: %s from %s, expected %s port %d\n", bind, what,
+			ast_strdupa(ast_sockaddr_stringify(&from)), ast_strdupa(ast_sockaddr_stringify_addr(expected)), port);
+		return -1;
+	}
+	return 0;
+}
+
+/*! \internal \brief Discard everything already queued on \a fd */
+static void test_udp_drain(int fd)
+{
+	struct pollfd pfd = { .fd = fd, .events = POLLIN };
+	struct ast_sockaddr from;
+	char buf[1500];
+
+	while (ast_poll(&pfd, 1, 100) == 1) {
+		ast_recvfrom(fd, buf, sizeof(buf), 0, &from);
+	}
+}
+
+AST_TEST_DEFINE(source_address)
+{
+	/*
+	 * The RTP instance is bound to a wildcard, as res_pjsip_sdp_rtp does, or
+	 * to a specific address, as with bind_rtp_to_media_address, which it
+	 * must keep sending from.
+	 */
+	static const struct {
+		/*! Address the RTP instance is bound to */
+		const char *bind;
+		/*! Source address the receivers must see while the source is set */
+		const char *expected;
+	} binds[] = {
+		{ "0.0.0.0", "127.0.0.2" },
+		{ "::", "127.0.0.2" },
+		{ "127.0.0.1", "127.0.0.1" },
+	};
+	RAII_VAR(struct ast_sched_context *, test_sched, NULL, ast_sched_context_destroy_wrapper);
+	struct ast_sockaddr source, unset, expected, peer, local, bound;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	int i, fd;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "source_address";
+		info->category = "/res/res_rtp/";
+		info->summary = "RTP and RTCP source address unit test";
+		info->description =
+			"Tests that RTP and RTCP from a wildcard-bound instance leave from\n"
+			"the source address set on the instance, from the instance's ports,\n"
+			"and that an instance bound to a specific address keeps sending\n"
+			"from that address.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* 127.0.0.2 is a second local address on Linux */
+	fd = test_udp_socket("127.0.0.2", 0, &bound);
+	if (fd < 0) {
+		ast_test_status_update(test, "127.0.0.2 is not a local address on this host\n");
+		return AST_TEST_NOT_RUN;
+	}
+	close(fd);
+	ast_sockaddr_parse(&source, "127.0.0.2", PARSE_PORT_FORBID);
+	ast_sockaddr_parse(&unset, "127.0.0.1", PARSE_PORT_FORBID);
+
+	test_sched = ast_sched_context_create();
+
+	for (i = 0; i < ARRAY_LEN(binds); i++) {
+		struct ast_rtp_instance *instance;
+		struct ast_sockaddr bind_addr;
+		int rtp_fd = -1, rtcp_fd = -1, tries;
+
+		ast_sockaddr_parse(&bind_addr, binds[i].bind, PARSE_PORT_FORBID);
+		ast_sockaddr_parse(&expected, binds[i].expected, PARSE_PORT_FORBID);
+		if (ast_sockaddr_is_ipv6(&bind_addr) && !ast_check_ipv6()) {
+			ast_test_status_update(test, "Skipping bind %s: IPv6 is not available\n", binds[i].bind);
+			continue;
+		}
+
+		/* Receivers on 127.0.0.1 for RTP (port) and RTCP (port + 1) */
+		for (tries = 0; tries < 20 && rtcp_fd < 0; tries++) {
+			if (rtp_fd >= 0) {
+				close(rtp_fd);
+			}
+			rtp_fd = test_udp_socket("127.0.0.1", 0, &peer);
+			if (rtp_fd >= 0) {
+				rtcp_fd = test_udp_socket("127.0.0.1", ast_sockaddr_port(&peer) + 1, &bound);
+			}
+		}
+		if (rtcp_fd < 0) {
+			ast_test_status_update(test, "Unable to bind RTP/RTCP receivers\n");
+			if (rtp_fd >= 0) {
+				close(rtp_fd);
+			}
+			return AST_TEST_FAIL;
+		}
+
+		instance = ast_rtp_instance_new("asterisk", test_sched, &bind_addr, NULL);
+		if (!instance) {
+			ast_test_status_update(test, "Bind %s: unable to create RTP instance\n", binds[i].bind);
+			close(rtp_fd);
+			close(rtcp_fd);
+			return AST_TEST_FAIL;
+		}
+		ast_rtp_instance_set_prop(instance, AST_RTP_PROPERTY_RTCP, AST_RTP_INSTANCE_RTCP_STANDARD);
+		ast_rtp_instance_set_remote_address(instance, &peer);
+		ast_rtp_instance_activate(instance);
+		ast_rtp_instance_get_local_address(instance, &local);
+		ast_rtp_instance_set_source_address(instance, &source);
+
+		test_write_frames(instance, 1000, 1);
+		if (test_udp_expect(test, rtp_fd, binds[i].bind, "RTP", &expected, ast_sockaddr_port(&local))) {
+			res = AST_TEST_FAIL;
+		}
+
+		ast_rtp_instance_queue_report(instance);
+		test_write_frames(instance, 1001, 1);
+		if (test_udp_expect(test, rtcp_fd, binds[i].bind, "RTCP", &expected, ast_sockaddr_port(&local) + 1)) {
+			res = AST_TEST_FAIL;
+		}
+
+		/* Clearing the source address goes back to the kernel's choice */
+		test_udp_drain(rtp_fd);
+		ast_rtp_instance_set_source_address(instance, NULL);
+		test_write_frames(instance, 1002, 1);
+		if (test_udp_expect(test, rtp_fd, binds[i].bind, "RTP after clearing the source", &unset, 0)) {
+			res = AST_TEST_FAIL;
+		}
+
+		ast_rtp_instance_destroy(instance);
+		close(rtp_fd);
+		close(rtcp_fd);
+	}
+
+	return res;
+}
+
 /*
  * This test should not normally be run.  Its only purpose is to
  * aid in code development.
@@ -955,6 +1144,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(remb_nominal);
 	AST_TEST_UNREGISTER(sr_rr_nominal);
 	AST_TEST_UNREGISTER(fir_nominal);
+	AST_TEST_UNREGISTER(source_address);
 	return 0;
 }
 
@@ -969,6 +1159,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(remb_nominal);
 	AST_TEST_REGISTER(sr_rr_nominal);
 	AST_TEST_REGISTER(fir_nominal);
+	AST_TEST_REGISTER(source_address);
 	AST_TEST_REGISTER(mes);
 	AST_TEST_REGISTER(symmetric_rtp_stopped);
 	AST_TEST_REGISTER(payload_merge_abandoned_offer);

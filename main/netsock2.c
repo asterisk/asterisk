@@ -618,6 +618,157 @@ ssize_t ast_sendto(int sockfd, const void *buf, size_t len, int flags,
 		      (const struct sockaddr *)&dest_addr->ss, dest_addr->len);
 }
 
+#if defined(IP_PKTINFO) || defined(IP_SENDSRCADDR) || defined(IPV6_PKTINFO)
+/*! \internal \brief Make \a msg carry one control message and return its data area */
+static void *add_cmsg(struct msghdr *msg, int level, int type, size_t len)
+{
+	struct cmsghdr *cmsg;
+
+	msg->msg_controllen = CMSG_SPACE(len);
+	cmsg = CMSG_FIRSTHDR(msg);
+	cmsg->cmsg_level = level;
+	cmsg->cmsg_type = type;
+	cmsg->cmsg_len = CMSG_LEN(len);
+	return CMSG_DATA(cmsg);
+}
+#endif
+
+/*!
+ * \internal
+ * \brief Send a datagram from \a src_addr, as described for ast_sendto_from_source()
+ *
+ * \param used Set to 1 if the datagram was sent from \a src_addr
+ * \param rejected Set to the error the kernel gave for the source address if
+ *        it rejected it and the datagram was then sent without it
+ */
+static ssize_t sendto_from(int sockfd, const void *buf, size_t len, int flags,
+	const struct ast_sockaddr *dest_addr, const struct ast_sockaddr *src_addr, int *used, int *rejected)
+{
+#if defined(IP_PKTINFO) || defined(IP_SENDSRCADDR) || defined(IPV6_PKTINFO)
+	/* Room for any of the options below (in_pktinfo, in_addr, in6_pktinfo) */
+	union {
+		char buf[CMSG_SPACE(32)];
+		struct cmsghdr align;
+	} control;
+	struct iovec iov = { .iov_base = (void *) buf, .iov_len = len };
+	struct msghdr msg = {
+		.msg_name = (void *) &dest_addr->ss,
+		.msg_namelen = dest_addr->len,
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = control.buf,
+	};
+	ssize_t res;
+
+	memset(&control, 0, sizeof(control));
+
+	/*
+	 * The source must be of the destination's family. A dual-stack socket
+	 * sends to IPv4 peers (plain or v4-mapped) through the IPv4 stack, which
+	 * takes the IPv4 option.
+	 */
+	if (ast_sockaddr_is_ipv4(dest_addr) || ast_sockaddr_is_ipv4_mapped(dest_addr)) {
+#if defined(IP_PKTINFO) || defined(IP_SENDSRCADDR)
+		struct ast_sockaddr mapped;
+		const struct ast_sockaddr *src4 = ast_sockaddr_is_ipv4(src_addr) ? src_addr
+			: ast_sockaddr_ipv4_mapped(src_addr, &mapped) ? &mapped : NULL;
+
+		if (src4) {
+			struct in_addr addr = ((const struct sockaddr_in *) &src4->ss)->sin_addr;
+#if defined(IP_PKTINFO)
+			struct in_pktinfo pktinfo = { .ipi_spec_dst = addr };
+
+			memcpy(add_cmsg(&msg, IPPROTO_IP, IP_PKTINFO, sizeof(pktinfo)), &pktinfo, sizeof(pktinfo));
+#else
+			memcpy(add_cmsg(&msg, IPPROTO_IP, IP_SENDSRCADDR, sizeof(addr)), &addr, sizeof(addr));
+#endif
+		}
+#endif
+	} else {
+#if defined(IPV6_PKTINFO)
+		if (ast_sockaddr_is_ipv6(src_addr) && !ast_sockaddr_is_ipv4_mapped(src_addr)) {
+			struct in6_pktinfo pktinfo = {
+				.ipi6_addr = ((const struct sockaddr_in6 *) &src_addr->ss)->sin6_addr,
+			};
+
+			memcpy(add_cmsg(&msg, IPPROTO_IPV6, IPV6_PKTINFO, sizeof(pktinfo)), &pktinfo, sizeof(pktinfo));
+		}
+#endif
+	}
+
+	/* No option for this source and destination on this platform */
+	if (!msg.msg_controllen) {
+		return ast_sendto(sockfd, buf, len, flags, dest_addr);
+	}
+
+	res = sendmsg(sockfd, &msg, flags);
+	if (res < 0 && (errno == EADDRNOTAVAIL || errno == EINVAL || errno == ENETUNREACH)) {
+		/* The source address may have been rejected (no longer local, for instance) */
+		int error = errno;
+
+		res = ast_sendto(sockfd, buf, len, flags, dest_addr);
+		if (res >= 0) {
+			*rejected = error;
+		}
+	} else if (res >= 0) {
+		*used = 1;
+	}
+	return res;
+#else
+	return ast_sendto(sockfd, buf, len, flags, dest_addr);
+#endif
+}
+
+/*! \brief Seconds before a rejected source address is tried again */
+#define SENDTO_SOURCE_RETRY 1
+
+void ast_sendto_source_set(struct ast_sendto_source *source, const struct ast_sockaddr *address)
+{
+	/* A wildcard address leaves the choice to the kernel, as no address does */
+	if (address && !ast_sockaddr_isnull(address) && !ast_sockaddr_is_any(address)) {
+		if (!ast_sockaddr_isnull(&source->address) && !ast_sockaddr_cmp_addr(&source->address, address)) {
+			/* Unchanged, so a rejected address stays suspended */
+			return;
+		}
+		ast_sockaddr_copy(&source->address, address);
+	} else {
+		ast_sockaddr_setnull(&source->address);
+	}
+	source->retry = ast_tv(0, 0);
+}
+
+ssize_t ast_sendto_from_source(int sockfd, const void *buf, size_t len, int flags,
+	const struct ast_sockaddr *dest_addr, struct ast_sendto_source *source)
+{
+	int used = 0, rejected = 0;
+	ssize_t res;
+
+	if (!source || ast_sockaddr_isnull(&source->address)) {
+		return ast_sendto(sockfd, buf, len, flags, dest_addr);
+	}
+	if (!ast_tvzero(source->retry)) {
+		int64_t wait = ast_tvdiff_ms(source->retry, ast_tvnow());
+
+		/* A wait longer than the retry interval means the clock was set back */
+		if (wait > 0 && wait <= SENDTO_SOURCE_RETRY * 1000) {
+			return ast_sendto(sockfd, buf, len, flags, dest_addr);
+		}
+	}
+
+	res = sendto_from(sockfd, buf, len, flags, dest_addr, &source->address, &used, &rejected);
+	if (rejected) {
+		if (ast_tvzero(source->retry)) {
+			ast_log(LOG_WARNING, "Unable to send from %s (%s), sending from the address the system selects until it can be used\n",
+				ast_sockaddr_stringify_addr(&source->address), strerror(rejected));
+		}
+		source->retry = ast_tvadd(ast_tvnow(), ast_tv(SENDTO_SOURCE_RETRY, 0));
+	} else if (used && !ast_tvzero(source->retry)) {
+		ast_log(LOG_NOTICE, "Sending from %s again\n", ast_sockaddr_stringify_addr(&source->address));
+		source->retry = ast_tv(0, 0);
+	}
+	return res;
+}
+
 int ast_set_qos(int sockfd, int tos, int cos, const char *desc)
 {
 	int res = 0;
