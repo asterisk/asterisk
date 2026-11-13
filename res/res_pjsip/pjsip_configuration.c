@@ -217,6 +217,33 @@ static int prack_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static int rtp_ipv6_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	/* Any other value is no, as when this option was a plain boolean */
+	if (!strcasecmp(var->value, "follow_offer")) {
+		endpoint->media.rtp.ipv6 = AST_SIP_RTP_IPV6_FOLLOW_OFFER;
+	} else {
+		endpoint->media.rtp.ipv6 = ast_true(var->value) ? AST_SIP_RTP_IPV6_YES : AST_SIP_RTP_IPV6_NO;
+	}
+
+	return 0;
+}
+
+static int rtp_ipv6_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+
+	if (endpoint->media.rtp.ipv6 == AST_SIP_RTP_IPV6_FOLLOW_OFFER) {
+		*buf = ast_strdup("follow_offer");
+	} else {
+		*buf = ast_strdup(endpoint->media.rtp.ipv6 ? "true" : "false");
+	}
+
+	return 0;
+}
+
 static int timers_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
@@ -2280,7 +2307,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register_alias(sip_sorcery, "endpoint", "disallow", "", OPT_CODEC_T, 0, FLDSET(struct ast_sip_endpoint, media.codecs));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow", "", OPT_CODEC_T, 1, FLDSET(struct ast_sip_endpoint, media.codecs));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtmf_mode", "rfc4733", dtmf_handler, dtmf_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_ipv6", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.ipv6));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "rtp_ipv6", "no", rtp_ipv6_handler, rtp_ipv6_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_symmetric", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.symmetric));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ice_support", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.ice_support));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "use_ptime", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.use_ptime));

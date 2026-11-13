@@ -160,6 +160,67 @@ static int multihomed_rewrite_sdp(struct pjmedia_sdp_session *sdp)
 	return 0;
 }
 
+/*!
+ * \brief Address family of the remote offer that the SDP sent in a dialog answers
+ *
+ * \retval 0 if the SDP does not answer a remote offer
+ */
+static int answered_offer_af(pjsip_dialog *dlg)
+{
+	pjsip_inv_session *inv = pjsip_dlg_get_inv_session(dlg);
+	const pjmedia_sdp_session *offer = NULL;
+	const pjmedia_sdp_conn *conn;
+	pjmedia_sdp_neg_state state;
+
+	if (!inv || !inv->neg) {
+		return 0;
+	}
+
+	state = pjmedia_sdp_neg_get_state(inv->neg);
+	if (state == PJMEDIA_SDP_NEG_STATE_WAIT_NEGO) {
+		pjmedia_sdp_neg_get_neg_remote(inv->neg, &offer);
+	} else if (state == PJMEDIA_SDP_NEG_STATE_DONE && !pjmedia_sdp_neg_was_answer_remote(inv->neg)) {
+		pjmedia_sdp_neg_get_active_remote(inv->neg, &offer);
+	}
+
+	if (!offer) {
+		return 0;
+	}
+
+	conn = offer->conn ? offer->conn : (offer->media_count ? offer->media[0]->conn : NULL);
+	if (!conn) {
+		return 0;
+	}
+
+	return pj_strcmp2(&conn->addr_type, "IP6") ? pj_AF_INET() : pj_AF_INET6();
+}
+
+/*!
+ * \brief Whether the SDP must keep an address family other than the transport's
+ *
+ * With rtp_ipv6=follow_offer an answer uses the address family of the remote
+ * offer, whatever transport the signaling uses, so its address must not be
+ * replaced with the transport's.
+ */
+static int answers_offer_in_other_family(pjsip_tx_data *tdata, const pjmedia_sdp_session *sdp)
+{
+	int af = pj_strcmp2(&sdp->conn->addr_type, "IP6") ? pj_AF_INET() : pj_AF_INET6();
+	int transport_af = (tdata->tp_info.transport->key.type & PJSIP_TRANSPORT_IPV6) ? pj_AF_INET6() : pj_AF_INET();
+	pjsip_dialog *dlg;
+	struct ast_sip_endpoint *endpoint;
+	int follow_offer;
+
+	if (af == transport_af || !(dlg = pjsip_tdata_get_dlg(tdata))) {
+		return 0;
+	}
+
+	endpoint = ast_sip_dialog_get_endpoint(dlg);
+	follow_offer = endpoint && endpoint->media.rtp.ipv6 == AST_SIP_RTP_IPV6_FOLLOW_OFFER;
+	ao2_cleanup(endpoint);
+
+	return follow_offer && answered_offer_af(dlg) == af;
+}
+
 #define is_sip_uri(uri) \
 	(PJSIP_URI_SCHEME_IS_SIP(uri) || PJSIP_URI_SCHEME_IS_SIPS(uri))
 
@@ -344,7 +405,7 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 
 	sdp = sdp_info->sdp;
 
-	if (multihomed_rewrite_sdp(sdp)) {
+	if (multihomed_rewrite_sdp(sdp) && !answers_offer_in_other_family(tdata, sdp)) {
 		static const pj_str_t STR_IP4 = { "IP4", 3 };
 		static const pj_str_t STR_IP6 = { "IP6", 3 };
 		pj_str_t STR_IP;
