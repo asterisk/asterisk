@@ -32,6 +32,13 @@
 
 #include "asterisk.h"
 
+#ifdef HAVE_DAHDI
+#include <dahdi/user.h>
+#include "asterisk/frame.h"
+#include "../channels/sig_analog.h"
+#include "../channels/chan_dahdi.h"
+#endif
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
@@ -50,8 +57,24 @@
 		<syntax />
 		<description>
 			<para>Obtains and displays ADSI CPE ID and other information in order
-			to properly setup <filename>dahdi.conf</filename> for on-hook operations.</para>
+			to properly setup <literal>chan_dahdi</literal> for on-hook operations.</para>
+			<para>If this application is called on a DAHDI FXS channel (FXO signalled),
+			then the CPEID received will be stored on the channel for future automatic
+			feature downloads to the CPE. When a CPE accepts an automatic download,
+			it will execute the <literal>adsi</literal> extension in the DAHDI channel's
+			configured context, which should be as follows:
+			<literal>exten => adsi,1,ADSIProg(${ADSIAUTOSCRIPT},a)</literal></para>
+			<variablelist>
+				<variable name="CPEID">
+					<para>The CPE ID if successfully received.</para>
+				</variable>
+			</variablelist>
 		</description>
+		<see-also>
+			<ref type="application">ADSIProg</ref>
+			<ref type="manager">DAHDIAutoADSIProg</ref>
+			<ref type="filename">adsi.conf</ref>
+		</see-also>
 	</application>
  ***/
 static char *app = "GetCPEID";
@@ -103,11 +126,37 @@ static int cpeid_exec(struct ast_channel *chan, const char *idata)
 			}
 		}
 		if (res > -1) {
-			if (gotcpeid)
-				snprintf(data[1], 80, "CPEID: %02hhx:%02hhx:%02hhx:%02hhx",
-					cpeid[0], cpeid[1], cpeid[2], cpeid[3]);
-			else
+			if (gotcpeid) {
+				char cpeidstr[12]; /* XX:XX:XX:XX */
+				snprintf(cpeidstr, sizeof(cpeidstr), "%02hhx:%02hhx:%02hhx:%02hhx", cpeid[0], cpeid[1], cpeid[2], cpeid[3]);
+				snprintf(data[1], 80, "CPEID: %s", cpeidstr);
+				pbx_builtin_setvar_helper(chan, "CPEID", cpeidstr);
+#ifdef HAVE_DAHDI
+				if (!strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
+					struct dahdi_pvt *pvt;
+					struct analog_pvt *analog_p;
+					struct dahdi_params dahdip;
+
+					memset(&dahdip, 0, sizeof(dahdip));
+					if (ioctl(ast_channel_fd(chan, 0), DAHDI_GET_PARAMS, &dahdip)) {
+						ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", ast_channel_name(chan), strerror(errno));
+						return -1;
+					}
+					if (dahdip.sigtype & __DAHDI_SIG_FXO) {
+						/* If we're a DAHDI channel, save the CPE ID for on-hook programming use. */
+						pvt = ast_channel_tech_pvt(chan);
+						if (pvt->adsi) {
+							analog_p = pvt->sig_pvt;
+							memcpy(analog_p->cpeid, cpeid, sizeof(analog_p->cpeid));
+							ast_debug(1, "Saved CPE ID for DAHDI channel %d: '%02hhx:%02hhx:%02hhx:%02hhx'\n",
+								pvt->channel, cpeid[0], cpeid[1], cpeid[2], cpeid[3]);
+						}
+					}
+				}
+#endif
+			} else {
 				strcpy(data[1], "CPEID Unknown");
+			}
 			if (gotgeometry)
 				snprintf(data[2], 80, "Geom: %dx%d, %d buttons", width, height, buttons);
 			else
