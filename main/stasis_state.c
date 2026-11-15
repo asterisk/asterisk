@@ -326,8 +326,9 @@ struct stasis_state_manager *stasis_state_manager_create(const char *topic_name)
 {
 	struct stasis_state_manager *manager;
 
+	/* The manager's own lock serializes the stasis_state_callback_*() traversals */
 	manager = ao2_alloc_options(sizeof(*manager), state_manager_dtor,
-		AO2_ALLOC_OPT_LOCK_NOLOCK);
+		AO2_ALLOC_OPT_LOCK_MUTEX);
 	if (!manager) {
 		return NULL;
 	}
@@ -738,13 +739,55 @@ static int handle_stasis_state_proxy(void *obj, void *arg, void *data, int flags
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Run a callback on each state proxy without holding the container lock
+ *
+ * \note ao2_callback_data() is not used here on purpose. It keeps the states
+ * container locked for the whole traversal, and a handler may block for a
+ * long time (storage or network access, for example). Any thread that adds,
+ * finds or removes a state would then wait until the traversal ends. An
+ * iterator only locks the container while it advances.
+ *
+ * A state added while the traversal is running may not be visited.
+ *
+ * The manager's own lock is held instead, so only one traversal runs at a
+ * time per manager, as was the case when the container lock was held. Handlers
+ * may depend on that (app_voicemail's IMAP polling and logout handlers must
+ * not overlap). Nothing else takes the manager lock, so other threads are not
+ * blocked by it.
+ *
+ * \param manager The state manager
+ * \param cb Callback to run on each proxy, returns CMP_STOP to end the traversal
+ * \param handler The caller's handler, passed to cb
+ * \param data The caller's data, passed to cb
+ */
+static void state_callback(struct stasis_state_manager *manager, ao2_callback_data_fn *cb,
+	on_stasis_state handler, void *data)
+{
+	struct ao2_iterator iter;
+	void *proxy;
+
+	ast_assert(handler != NULL);
+
+	ao2_lock(manager);
+	iter = ao2_iterator_init(manager->states, 0);
+	while ((proxy = ao2_iterator_next(&iter))) {
+		int res = cb(proxy, handler, data, 0);
+
+		ao2_ref(proxy, -1);
+		if (res & CMP_STOP) {
+			break;
+		}
+	}
+	ao2_iterator_destroy(&iter);
+	ao2_unlock(manager);
+}
+
 void stasis_state_callback_all(struct stasis_state_manager *manager, on_stasis_state handler,
 	void *data)
 {
-	ast_assert(handler != NULL);
-
-	ao2_callback_data(manager->states, OBJ_MULTIPLE | OBJ_NODATA,
-		handle_stasis_state_proxy, handler, data);
+	state_callback(manager, handle_stasis_state_proxy, handler, data);
 }
 
 static int handle_stasis_state_subscribed(void *obj, void *arg, void *data, int flags)
@@ -764,8 +807,5 @@ static int handle_stasis_state_subscribed(void *obj, void *arg, void *data, int 
 void stasis_state_callback_subscribed(struct stasis_state_manager *manager, on_stasis_state handler,
 	void *data)
 {
-	ast_assert(handler != NULL);
-
-	ao2_callback_data(manager->states, OBJ_MULTIPLE | OBJ_NODATA,
-		handle_stasis_state_subscribed, handler, data);
+	state_callback(manager, handle_stasis_state_subscribed, handler, data);
 }
