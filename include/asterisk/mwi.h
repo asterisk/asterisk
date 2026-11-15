@@ -306,6 +306,11 @@ typedef int (*on_mwi_state)(struct ast_mwi_state *mwi_state, void *data);
  * \param handler The mwi state handler to call for each managed mailbox
  * \param data User to data to pass on to the handler
  *
+ * \note The handler runs without the mailbox states locked. A mailbox added
+ *       while the traversal is running may not be passed to the handler.
+ * \note Only one traversal of the mailboxes runs at a time, whether started
+ *       by ast_mwi_state_callback_all() or ast_mwi_state_callback_subscribed().
+ *
  * \since 13.28.0
  * \since 16.5.0
  */
@@ -316,6 +321,11 @@ void ast_mwi_state_callback_all(on_mwi_state handler, void *data);
  *
  * \param handler The mwi state handler to call for each managed mailbox
  * \param data User to data to pass on to the handler
+ *
+ * \note The handler runs without the mailbox states locked. A mailbox added
+ *       while the traversal is running may not be passed to the handler.
+ * \note Only one traversal of the mailboxes runs at a time, whether started
+ *       by ast_mwi_state_callback_all() or ast_mwi_state_callback_subscribed().
  *
  * \since 13.28.0
  * \since 16.5.0
