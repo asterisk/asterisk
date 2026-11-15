@@ -527,6 +527,16 @@ typedef int (*on_stasis_state)(const char *id, struct stasis_message *msg, void 
  * \param handler The handler to call for each managed state
  * \param data User to data to pass on to the handler
  *
+ * \note The states are not locked while the handler runs, so the handler may
+ *       block or call other stasis_state functions without blocking other
+ *       threads that use this manager.
+ * \note A state added while the traversal is running may not be passed to
+ *       the handler. It will be seen by the next traversal.
+ * \note Only one traversal runs at a time for a given manager. This applies
+ *       to both stasis_state_callback_all() and
+ *       stasis_state_callback_subscribed(): a call to either waits until any
+ *       traversal of the same manager that is already running has finished.
+ *
  * \since 13.28.0
  * \since 16.5.0
  */
@@ -539,6 +549,16 @@ void stasis_state_callback_all(struct stasis_state_manager *manager, on_stasis_s
  * \param manager The state manager
  * \param handler The handler to call for each managed state
  * \param data User to data to pass on to the handler
+ *
+ * \note The states are not locked while the handler runs, so the handler may
+ *       block or call other stasis_state functions without blocking other
+ *       threads that use this manager.
+ * \note A state added while the traversal is running may not be passed to
+ *       the handler. It will be seen by the next traversal.
+ * \note Only one traversal runs at a time for a given manager. This applies
+ *       to both stasis_state_callback_all() and
+ *       stasis_state_callback_subscribed(): a call to either waits until any
+ *       traversal of the same manager that is already running has finished.
  *
  * \since 13.28.0
  * \since 16.5.0
