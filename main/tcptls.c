@@ -82,7 +82,11 @@ static void session_instance_destructor(void *obj)
 }
 
 #ifdef DO_SSL
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+static int check_tcptls_cert_name(const ASN1_STRING *cert_str, const char *hostname, const char *desc)
+#else
 static int check_tcptls_cert_name(ASN1_STRING *cert_str, const char *hostname, const char *desc)
+#endif
 {
 	unsigned char *str;
 	int ret;
@@ -209,8 +213,13 @@ static void *handle_tcptls_connection(void *data)
 				return NULL;
 			}
 			if (!ast_test_flag(&tcptls_session->parent->tls_cfg->flags, AST_SSL_IGNORE_COMMON_NAME)) {
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+				const ASN1_STRING *str;
+				const X509_NAME *name = X509_get_subject_name(peer);
+#else
 				ASN1_STRING *str;
 				X509_NAME *name = X509_get_subject_name(peer);
+#endif
 				STACK_OF(GENERAL_NAME) *alt_names;
 				int pos = -1;
 				int found = 0;
