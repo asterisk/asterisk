@@ -339,6 +339,8 @@ static int extension_state_legacy_add_destroy(const char *context, const char *e
 		/* The vector will resize when we append, which can fail, so handle it */
 		if (AST_VECTOR_APPEND(&extension_state_legacy_callbacks, state_cb)) {
 			ast_mutex_unlock(&extension_state_legacy_callbacks_lock);
+			/* On failure the caller retains ownership of data */
+			state_cb->destroy_cb = NULL;
 			ao2_ref(state_cb, -1);
 			return -1;
 		}
@@ -372,6 +374,8 @@ static int extension_state_legacy_add_destroy(const char *context, const char *e
 	if (!state_cb->router) {
 		AST_VECTOR_REPLACE(&extension_state_legacy_callbacks, state_cb->id - 1, NULL);
 		ast_mutex_unlock(&extension_state_legacy_callbacks_lock);
+		/* On failure the caller retains ownership of data */
+		state_cb->destroy_cb = NULL;
 		ao2_ref(state_cb, -1);
 		return -1;
 	}
