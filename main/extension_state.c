@@ -1045,22 +1045,43 @@ static struct extension_state *extension_state_get(struct ast_channel *chan, con
 		return NULL;
 	}
 
-	if (ast_get_extension_name(hint_exten)[0] == '_') {
+	if (ast_get_extension_name(hint_exten)[0] != '_') {
 		/*
-		 * If this resolved down to a pattern match that means this is the first request
-		 * for this explicit extension so we need to add it to the dialplan which will create
-		 * an extension state for it. It's possible for us to conflict with another thread but
-		 * in that case the ast_add_extension call will fail and be a no-op and we will return
-		 * the extension state the other thread created.
+		 * The requested name may differ from the dialplan extension name
+		 * (e.g. "200-shsnm" vs "200shsnm") since dashes are ignored when
+		 * matching. The extension state is keyed on the dialplan name, so use it.
 		 */
-		ast_add_extension(q.foundcontext, 0, extension, PRIORITY_HINT, ast_get_extension_label(hint_exten),
-			ast_get_extension_matchcid(hint_exten) ? ast_get_extension_cidmatch(hint_exten) : NULL,
-			ast_get_extension_app(hint_exten), ast_strdup(ast_get_extension_app_data(hint_exten)), ast_free_ptr,
-			ast_get_extension_registrar(hint_exten));
+		snprintf(location, sizeof(location), "%s@%s", ast_get_extension_name(hint_exten), q.foundcontext);
+		ast_unlock_contexts();
+
+		return ao2_find(extension_states, location, OBJ_SEARCH_KEY);
 	}
 
-	/* The extension state should already exist at this point */
-	snprintf(location, sizeof(location), "%s@%s", extension, q.foundcontext);
+	/*
+	 * If this resolved down to a pattern match that means this is the first request
+	 * for this explicit extension so we need to add it to the dialplan which will create
+	 * an extension state for it. It's possible for us to conflict with another thread but
+	 * in that case the ast_add_extension call will fail and be a no-op and we will return
+	 * the extension state the other thread created.
+	 */
+	ast_add_extension(q.foundcontext, 0, extension, PRIORITY_HINT, ast_get_extension_label(hint_exten),
+		ast_get_extension_matchcid(hint_exten) ? ast_get_extension_cidmatch(hint_exten) : NULL,
+		ast_get_extension_app(hint_exten), ast_strdup(ast_get_extension_app_data(hint_exten)), ast_free_ptr,
+		ast_get_extension_registrar(hint_exten));
+
+	/*
+	 * The extension state should already exist at this point, either created by us or
+	 * by another thread. Re-resolve so the key uses the name of the extension that
+	 * actually exists in the dialplan.
+	 */
+	memset(&q, 0, sizeof(q));
+	hint_exten = pbx_find_extension(chan, NULL, &q, context, extension,
+		PRIORITY_HINT, NULL, "", E_MATCH);
+	if (!hint_exten || ast_get_extension_name(hint_exten)[0] == '_') {
+		ast_unlock_contexts();
+		return NULL;
+	}
+	snprintf(location, sizeof(location), "%s@%s", ast_get_extension_name(hint_exten), q.foundcontext);
 	ast_unlock_contexts();
 
 	return ao2_find(extension_states, location, OBJ_SEARCH_KEY);
