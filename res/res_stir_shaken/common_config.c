@@ -354,6 +354,35 @@ static char *cli_verify_cert(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return CLI_SUCCESS;
 	}
 
+	if (!crypto_is_cert_time_valid(cert, time(NULL))) {
+		const ASN1_TIME *notbefore = X509_get_notBefore(cert);
+		const ASN1_TIME *notafter = X509_get_notAfter(cert);
+		const char *cert_before = (char *)ASN1_STRING_get0_data(notbefore);
+		const char *cert_after = (char *)ASN1_STRING_get0_data(notafter);
+		char *before = NULL;
+		char *after = NULL;
+		struct tm tm = { 0, };
+		char buf[255];
+
+		if (!notbefore || !notafter) {
+			ast_log(LOG_ERROR, "Either notbefore or notafter were missing in the cert\n");
+			return 0;
+		}
+
+		/*
+		 * ASN1_TIME is actually an ASN1_STRING in the format 'yymmddHHMMSS'
+		 */
+		strptime(cert_before, "%y%m%d%H%M%S", &tm);
+		strftime(buf, sizeof(buf), "%d %b %Y %H:%M", &tm);
+		before = ast_strdupa(buf);
+		strptime(cert_after, "%y%m%d%H%M%S", &tm);
+		strftime(buf, sizeof(buf), "%d %b %Y %H:%M", &tm);
+		after = ast_strdupa(buf);
+
+		ast_cli(a->fd, "Certificate %s is either not valid yet or has expired.  Certificate valid date range: %s -> %s\n", a->argv[3],
+			before, after);
+	}
+
 	if (crypto_is_cert_trusted(tcs, cert, cert_chain, &errmsg)) {
 		ast_cli(a->fd, "Certificate %s trusted\n", a->argv[3]);
 	} else {
