@@ -82,7 +82,11 @@ static void session_instance_destructor(void *obj)
 }
 
 #ifdef DO_SSL
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+static int check_tcptls_cert_name(const ASN1_STRING *cert_str, const char *hostname, const char *desc)
+#else
 static int check_tcptls_cert_name(ASN1_STRING *cert_str, const char *hostname, const char *desc)
+#endif
 {
 	unsigned char *str;
 	int ret;
@@ -209,8 +213,13 @@ static void *handle_tcptls_connection(void *data)
 				return NULL;
 			}
 			if (!ast_test_flag(&tcptls_session->parent->tls_cfg->flags, AST_SSL_IGNORE_COMMON_NAME)) {
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+				const ASN1_STRING *str;
+				const X509_NAME *name = X509_get_subject_name(peer);
+#else
 				ASN1_STRING *str;
 				X509_NAME *name = X509_get_subject_name(peer);
+#endif
 				STACK_OF(GENERAL_NAME) *alt_names;
 				int pos = -1;
 				int found = 0;
@@ -410,7 +419,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			cfg->ssl_ctx = SSL_CTX_new(SSLv2_client_method());
 		} else
 #endif
-#if !defined(OPENSSL_NO_SSL3_METHOD) && !(defined(OPENSSL_API_COMPAT) && (OPENSSL_API_COMPAT >= 0x10100000L))
+#if !defined(OPENSSL_NO_SSL3_METHOD) && !(defined(OPENSSL_API_COMPAT) && (OPENSSL_API_COMPAT >= 0x10100000L)) && (OPENSSL_VERSION_NUMBER < 0x40000000L)
 		if (ast_test_flag(&cfg->flags, AST_SSL_SSLV3_CLIENT)) {
 			ast_log(LOG_WARNING, "Usage of SSLv3 is discouraged due to known vulnerabilities. Please use 'tlsv1' or leave the TLS method unspecified!\n");
 			cfg->ssl_ctx = SSL_CTX_new(SSLv3_client_method());

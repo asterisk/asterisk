@@ -253,7 +253,7 @@ static int is_cert_cache_entry_expired(char *expiration)
 static enum ast_stir_shaken_vs_response_code
 	check_tn_auth_list(struct ast_stir_shaken_vs_ctx * ctx)
 {
-	ASN1_OCTET_STRING *tn_exten;
+	const ASN1_OCTET_STRING *tn_exten;
 	const unsigned char* octet_str_data = NULL;
 	long xlen;
 	int tag, xclass;
@@ -266,10 +266,10 @@ static enum ast_stir_shaken_vs_response_code
 			LOG_ERROR, "%s: Cert '%s' doesn't have a TNAuthList extension\n",
 			ctx->tag, ctx->public_url);
 	}
-	octet_str_data = tn_exten->data;
+	octet_str_data = ASN1_STRING_get0_data(tn_exten);
 
 	/* The first call to ASN1_get_object should return a SEQUENCE */
-	ret = ASN1_get_object(&octet_str_data, &xlen, &tag, &xclass, tn_exten->length);
+	ret = ASN1_get_object(&octet_str_data, &xlen, &tag, &xclass, ASN1_STRING_length(tn_exten));
 	if (IS_GET_OBJ_ERR(ret)) {
 		crypto_log_openssl(LOG_ERROR, "%s: Cert '%s' has malformed TNAuthList extension\n",
 			ctx->tag, ctx->public_url);
@@ -293,7 +293,7 @@ static enum ast_stir_shaken_vs_response_code
 	 * ATIS-1000080 however limits this to only ASN1_TAG_TNAUTH_SPC
 	 *
 	 */
-	ret = ASN1_get_object(&octet_str_data, &xlen, &tag, &xclass, tn_exten->length);
+	ret = ASN1_get_object(&octet_str_data, &xlen, &tag, &xclass, ASN1_STRING_length(tn_exten));
 	if (IS_GET_OBJ_ERR(ret)) {
 		crypto_log_openssl(LOG_ERROR, "%s: Cert '%s' has malformed TNAuthList extension\n",
 			ctx->tag, ctx->public_url);
@@ -307,7 +307,7 @@ static enum ast_stir_shaken_vs_response_code
 	}
 
 	/* The third call to ASN1_get_object should contain the SPC */
-	ret = ASN1_get_object(&octet_str_data, &xlen, &tag, &xclass, tn_exten->length);
+	ret = ASN1_get_object(&octet_str_data, &xlen, &tag, &xclass, ASN1_STRING_length(tn_exten));
 	if (ret != 0) {
 		SCOPE_EXIT_LOG_RTN_VALUE(AST_STIR_SHAKEN_VS_CERT_NO_SPC_IN_TN_AUTH_EXT,
 			LOG_ERROR, "%s: Cert '%s' has malformed TNAuthList extension (no SPC)\n",

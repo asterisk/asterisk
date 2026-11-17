@@ -70,8 +70,13 @@ int crypto_register_x509_extension(const char *oid,
  *
  * \warning Do NOT attempt to free the returned buffer.
  */
-ASN1_OCTET_STRING *crypto_get_cert_extension_data(X509 *cert, int nid,
-	const char *short_name);
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+const ASN1_OCTET_STRING *crypto_get_cert_extension_data(X509 *cert,
+	int nid, const char *short_name);
+#else
+ASN1_OCTET_STRING *crypto_get_cert_extension_data(X509 *cert,
+	int nid, const char *short_name);
+#endif
 
 /*!
  * \brief Load an X509 Cert from a file
