@@ -153,7 +153,9 @@ rtpend=20000
 ;
 ; The following will include BOTH 192.168.1.10 and 1.2.3.4 during ICE
 ; negotiation instead of replacing 192.168.1.10.  This can make it easier
-; to serve both local and remote clients.
+; to serve both local and remote clients. When both are present, local
+; interface candidates have higher ICE priority than the additional
+; advertised address.
 ;
 ;192.168.1.10 => 1.2.3.4,include_local_address
 ;
