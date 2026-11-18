@@ -2087,6 +2087,32 @@
 					</note>
 					</description>
 				</configOption>
+				<configOption name="restore_orig_contact_host" default="no">
+					<synopsis>Keep the device's own Contact host in requests sent to a rewritten contact</synopsis>
+					<description><para>
+					When <replaceable>rewrite_contact</replaceable> is enabled, the Contact
+					received from this endpoint is changed to the source address and port so
+					requests can reach a device behind NAT. Requests built from that contact
+					(calls, in-dialog requests such as ACK and BYE, NOTIFY, OPTIONS) then carry
+					the NAT address in the Request-URI and To header, and some devices
+					(for example Cisco CP-89xx phones) answer 404 Not Found or ignore them
+					because the request is not addressed to them.
+					</para>
+					<para>
+					If you set this option to "yes", the requests are still delivered to the
+					source address and port, but the Request-URI and To header carry the host
+					and port the device announced in its Contact, as RFC 3261 sections 12.2.1.1
+					and 16.5 describe. This covers contacts saved by REGISTER and the remote
+					target of dialogs.
+					</para>
+					<note><para>
+					This option has no effect unless <replaceable>rewrite_contact</replaceable>
+					is enabled. Contacts registered before the option changes keep the previous
+					behavior until they register again. WebSocket transports are not affected.
+					</para>
+					</note>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<since>

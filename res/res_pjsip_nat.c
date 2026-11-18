@@ -38,6 +38,10 @@
 #define AST_SIP_X_AST_ORIG_HOST "x-ast-orig-host"
 #define AST_SIP_X_AST_ORIG_HOST_LEN 15
 
+/*! URI parameter for the host/port restored in outgoing requests (restore_orig_contact_host) */
+#define AST_SIP_X_AST_RESTORE_HOST "x-ast-restore-host"
+#define AST_SIP_X_AST_RESTORE_HOST_LEN 18
+
 #define is_sip_uri(uri) \
 	(PJSIP_URI_SCHEME_IS_SIP(uri) || PJSIP_URI_SCHEME_IS_SIPS(uri))
 
@@ -65,6 +69,48 @@ static void save_orig_contact_host(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
 	pj_list_insert_before(&uri->other_param, x_orig_host);
 
 	return;
+}
+
+/*!
+ * \internal
+ * \brief Save the Contact host and port announced by an endpoint with restore_orig_contact_host.
+ *
+ * Unlike x-ast-orig-host, which is only saved for REGISTER, this is saved for any message
+ * whose Contact is rewritten (REGISTER and the remote target of dialogs), so requests sent
+ * to the rewritten contact can carry the device's own host and port in the Request-URI.
+ */
+static void save_restore_contact_host(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
+{
+	pj_str_t x_name = { AST_SIP_X_AST_RESTORE_HOST, AST_SIP_X_AST_RESTORE_HOST_LEN };
+	pjsip_param *x_restore_host;
+	pj_str_t p_value;
+
+	if (!strncasecmp("WS", rdata->tp_info.transport->type_name, 2)) {
+		/* WebSocket contacts are handled by the transport */
+		return;
+	}
+
+	if (pj_strcmp2(&uri->host, rdata->pkt_info.src_name) == 0
+		&& uri->port == rdata->pkt_info.src_port) {
+		/* Nothing to restore (no NAT, or already rewritten) */
+		return;
+	}
+
+	/* Never trust a value received from the network */
+	while ((x_restore_host = pjsip_param_find(&uri->other_param, &x_name))) {
+		pj_list_erase(x_restore_host);
+	}
+
+	ast_debug(1, "Saving contact '%.*s:%d' to restore in requests\n",
+		(int)uri->host.slen, uri->host.ptr, uri->port);
+
+	x_restore_host = PJ_POOL_ALLOC_T(rdata->tp_info.pool, pjsip_param);
+	x_restore_host->name = pj_strdup3(rdata->tp_info.pool, AST_SIP_X_AST_RESTORE_HOST);
+	p_value.slen = pj_strlen(&uri->host) + COLON_LEN + MAX_PORT_LEN;
+	p_value.ptr = (char*)pj_pool_alloc(rdata->tp_info.pool, p_value.slen + 1);
+	p_value.slen = snprintf(p_value.ptr, p_value.slen + 1, "%.*s:%d", (int)uri->host.slen, uri->host.ptr, uri->port);
+	pj_strassign(&x_restore_host->value, &p_value);
+	pj_list_insert_before(&uri->other_param, x_restore_host);
 }
 
 static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri, pj_pool_t *pool)
@@ -176,7 +222,7 @@ static int rewrite_route_set(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 	return res;
 }
 
-static int rewrite_contact(pjsip_rx_data *rdata, pjsip_dialog *dlg)
+static int rewrite_contact(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, pjsip_dialog *dlg)
 {
 	pjsip_contact_hdr *contact;
 
@@ -184,6 +230,9 @@ static int rewrite_contact(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 	if (contact && !contact->star && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
 		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
 
+		if (endpoint->restore_orig_contact_host) {
+			save_restore_contact_host(rdata, uri);
+		}
 		rewrite_uri(rdata, uri, rdata->tp_info.pool);
 
 		if (dlg && pj_list_empty(&dlg->route_set) && (!dlg->remote.contact
@@ -214,7 +263,7 @@ static pj_bool_t handle_rx_message(struct ast_sip_endpoint *endpoint, pjsip_rx_d
 		 * none are present, we fall back to rewriting the Contact header instead.
 		 */
 		if (rewrite_route_set(rdata, dlg)) {
-			rewrite_contact(rdata, dlg);
+			rewrite_contact(endpoint, rdata, dlg);
 		}
 	}
 
@@ -257,28 +306,61 @@ static int nat_invoke_hook(void *obj, void *arg, int flags)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Restore the host and port saved by save_restore_contact_host and remove the
+ * internal parameters from a URI of an outgoing request.
+ *
+ * The destination of the request was already resolved from the rewritten URI, so
+ * only the encoded header changes.
+ */
+static void restore_request_uri_host(pj_pool_t *pool, pjsip_sip_uri *uri)
+{
+	pj_str_t x_orig_name = { AST_SIP_X_AST_ORIG_HOST, AST_SIP_X_AST_ORIG_HOST_LEN };
+	pj_str_t x_restore_name = { AST_SIP_X_AST_RESTORE_HOST, AST_SIP_X_AST_RESTORE_HOST_LEN };
+	pjsip_param *param;
+
+	param = pjsip_param_find(&uri->other_param, &x_restore_name);
+	if (param && param->value.slen) {
+		char host_port[param->value.slen + 1];
+		char *sep;
+
+		ast_copy_pj_str(host_port, &param->value, sizeof(host_port));
+		/* The saved value always ends with ":<port>", the host may be IPv6 */
+		sep = strrchr(host_port, ':');
+		if (sep && sep != host_port) {
+			*sep++ = '\0';
+			ast_debug(1, "Restoring request URI host %.*s:%d to %s:%s\n",
+				(int)uri->host.slen, uri->host.ptr, uri->port, host_port, sep);
+			pj_strdup2(pool, &uri->host, host_port);
+			uri->port = strtol(sep, NULL, 10);
+		}
+	}
+
+	while ((param = pjsip_param_find(&uri->other_param, &x_restore_name))) {
+		pj_list_erase(param);
+	}
+	while ((param = pjsip_param_find(&uri->other_param, &x_orig_name))) {
+		pj_list_erase(param);
+	}
+}
+
 static void restore_orig_contact_host(pjsip_tx_data *tdata)
 {
 	pjsip_contact_hdr *contact;
 	pj_str_t x_name = { AST_SIP_X_AST_ORIG_HOST, AST_SIP_X_AST_ORIG_HOST_LEN };
+	pj_str_t x_restore_name = { AST_SIP_X_AST_RESTORE_HOST, AST_SIP_X_AST_RESTORE_HOST_LEN };
 	pjsip_param *x_orig_host;
-	pjsip_sip_uri *uri;
 	pjsip_hdr *hdr;
 
 	if (tdata->msg->type == PJSIP_REQUEST_MSG) {
 		if (is_sip_uri(tdata->msg->line.req.uri)) {
-			uri = pjsip_uri_get_uri(tdata->msg->line.req.uri);
-			while ((x_orig_host = pjsip_param_find(&uri->other_param, &x_name))) {
-				pj_list_erase(x_orig_host);
-			}
+			restore_request_uri_host(tdata->pool, pjsip_uri_get_uri(tdata->msg->line.req.uri));
 		}
 		for (hdr = tdata->msg->hdr.next; hdr != &tdata->msg->hdr; hdr = hdr->next) {
 			if (hdr->type == PJSIP_H_TO) {
 				if (is_sip_uri(((pjsip_fromto_hdr *) hdr)->uri)) {
-					uri = pjsip_uri_get_uri(((pjsip_fromto_hdr *) hdr)->uri);
-					while ((x_orig_host = pjsip_param_find(&uri->other_param, &x_name))) {
-						pj_list_erase(x_orig_host);
-					}
+					restore_request_uri_host(tdata->pool, pjsip_uri_get_uri(((pjsip_fromto_hdr *) hdr)->uri));
 				}
 			}
 		}
@@ -310,6 +392,9 @@ static void restore_orig_contact_host(pjsip_tx_data *tdata)
 				pj_strdup2(tdata->pool, &contact_uri->host, host_port);
 				contact_uri->port = strtol(sep, NULL, 10);
 			}
+			pj_list_erase(x_orig_host);
+		}
+		while ((x_orig_host = pjsip_param_find(&contact_uri->other_param, &x_restore_name))) {
 			pj_list_erase(x_orig_host);
 		}
 		contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, contact->next);

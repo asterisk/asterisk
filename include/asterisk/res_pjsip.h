@@ -1182,6 +1182,8 @@ struct ast_sip_endpoint {
 	AST_STRING_FIELD_EXTENDED(tenantid);
 	/*! Ignore remote hold requests */
 	int suppress_moh_on_sendonly;
+	/*! Keep the device's own Contact host in requests sent to a rewritten contact */
+	unsigned int restore_orig_contact_host;
 };
 
 /*! URI parameter for symmetric transport */
