@@ -253,7 +253,7 @@ static int is_cert_cache_entry_expired(char *expiration)
 static enum ast_stir_shaken_vs_response_code
 	check_tn_auth_list(struct ast_stir_shaken_vs_ctx * ctx)
 {
-	ASN1_OCTET_STRING *tn_exten;
+	const ASN1_OCTET_STRING *tn_exten;
 	const unsigned char* octet_str_data = NULL;
 	long xlen;
 	int tag, xclass;
