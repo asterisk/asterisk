@@ -512,6 +512,48 @@
 			<note><para>Feature only supported by analog channels.</para></note>
 		</description>
 	</manager>
+	<manager name="DAHDIAutoADSIProg" language="en_US">
+		<synopsis>
+			Initiate an automatic ADSI feature download to an idle (on-hook) CPE
+		</synopsis>
+		<syntax>
+			<parameter name="DAHDIChannel" required="true">
+				<para>DAHDI channel number on which to initiate download.</para>
+				<para>You must have a Type III (ADSI-capable) CPE connected on this channel.</para>
+			</parameter>
+			<parameter name="Script" required="false">
+				<para>ADSI script to download.</para>
+				<para>The default, if not specified, is <literal>asterisk.adsi</literal>.</para>
+			</parameter>
+			<parameter name="CPEID" required="false">
+				<para>The CPEID to use for the on-hook download attempt.</para>
+				<para>If not specified, the last CPEID retrieved from the GetCPEID() application
+				will be used.</para>
+				<para>If GetCPEID() has not been called on this channel while Asterisk is running,
+				this argument must be provided or the action will fail. The CPEID must match the
+				CPEID of a CPE on the channel or programming will fail.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Equivalent to the CLI command "dahdi send adsiprog <variable>channel</variable> <variable>script</variable> <variable>CPEID</variable>".</para>
+			<para>If this action is successful, that does not necessarily mean the feature download was successful. It only means that Asterisk will
+			attempt to begin the download. When the CPE accepts the download, it will go off-hook and execute the <literal>adsi</literal> extension
+			in the dialplan (in the phone's incoming context). You should call <literal>exten => adsi,1,ADSIProg(${ADSIAUTOSCRIPT},a)</literal>
+			to actually send the script to the CPE. The CPE will automatically go back on-hook once the download has completed.</para>
+			<para>The CPEID of the CPE must be known in advance in order to use this capability.
+			This can be done by calling GetCPEID() in the dialplan, or by manually providing
+			the CPEID to this action in the appropriate parameter.</para>
+			<para>Asterisk will only attempt to initiate an automatic feature download if the channel has been idle for at least 45 seconds.</para>
+			<para>Additionally, automatic feature downloads are only supported for scripts that CPE have previously requested during an off-hook session.
+			Attempts to upload completely new scripts that have not been previously seen by the phone will be rejected by the CPE.</para>
+			<para>CPE may need to go off-hook between the initial download of a script and a future attempt to automatically update it.</para>
+			<note><para>Feature only supported by analog channels.</para></note>
+		</description>
+		<see-also>
+			<ref type="application">ADSIProg</ref>
+			<ref type="application">GetCPEID</ref>
+		</see-also>
+	</manager>
 	<manager name="DAHDIShowChannels" language="en_US">
 		<since>
 			<version>1.4.22</version>
@@ -1879,6 +1921,110 @@ static int my_send_callerid(void *pvt, int cwcid, struct ast_party_caller *calle
 		p->cid_suppress_expire = 0;
 		send_callerid(p);
 	}
+	return 0;
+}
+
+#define adsi_err(fd, s, m, ...) \
+	if (s && m) astman_send_error(s, m, "Failed to queue ADSI on-hook program"); \
+	else ast_cli(fd, __VA_ARGS__);
+
+static int adsi_onhook_init(struct dahdi_pvt *p, const char *cpeid, const char *script, int fd, struct mansession *s, const struct message *m)
+{
+	int x;
+	unsigned char cpeid_bytes[4];
+	struct analog_pvt *analog_p = p->sig_pvt;
+
+	/* Only FXS ports, please. */
+	if (p->sig != SIG_FXOLS && p->sig != SIG_FXOGS && p->sig != SIG_FXOKS) {
+		adsi_err(fd, s, m, "DAHDI channel %d is not an FXS channel\n", p->channel);
+		return -1;
+	}
+
+	memset(cpeid_bytes, 0, sizeof(cpeid_bytes));
+
+	/* We must know the CPE's CPE ID, since the CPE will compare it for a match.
+	 * If we don't already know it and the user didn't provide one, abort. */
+	if (ast_strlen_zero(cpeid)) {
+		/* Try to look up the CPEID on the pivot, from a previous invocation of GetCPEID(). */
+		memcpy(cpeid_bytes, analog_p->cpeid, sizeof(cpeid_bytes));
+		/* If we don't have a CPEID, we must abort, because without it, the on-hook alerting will fail. */
+		ast_debug(1, "Cached CPEID for channel %d: '%02hhx:%02hhx:%02hhx:%02hhx'\n",
+			p->channel, cpeid_bytes[0], cpeid_bytes[1], cpeid_bytes[2], cpeid_bytes[3]);
+		if (cpeid_bytes[0] == 0x00) {
+			adsi_err(fd, s, m, "No CPEID provided and none found in cache for DAHDI channel %d\n", p->channel);
+			return -1;
+		}
+	} else {
+		/* We are expecting a string like 20:06:cc:c3 (this is what GetCPEID() outputs to the CLI)
+		 * Need to convert it back into bytes. */
+		if (sscanf(cpeid, "%02hhx:%02hhx:%02hhx:%02hhx", &cpeid_bytes[0], &cpeid_bytes[1], &cpeid_bytes[2], &cpeid_bytes[3]) != 4) {
+			adsi_err(fd, s, m, "Invalid CPE ID: %s\n", cpeid);
+			return -1;
+		}
+	}
+
+	ast_debug(1, "Using CPEID '%02hhx:%02hhx:%02hhx:%02hhx'\n", cpeid_bytes[0], cpeid_bytes[1], cpeid_bytes[2], cpeid_bytes[3]);
+
+	/* Only allow on-hook downloads on a quiescent FXS port. */
+	if (analog_p->fxsoffhookstate || p->owner || analog_p->subs[SUB_REAL].owner) {
+		adsi_err(fd, s, m, "DAHDI channel %d is not currently idle\n", p->channel);
+		return -1;
+	}
+
+	while (time(NULL) < analog_p->onhooktime + 45) {
+		/* CPE seem to ignore any on-hook programming attempts if they were in use
+		 * as recently as 45 seconds ago (probably because it's highly likely
+		 * during this time the phone could transition to non-idle... but why
+		 * can't it just rely on us to make the right call? Ugh.)
+		 * So, we may as well bail now. */
+		adsi_err(fd, s, m, "DAHDI channel %d was in use too recently (%d s ago)\n", p->channel, (int) (time(NULL) - analog_p->onhooktime));
+		return -1;
+	}
+
+	if (p->cidspill) {
+		adsi_err(fd, s, m, "CID spill already active on DAHDI channel %d\n", p->channel);
+		return -1;
+	}
+
+	/* Okay, we should be able to actually send the spill. */
+	p->mwisend_data.mwisend_current = MWI_SEND_SPILL;
+	p->mwisendactive = 1;
+
+	p->cidspill = ast_calloc(1, MAX_CALLERID_SIZE);
+	if (!p->cidspill) {
+		p->mwisendactive = 0;
+		return -1;
+	}
+
+	x = DAHDI_FLUSH_BOTH;
+	ioctl(p->subs[SUB_REAL].dfd, DAHDI_FLUSH, &x);
+	x = 3000;
+	ioctl(p->subs[SUB_REAL].dfd, DAHDI_ONHOOKTRANSFER, &x);
+
+	/* ADSI Automatic Feature Download (SR-2461 2.2.2.2)
+	 * ADSI On-Hook Alerting (SR-2461 3.3.3.1, SR-3004 Sec 7, SR-3034 3.3, 2.5.5, 4.2.2)
+	 *
+	 * This is a completely unsolicited spill, not preceded by any ringing (so basically like MWI). */
+
+	/* Generate the FSK spill. */
+	p->cidlen = ast_callerid_adsi_alert_generate(p->cidspill, cpeid_bytes, AST_LAW(p));
+	p->cidpos = 0;
+
+	/* At this point, the spill has been queued, and mwi_send_process_buffer will actually
+	 * do the work of ensuring the spill gets sent. Thank you very much!
+	 * Yes, I know this isn't MWI, but it's a spill of the exact same type that needs to be sent,
+	 * so we can let it do our work for us since it's just what we need. */
+
+	/* The CPE will go off-hook once it gets the spill.
+	 * At the point, we can simply call ADSIProg(), since that will send the CAS, receive the ACK, and continue.
+	 * Basically, our job here is just to get the phone to go off-hook on its own.
+	 * Then it can talk to the ADSI programming application, with the script to download as an argument
+	 * Afterwards, it will hang up again on its own. */
+
+	/* If the CPE goes off-hook within the next 2 seconds, consider this a positive response to the FSK spill.
+	 * So, keep track of when we sent the spill. */
+	gettimeofday(&analog_p->adsionhooktime, NULL);
+	ast_copy_string(analog_p->adsionhookscript, S_OR(script, ""), sizeof(analog_p->adsionhookscript));
 	return 0;
 }
 
@@ -16821,6 +16967,53 @@ static char *dahdi_set_mwi(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	return CLI_SUCCESS;
 }
 
+/* Forward declaration of function defined later */
+static struct dahdi_pvt *find_channel_from_str(const char *channel);
+
+static char *dahdi_send_adsionhookprog(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	const char *script, *cpeid;
+	struct dahdi_pvt *dahdi_chan = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dahdi send adsiprog";
+		e->usage =
+			"Usage: dahdi send adsiprog <chan#> <script> [<cpeid>]\n"
+			"	Initiates an automatic ADSI program download\n"
+			"	to a CPE that is currently on-hook.\n"
+			"	<chan num> is the channel number\n"
+			" 	<cpeid> CPEID override\n"
+			;
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 5 && a->argc != 6) {
+		return CLI_SHOWUSAGE;
+	}
+
+	script = a->argv[4];
+	cpeid = a->argc == 6 ? a->argv[5] : NULL;
+
+	dahdi_chan = find_channel_from_str(a->argv[3]);
+	if (!dahdi_chan) {
+		ast_cli(a->fd, "Unable to find given channel %s\n", a->argv[3]);
+		return CLI_FAILURE;
+	} else if (!dahdi_chan->adsi) {
+		ast_cli(a->fd, "ADSI not enabled for channel %d\n", dahdi_chan->channel);
+		return CLI_FAILURE;
+	}
+
+	if (adsi_onhook_init(dahdi_chan, cpeid, script, a->fd, NULL, NULL)) {
+		return CLI_FAILURE;
+	}
+
+	ast_cli(a->fd, "ADSI Automatic Download initiated\n");
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry dahdi_cli[] = {
 	AST_CLI_DEFINE(handle_dahdi_show_cadences, "List cadences"),
 	AST_CLI_DEFINE(dahdi_show_channels, "Show active DAHDI channels"),
@@ -16834,6 +17027,7 @@ static struct ast_cli_entry dahdi_cli[] = {
 	AST_CLI_DEFINE(dahdi_set_swgain, "Set software gain on a channel"),
 	AST_CLI_DEFINE(dahdi_set_dnd, "Sets/resets DND (Do Not Disturb) mode on a channel"),
 	AST_CLI_DEFINE(dahdi_set_mwi, "Sets/unsets MWI (Message Waiting Indicator) manually on a channel"),
+	AST_CLI_DEFINE(dahdi_send_adsionhookprog, "Initiate an automatic ADSI script download on a channel"),
 };
 
 #define TRANSFER	0
@@ -17203,6 +17397,36 @@ static int action_dahdidialoffhook(struct mansession *s, const struct message *m
 		dahdi_queue_frame(p, &f);
 	}
 	astman_send_ack(s, m, "DAHDIDialOffhook");
+	return 0;
+}
+
+static int action_adsionhookprog(struct mansession *s, const struct message *m)
+{
+	struct dahdi_pvt *p;
+	const char *cpeid, *script, *channel;
+
+	channel = astman_get_header(m, "DAHDIChannel");
+	cpeid = astman_get_header(m, "CPEID"); /* Potentially okay if NULL */
+	script = astman_get_header(m, "Script"); /* Potentially okay if NULL */
+
+	if (ast_strlen_zero(channel)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+
+	p = find_channel_from_str(channel);
+	if (!p) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	} else if (!p->adsi) {
+		astman_send_error(s, m, "ADSI not enabled for channel");
+		return 0;
+	}
+	if (adsi_onhook_init(p, cpeid, script, -1, s, m)) {
+		return 0;
+	}
+	/* It won't happen immediately, just return success. */
+	astman_send_ack(s, m, "ADSI Automatic Download initiated");
 	return 0;
 }
 
@@ -18452,6 +18676,7 @@ static int __unload_module(void)
 	ast_manager_unregister("DAHDITransfer");
 	ast_manager_unregister("DAHDIDNDoff");
 	ast_manager_unregister("DAHDIDNDon");
+	ast_manager_unregister("DAHDIAutoADSIProg");
 	ast_manager_unregister("DAHDIShowChannels");
 	ast_manager_unregister("DAHDIShowStatus");
 	ast_manager_unregister("DAHDIRestart");
@@ -20605,6 +20830,7 @@ static int load_module(void)
 	ast_manager_register_xml("DAHDIDialOffhook", 0, action_dahdidialoffhook);
 	ast_manager_register_xml("DAHDIDNDon", 0, action_dahdidndon);
 	ast_manager_register_xml("DAHDIDNDoff", 0, action_dahdidndoff);
+	ast_manager_register_xml("DAHDIAutoADSIProg", 0, action_adsionhookprog);
 	ast_manager_register_xml("DAHDIShowChannels", 0, action_dahdishowchannels);
 	ast_manager_register_xml("DAHDIShowStatus", 0, action_dahdishowstatus);
 	ast_manager_register_xml("DAHDIRestart", 0, action_dahdirestart);

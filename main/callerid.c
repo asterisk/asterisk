@@ -1036,6 +1036,59 @@ int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, struct 
 	return bytes;
 }
 
+int ast_callerid_adsi_alert_generate(unsigned char *buf, unsigned char *cpeid, struct ast_format *codec)
+{
+	char msg[256];
+	int len = 0;
+	int sum;
+	int x;
+	int bytes = 0;
+	float cr = 1.0;
+	float ci = 0.0;
+	float scont = 0.0;
+
+	/* MDMF */
+	msg[len++] = 0x80; /* SR-3363 3.3 */
+	/* Length is 6 */
+	msg[len++] = 6;
+	/* "CPE ID Parameter" */
+	msg[len++] = 0xc;
+	/* Length of IE is 4 */
+	msg[len++] = 4;
+	/* CPE ID: 4 bytes */
+	msg[len++] = cpeid[0];
+	msg[len++] = cpeid[1];
+	msg[len++] = cpeid[2];
+	msg[len++] = cpeid[3];
+
+	sum = 0;
+	for (x = 0; x < len; x++) {
+		sum += msg[x];
+	}
+	sum = (256 - (sum & 255));
+	msg[len++] = sum;
+	/* Wait a half a second */
+	for (x = 0; x < 4000; x++) {
+		PUT_BYTE(0x7f);
+	}
+	/* Transmit 30 0x55's (looks like a square wave) for channel seizure */
+	for (x = 0; x < 30; x++) {
+		PUT_CLID(0x55);
+	}
+	/* Send 170ms of callerid marks */
+	for (x = 0; x < 170; x++) {
+		PUT_CLID_MARKMS;
+	}
+	for (x = 0; x < len; x++) {
+		PUT_CLID(msg[x]);
+	}
+	/* Send 50 more ms of marks */
+	for (x = 0; x < 50; x++) {
+		PUT_CLID_MARKMS;
+	}
+	return bytes;
+}
+
 int callerid_generate(unsigned char *buf, const char *number, const char *name, int flags, int callwaiting, struct ast_format *codec)
 {
 	return callerid_full_generate(buf, number, name, NULL, -1, flags, CID_TYPE_MDMF, callwaiting, codec);

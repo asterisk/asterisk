@@ -288,6 +288,14 @@ int ast_callerid_full_tz_generate(unsigned char *buf, const char *name, const ch
 int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, struct ast_format *codec, const char *name,
 	const char *number, int flags);
 
+/*!
+ * \brief Generate an ADSI on-hook alerting signal for automatic feature download offer
+ * \param buf
+ * \param cpeid The CPEID of the CPE targeted for the download
+ * \param codec
+ */
+int ast_callerid_adsi_alert_generate(unsigned char *buf, unsigned char *cpeid, struct ast_format *codec);
+
 /*! \brief Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
  * \see ast_callerid_generate() for other details
  */

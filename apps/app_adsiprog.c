@@ -52,6 +52,7 @@
 #include "asterisk/adsi.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
+#include "asterisk/app.h"
 
 static const char app[] = "ADSIProg";
 
@@ -61,18 +62,46 @@ static const char app[] = "ADSIProg";
 			<version>0.1.12</version>
 		</since>
 		<synopsis>
-			Load Asterisk ADSI Scripts into phone
+			Loads an ADSI script into a Type III (ADSI-capable) CPE (screen phone).
 		</synopsis>
 		<syntax>
 			<parameter name="script" required="false">
-				<para>adsi script to use. If not given uses the default script <filename>asterisk.adsi</filename></para>
+				<para>ADSI script to use. If not given uses the default script <filename>asterisk.adsi</filename></para>
+			</parameter>
+			<parameter name="options" required="false">
+				<optionlist>
+					<option name="a">
+						<para>Automatic script upload (on-hook programming capability).</para>
+						<para>To use this capability, you should use the <literal>DAHDIAutoADSIProg</literal>
+						AMI action or the <literal>dahdi send adsiprog</literal> CLI command to queue an
+						ADSI script for an automatic download to your CPE when it is idle.
+						The <literal>adsi</literal> extension in your CPE's incoming context should call
+						ADSIProg with the a option in order to transact the automatic script upload.
+						Your CPE will download the program and then go back on-hook automatically
+						once this has completed. No user intervention is required.</para>
+						<note><para>This is ONLY compatible with <literal>chan_dahdi</literal>.</para></note>
+					</option>
+				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
-			<para>This application programs an ADSI Phone with the given script</para>
+			<para>This application programs an ADSI Phone with the given script.</para>
+			<para>This application can be used for off-hook programming of ADSI phones as well
+			as automatic feature downloads to idle (on-hook) CPE.</para>
+			<variablelist>
+				<variable name="ADSIPROGSTATUS">
+					<value name="FAILURE">
+						Failed to upload the ADSI script
+					</value>
+					<value name="SUCCESS">
+						Successfully uploaded the ADSI script
+					</value>
+				</variable>
+			</variablelist>
 		</description>
 		<see-also>
 			<ref type="application">GetCPEID</ref>
+			<ref type="manager">DAHDIAutoADSIProg</ref>
 			<ref type="filename">adsi.conf</ref>
 		</see-also>
 	</application>
@@ -1465,7 +1494,8 @@ static void dump_message(char *type, char *vname, unsigned char *buf, int buflen
 }
 #endif
 
-static int adsi_prog(struct ast_channel *chan, const char *script)
+/*! \param automatic 0 for off-hook downloads, 1 for automatic feature downloads */
+static int adsi_prog(struct ast_channel *chan, const char *script, int automatic)
 {
 	struct adsi_script *scr;
 	int x, bytes;
@@ -1474,9 +1504,13 @@ static int adsi_prog(struct ast_channel *chan, const char *script)
 	if (!(scr = compile_script(script)))
 		return -1;
 
-	/* Start an empty ADSI Session */
-	if (ast_adsi_load_session(chan, NULL, 0, 1) < 1)
-		return -1;
+	/* If this is an automatic feature download, begin the download straight away (SR-3034, 3.3). */
+	if (!automatic) {
+		/* Start an empty ADSI Session */
+		if (ast_adsi_load_session(chan, NULL, 0, 1) < 1) {
+			return -1;
+		}
+	}
 
 	/* Now begin the download attempt */
 	if (ast_adsi_begin_download(chan, scr->desc, scr->fdn, scr->sec, scr->ver)) {
@@ -1572,24 +1606,43 @@ static int adsi_prog(struct ast_channel *chan, const char *script)
 		return -1;
 	}
 	ast_free(scr);
-	ast_adsi_unload_session(chan);
+	if (!automatic) {
+		ast_adsi_unload_session(chan);
+	}
 	return 0;
 }
 
 static int adsi_exec(struct ast_channel *chan, const char *data)
 {
-	int res = 0;
+	char *parse;
+	int automatic = 0, res = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(script);
+		AST_APP_ARG(options);
+	);
 
-	if (ast_strlen_zero(data))
-		data = "asterisk.adsi";
+	parse = ast_strdupa(S_OR(data, ""));
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.script)) {
+		args.script = "asterisk.adsi";
+	}
+	if (!ast_strlen_zero(args.options)) {
+		automatic = strchr(args.options, 'a') ? 1 : 0;
+		if (automatic && strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
+			ast_log(LOG_ERROR, "Automatic downloads only possible with DAHDI channels. Aborting!\n");
+			return -1;
+		}
+	}
 
 	if (!ast_adsi_available(chan)) {
 		ast_verb(3, "ADSI Unavailable on CPE.  Not bothering to try.\n");
 	} else {
 		ast_verb(3, "ADSI Available on CPE.  Attempting Upload.\n");
-		res = adsi_prog(chan, data);
+		res = adsi_prog(chan, args.script, automatic);
 	}
 
+	pbx_builtin_setvar_helper(chan, "ADSIPROGSTATUS", res ? "FAILURE" : "SUCCESS");
 	return res;
 }
 
