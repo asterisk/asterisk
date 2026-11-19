@@ -29,11 +29,13 @@
 
 #include "asterisk.h"
 
+#include "asterisk/channel.h"
 #include "asterisk/file.h"
 #include "asterisk/pbx.h"
 #include "asterisk/bridge.h"
 #include "asterisk/callerid.h"
 #include "asterisk/stasis_app.h"
+#include "asterisk/stasis_app_impl.h"
 #include "asterisk/stasis_app_playback.h"
 #include "asterisk/stasis_app_recording.h"
 #include "asterisk/stasis_app_snoop.h"
@@ -42,7 +44,9 @@
 #include "asterisk/format_cache.h"
 #include "asterisk/core_local.h"
 #include "asterisk/dial.h"
+#include "asterisk/json.h"
 #include "asterisk/max_forwards.h"
+#include "asterisk/message.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/websocket_client.h"
 #include "resource_channels.h"
@@ -176,6 +180,73 @@ static struct stasis_app_control *find_control(
 
 	ao2_ref(control, +1);
 	return control;
+}
+
+static int app_control_send_message(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	struct ast_msg_data *msg = data;
+
+	return ast_sendtext_data(chan, msg);
+}
+
+static void send_message_on_channel(struct stasis_app_control *control,
+	struct ast_channel_snapshot *snapshot, const char *to, const char *from,
+	const char *body, const char *content_type, const char *request_id,
+	struct ast_ari_response *response)
+{
+	struct ast_msg_data *msg = NULL;
+	struct ast_msg_data_attribute attrs[5];
+	size_t attr_count = 0;
+	const char *body_value = body;
+	const char *content_type_value = content_type;
+
+	if (!ast_strings_equal(snapshot->base->type, "PJSIP")) {
+		ast_ari_response_error(response, 422, "Unprocessable Entity",
+			"Channel MESSAGE delivery is supported only for PJSIP channels");
+		return;
+	}
+
+	if (ast_strlen_zero(body_value)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Required parameter 'body' not provided");
+		return;
+	}
+
+	if (!ast_strlen_zero(to)) {
+		attrs[attr_count].type = AST_MSG_DATA_ATTR_TO;
+		attrs[attr_count++].value = (char *) to;
+	}
+	if (!ast_strlen_zero(from)) {
+		attrs[attr_count].type = AST_MSG_DATA_ATTR_FROM;
+		attrs[attr_count++].value = (char *) from;
+	}
+	if (!ast_strlen_zero(content_type_value)) {
+		attrs[attr_count].type = AST_MSG_DATA_ATTR_CONTENT_TYPE;
+		attrs[attr_count++].value = (char *) content_type_value;
+	}
+	if (!ast_strlen_zero(body_value)) {
+		attrs[attr_count].type = AST_MSG_DATA_ATTR_BODY;
+		attrs[attr_count++].value = (char *) body_value;
+	}
+	attrs[attr_count].type = AST_MSG_DATA_ATTR_REQUEST_ID;
+	attrs[attr_count++].value = (char *) request_id;
+
+	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG, attrs, attr_count);
+	if (!msg) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	/* This synchronous wait is bounded: the callback only submits to the channel
+	 * driver and does not wait for SIP delivery. */
+	if (stasis_app_send_command(control, app_control_send_message, msg, ast_free_ptr)) {
+		ast_ari_response_error(response, 500, "Internal Server Error",
+			"Unable to send MESSAGE on channel");
+		return;
+	}
+
+	ast_ari_response_accepted(response);
 }
 
 void ast_ari_channels_continue_in_dialplan(
@@ -419,6 +490,40 @@ void ast_ari_channels_progress(struct ast_variable *headers,
 	stasis_app_control_progress(control);
 
 	ast_ari_response_no_content(response);
+}
+
+void ast_ari_channels_send_message(struct ast_variable *headers,
+	struct ast_ari_channels_send_message_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+
+	ast_assert(response != NULL);
+
+	if (ast_strlen_zero(args->request_id)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Request ID must be specified");
+		return;
+	}
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		return;
+	}
+
+	if (channel_state_invalid(control, response)) {
+		return;
+	}
+
+	snapshot = stasis_app_control_get_snapshot(control);
+	if (!snapshot) {
+		ast_ari_response_error(response, 404, "Not Found", "Channel not found");
+		return;
+	}
+
+	send_message_on_channel(control, snapshot, args->to, args->from, args->body,
+		args->content_type, args->request_id, response);
 }
 
 void ast_ari_channels_mute(struct ast_variable *headers,

@@ -668,6 +668,22 @@ struct stasis_message_type *ast_channel_talking_stop(void);
  */
 struct stasis_message_type *ast_channel_tone_detect(void);
 
+/*!
+ * \since 23
+ * \brief Message type for outbound in-dialog MESSAGE delivery status on a channel
+ *
+ * \return A stasis message type
+ */
+struct stasis_message_type *ast_channel_message_delivery_status_type(void);
+
+/*!
+ * \since 23
+ * \brief Message type for inbound in-dialog MESSAGE received on a channel
+ *
+ * \return A stasis message type
+ */
+struct stasis_message_type *ast_channel_message_received_type(void);
+
 /*
  * \since 23
  * \brief Message type for a attended or blind transfer request
