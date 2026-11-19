@@ -147,6 +147,12 @@ AST_TEST_DEFINE(expr_test)
 		{ "043", "043" },
 		{ "${GLOBAL(ULKOPREFIX)}9${x}", "${GLOBAL(ULKOPREFIX)}9${x}" },
 		{ "512059${x}", "512059${x}" },
+		/* A syntax error must evaluate to "0", not to the leading fragment */
+		{ "\"a\" b == \"c\"", "0" },
+		{ "hello world == foo", "0" },
+		{ "\"{\"k\":\"v\"}\"==\"unknown\"", "0" },
+		{ "2 + 2 junk", "0" },
+		{ "== \"c\"", "0" },
 	};
 	char buf[32];
 
@@ -175,15 +181,67 @@ AST_TEST_DEFINE(expr_test)
 	return res;
 }
 
+AST_TEST_DEFINE(expr_str_test)
+{
+	int res = AST_TEST_PASS;
+	int i;
+	struct ast_str *str;
+	struct {
+		char *input;
+		const char *output;
+	} tests[] = {
+		{ "2 + 2", "4" },
+		{ "x = x", "1" },
+		{ "", "" },
+		/* A syntax error must evaluate to "0", not to the leading fragment */
+		{ "\"a\" b == \"c\"", "0" },
+		{ "hello world == foo", "0" },
+		{ "2 + 2 junk", "0" },
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "expr_str_test";
+		info->category = "/main/ast_expr/";
+		info->summary = "unit test for ast_str_expr()";
+		info->description =
+			"Verifies that ast_str_expr() evaluates expressions like ast_expr(), "
+			"including returning \"0\" for an expression that fails to parse";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	str = ast_str_create(32);
+	if (!str) {
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(tests); i++) {
+		ast_str_reset(str);
+		ast_str_expr(&str, 0, NULL, tests[i].input);
+		if (strcmp(ast_str_buffer(str), tests[i].output)) {
+			ast_test_status_update(test, "Case %d: expression '%s' evaluated as '%s', but should have evaluated as '%s'\n", i + 1, tests[i].input, ast_str_buffer(str), tests[i].output);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	ast_free(str);
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(expr_test);
+	AST_TEST_UNREGISTER(expr_str_test);
 	return 0;
 }
 
 static int load_module(void)
 {
 	AST_TEST_REGISTER(expr_test);
+	AST_TEST_REGISTER(expr_str_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
