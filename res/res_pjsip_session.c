@@ -5643,7 +5643,10 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 	}
 	sdp = sdp_info->sdp;
 
-	if (sdp->conn) {
+	/* The external media address is of the transport's family, which a session
+	 * answered in the offer's family with rtp_ipv6=follow_offer is not */
+	if (sdp->conn && !pj_strcmp2(&sdp->conn->addr_type,
+		ast_sockaddr_is_ipv6(&transport_state->external_media_address) ? "IP6" : "IP4")) {
 		char host[NI_MAXHOST];
 		struct ast_sockaddr our_sdp_addr = { { 0, } };
 

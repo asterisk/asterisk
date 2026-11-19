@@ -160,6 +160,118 @@ static int multihomed_rewrite_sdp(struct pjmedia_sdp_session *sdp)
 	return 0;
 }
 
+/*! \brief Address family of an SDP connection line */
+static int sdp_conn_af(const pjmedia_sdp_conn *conn)
+{
+	return pj_strcmp2(&conn->addr_type, "IP6") ? pj_AF_INET() : pj_AF_INET6();
+}
+
+/*!
+ * \brief Address family the remote SDP uses for a stream
+ *
+ * The connection line of the stream takes precedence over the session level
+ * one, as the two can be of different address families.
+ *
+ * \retval 0 if the remote SDP has no connection line for the stream
+ */
+static int remote_stream_af(const pjmedia_sdp_session *remote, unsigned int index)
+{
+	const pjmedia_sdp_conn *conn = NULL;
+
+	if (index < remote->media_count) {
+		conn = remote->media[index]->conn;
+	}
+	if (!conn) {
+		conn = remote->conn;
+	}
+
+	return conn ? sdp_conn_af(conn) : 0;
+}
+
+/*!
+ * \brief The remote SDP that an outgoing SDP of a follow_offer endpoint follows
+ *
+ * This is the SDP res_pjsip_session passes to res_pjsip_sdp_rtp as the remote
+ * one when it creates the outgoing SDP: the remote offer that is answered or,
+ * for a later offer in the dialog, the SDP negotiated last.
+ *
+ * \retval NULL if the endpoint does not use rtp_ipv6=follow_offer or there is no such SDP
+ */
+static const pjmedia_sdp_session *follow_offer_remote_sdp(pjsip_tx_data *tdata)
+{
+	pjsip_dialog *dlg = pjsip_tdata_get_dlg(tdata);
+	pjsip_inv_session *inv;
+	struct ast_sip_endpoint *endpoint;
+	const pjmedia_sdp_session *remote = NULL;
+	int follow_offer;
+
+	if (!dlg || !(inv = pjsip_dlg_get_inv_session(dlg)) || !inv->neg) {
+		return NULL;
+	}
+
+	endpoint = ast_sip_dialog_get_endpoint(dlg);
+	follow_offer = endpoint && endpoint->media.rtp.ipv6 == AST_SIP_RTP_IPV6_FOLLOW_OFFER;
+	ao2_cleanup(endpoint);
+	if (!follow_offer) {
+		return NULL;
+	}
+
+	switch (pjmedia_sdp_neg_get_state(inv->neg)) {
+	case PJMEDIA_SDP_NEG_STATE_WAIT_NEGO:
+		pjmedia_sdp_neg_get_neg_remote(inv->neg, &remote);
+		break;
+	case PJMEDIA_SDP_NEG_STATE_DONE:
+		/* An answer sent again */
+		if (!pjmedia_sdp_neg_was_answer_remote(inv->neg)) {
+			pjmedia_sdp_neg_get_active_remote(inv->neg, &remote);
+		}
+		break;
+	case PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER:
+		/* A later offer. The first offer of a dialog has nothing negotiated
+		 * yet, and asking the negotiator for an active SDP then fails an
+		 * assertion, so only a confirmed dialog is looked at. */
+		if (pjmedia_sdp_neg_was_answer_remote(inv->neg)) {
+			pjmedia_sdp_neg_get_active_remote(inv->neg, &remote);
+		} else if (inv->state == PJSIP_INV_STATE_CONFIRMED) {
+			pjmedia_sdp_neg_get_active_local(inv->neg, &remote);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return remote;
+}
+
+/*!
+ * \brief Whether a connection line keeps its address instead of the transport's
+ *
+ * With rtp_ipv6=follow_offer res_pjsip_sdp_rtp uses the address family of the
+ * remote SDP for a stream, whatever transport the signaling uses. A connection
+ * line in that family must not be replaced with the transport's address.
+ */
+static int keeps_address_family(const pjmedia_sdp_session *remote, const pjmedia_sdp_conn *conn,
+	unsigned int index, int transport_af)
+{
+	int af = sdp_conn_af(conn);
+
+	return remote && af != transport_af && remote_stream_af(remote, index) == af;
+}
+
+/*! \brief Index of the first stream that uses the session level connection line */
+static unsigned int session_conn_stream(const pjmedia_sdp_session *sdp)
+{
+	unsigned int stream;
+
+	for (stream = 0; stream < sdp->media_count; ++stream) {
+		if (!sdp->media[stream]->conn) {
+			break;
+		}
+	}
+
+	return stream;
+}
+
 #define is_sip_uri(uri) \
 	(PJSIP_URI_SCHEME_IS_SIP(uri) || PJSIP_URI_SCHEME_IS_SIPS(uri))
 
@@ -347,18 +459,29 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 	if (multihomed_rewrite_sdp(sdp)) {
 		static const pj_str_t STR_IP4 = { "IP4", 3 };
 		static const pj_str_t STR_IP6 = { "IP6", 3 };
+		const pjmedia_sdp_session *remote = follow_offer_remote_sdp(tdata);
+		int transport_af;
 		pj_str_t STR_IP;
 		int stream;
 
-		STR_IP = tdata->tp_info.transport->key.type & PJSIP_TRANSPORT_IPV6 ? STR_IP6 : STR_IP4;
+		if (tdata->tp_info.transport->key.type & PJSIP_TRANSPORT_IPV6) {
+			STR_IP = STR_IP6;
+			transport_af = pj_AF_INET6();
+		} else {
+			STR_IP = STR_IP4;
+			transport_af = pj_AF_INET();
+		}
 
-		pj_strassign(&sdp->origin.addr, &prm.ret_addr);
-		sdp->origin.addr_type = STR_IP;
-		pj_strassign(&sdp->conn->addr, &prm.ret_addr);
-		sdp->conn->addr_type = STR_IP;
+		if (!keeps_address_family(remote, sdp->conn, session_conn_stream(sdp), transport_af)) {
+			pj_strassign(&sdp->origin.addr, &prm.ret_addr);
+			sdp->origin.addr_type = STR_IP;
+			pj_strassign(&sdp->conn->addr, &prm.ret_addr);
+			sdp->conn->addr_type = STR_IP;
+		}
 
 		for (stream = 0; stream < sdp->media_count; ++stream) {
-			if (sdp->media[stream]->conn) {
+			if (sdp->media[stream]->conn
+				&& !keeps_address_family(remote, sdp->media[stream]->conn, stream, transport_af)) {
 				pj_strassign(&sdp->media[stream]->conn->addr, &prm.ret_addr);
 				sdp->media[stream]->conn->addr_type = STR_IP;
 			}
