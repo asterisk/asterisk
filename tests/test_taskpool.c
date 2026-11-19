@@ -551,6 +551,107 @@ end:
 	return res;
 }
 
+static int noop_task(void *data)
+{
+	return 0;
+}
+
+/*! \brief Outlives idle_timeout on a dynamic taskprocessor, then pushes to the pool like execute_tasks does */
+static int push_after_idle_timeout_task(void *data)
+{
+	struct test_data *td = data;
+	int res;
+
+	sleep(3);
+
+	/* Takes the pool lock, so this deadlocks if the shrink is joining this thread */
+	if (ast_taskpool_taskprocessors_count(td->test_specific_data) != 1) {
+		/* The shrink removed this taskprocessor while it was executing */
+		res = -2;
+	} else {
+		res = ast_taskpool_push(td->test_specific_data, noop_task, NULL) ? -1 : 1;
+	}
+
+	ast_mutex_lock(&td->lock);
+	td->executed = res;
+	ast_cond_signal(&td->cond);
+	ast_mutex_unlock(&td->lock);
+	return 0;
+}
+
+AST_TEST_DEFINE(taskpool_push_shrink_while_executing)
+{
+	struct ast_taskpool *pool = NULL;
+	struct test_data *td = NULL;
+	struct ast_taskpool_options options = {
+		.version = AST_TASKPOOL_OPTIONS_VERSION,
+		.idle_timeout = 1,
+		.auto_increment = 1,
+		.minimum_size = 0,
+		.initial_size = 0,
+		.max_size = 1,
+	};
+	enum ast_test_result_state res = AST_TEST_PASS;
+	struct timeval start;
+	struct timespec end;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "push_shrink_while_executing";
+		info->category = "/main/taskpool/";
+		info->summary = "Taskpool shrink does not remove a taskprocessor executing a task";
+		info->description =
+			"Runs a task on a dynamic taskprocessor for longer than the idle timeout, then\n"
+			"has the task push to the pool. The shrink must not remove the taskprocessor\n"
+			"while it is executing, and the push must not deadlock against the shrink.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+	td = test_alloc();
+	if (!td) {
+		return AST_TEST_FAIL;
+	}
+
+	pool = ast_taskpool_create(info->name, &options);
+	if (!pool) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	td->test_specific_data = pool;
+
+	if (ast_taskpool_push(pool, push_after_idle_timeout_task, td)) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+
+	/* The task sleeps 3 seconds, so 10 seconds is plenty unless it is deadlocked */
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 10;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&td->lock);
+	while (!td->executed && ast_cond_timedwait(&td->cond, &td->lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&td->lock);
+
+	if (td->executed != 1) {
+		ast_test_status_update(test, "Task running past the idle timeout %s\n",
+			!td->executed ? "deadlocked against the pool shrink" :
+			td->executed == -2 ? "was removed by the shrink while executing" : "failed to push");
+		if (!td->executed) {
+			/* The pool and its threads are deadlocked, shutting it down would hang the test run */
+			return AST_TEST_FAIL;
+		}
+		res = AST_TEST_FAIL;
+	}
+
+end:
+	ast_taskpool_shutdown(pool);
+	test_destroy(td);
+	return res;
+}
+
 AST_TEST_DEFINE(taskpool_serializer_suspension)
 {
 	struct ast_taskpool *pool = NULL;
@@ -1290,6 +1391,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(taskpool_push_serializer_synchronous_requeue);
 	AST_TEST_UNREGISTER(taskpool_push_grow);
 	AST_TEST_UNREGISTER(taskpool_push_shrink);
+	AST_TEST_UNREGISTER(taskpool_push_shrink_while_executing);
 	AST_TEST_UNREGISTER(taskpool_serializer_suspension);
 	AST_TEST_UNREGISTER(taskpool_serializer_multiple_suspension);
 	AST_TEST_UNREGISTER(taskpool_serializer_push_wait_while_suspended_from_other_serializer);
@@ -1307,6 +1409,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(taskpool_push_serializer_synchronous_requeue);
 	AST_TEST_REGISTER(taskpool_push_grow);
 	AST_TEST_REGISTER(taskpool_push_shrink);
+	AST_TEST_REGISTER(taskpool_push_shrink_while_executing);
 	AST_TEST_REGISTER(taskpool_serializer_suspension);
 	AST_TEST_REGISTER(taskpool_serializer_multiple_suspension);
 	AST_TEST_REGISTER(taskpool_serializer_push_wait_while_suspended_from_other_serializer);

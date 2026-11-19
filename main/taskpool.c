@@ -231,8 +231,28 @@ static void taskpool_taskprocessors_cleanup(struct taskpool_taskprocessors *task
 /*!
  * \internal
  * \brief Determine if a taskpool taskprocessor is idle
+ *
+ * Nothing must have been pushed to it within the timeout, and it must have no
+ * queued or executing task. A task can run for longer than the timeout, and
+ * destroying the taskprocessor joins its thread.
+ *
+ * The taskprocessor lock is held so the queue size and the executing state are
+ * consistent, a task is dequeued and marked as executing under it.
  */
-#define TASKPROCESSOR_IS_IDLE(tps, timeout) (ast_tvdiff_ms(ast_tvnow(), tps->last_pushed) > (timeout))
+static int taskpool_taskprocessor_is_idle(struct taskpool_taskprocessor *tp, long timeout)
+{
+	long load;
+
+	if (ast_tvdiff_ms(ast_tvnow(), tp->last_pushed) <= timeout) {
+		return 0;
+	}
+
+	ao2_lock(tp->taskprocessor);
+	load = taskpool_taskprocessor_load(tp);
+	ao2_unlock(tp->taskprocessor);
+
+	return !load;
+}
 
 /*! \internal
  * \brief Taskpool dynamic pool shrink function
@@ -253,7 +273,7 @@ static int taskpool_dynamic_pool_shrink(const void *data)
 
 	/* Go through the dynamic taskprocessors and find any which have been idle long enough and remove them */
 	num_removed = AST_VECTOR_REMOVE_ALL_CMP_UNORDERED(&pool->dynamic_taskprocessors.taskprocessors, pool->options.idle_timeout * 1000,
-		TASKPROCESSOR_IS_IDLE, ao2_cleanup);
+		taskpool_taskprocessor_is_idle, ao2_cleanup);
 	if (num_removed) {
 		/* If we've removed any taskprocessors the taskprocessor_num may no longer be valid, so update it */
 		if (pool->dynamic_taskprocessors.taskprocessor_num >= AST_VECTOR_SIZE(&pool->dynamic_taskprocessors.taskprocessors)) {
