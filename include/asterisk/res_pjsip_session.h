@@ -286,6 +286,22 @@ enum ast_sip_session_response_priority {
 };
 
 /*!
+ * \brief Flags for ast_sip_session_supplement::flags
+ */
+enum ast_sip_session_supplement_flags {
+	/*!
+	 * Do not call outgoing_response again when a response is transmitted
+	 * again from its previously encoded form.
+	 *
+	 * An unchanged response retransmission may be processed on a PJSIP
+	 * thread outside the session serializer. A modified response (such as
+	 * 183 becoming 487) invalidates the encoded buffer, so supplements
+	 * must be invoked again for the changed response.
+	 */
+	AST_SIP_SUPPLEMENT_RESPONSE_ONCE = (1 << 0),
+};
+
+/*!
  * \brief A supplement to SIP message processing
  *
  * These can be registered by any module in order to add
@@ -391,6 +407,15 @@ struct ast_sip_session_supplement {
 	int (*session_create)(struct ast_sip_endpoint *endpoint,
 		struct ast_sip_contact *contact, const char *location,
 		const char *request_user, struct ast_stream_topology *req_topology);
+	/*!
+	 * \brief Flags controlling how the session core invokes this supplement
+	 *
+	 * See \ref ast_sip_session_supplement_flags. Zero (the default) keeps the
+	 * historical behavior.
+	 *
+	 * \since 20.22.0
+	 */
+	struct ast_flags flags;
 };
 
 enum ast_sip_session_sdp_stream_defer {
