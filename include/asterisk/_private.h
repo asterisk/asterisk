@@ -39,6 +39,8 @@ int ast_channels_init(void);		/*!< Provided by channel.c */
 void ast_builtins_init(void);		/*!< Provided by cli.c */
 void ast_cli_channels_init(void);	/*!< Provided by cli.c */
 int ast_cli_perms_init(int reload);	/*!< Provided by cli.c */
+int ast_cli_command_multiple_full_result(int uid, int gid, int fd, size_t size,
+	const char *s, int *result); /*!< Provided by cli.c */
 void dnsmgr_start_refresh(void);	/*!< Provided by dnsmgr.c */
 int ast_dns_system_resolver_init(void); /*!< Provided by dns_system_resolver.c */
 void threadstorage_init(void);		/*!< Provided by threadstorage.c */
