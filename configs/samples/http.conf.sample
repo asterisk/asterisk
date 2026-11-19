@@ -62,6 +62,19 @@ bindaddr=127.0.0.1
 ; Default: 15000
 ;session_keep_alive=15000
 ;
+; trusted_proxies lists the reverse proxies (for example nginx terminating
+; TLS for WebSocket clients) whose X-Forwarded-For and X-Real-IP headers
+; are trusted.  When a request comes from one of them, the client address
+; taken from those headers is used as the remote address of the session:
+; WebSocket (PJSIP and ARI) sessions, logs and the ACLs of restriction
+; categories see the client instead of the proxy.  X-Forwarded-For is read
+; from right to left, skipping the entries of trusted proxies; X-Real-IP is
+; used only without X-Forwarded-For.  The port stays the one of the proxy
+; connection.  Comma separated addresses or networks; may be repeated.
+; Default: none (the headers are ignored).
+;
+;trusted_proxies=127.0.0.1,::1
+;
 ; Whether Asterisk should serve static content from static-http
 ; Default is no.
 ;
