@@ -1,0 +1,7 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_queue_*;
+		LINKER_SYMBOL_PREFIX__ast_queue_*;
+	local:
+		*;
+};
