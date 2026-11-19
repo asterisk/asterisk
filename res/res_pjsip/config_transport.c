@@ -710,6 +710,13 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		transport->async_operations = 1;
 	}
 
+	if (transport->allow_reload) {
+		ast_log(LOG_ERROR, "The allow_reload setting on transport '%s' is no longer supported and is ignored. "
+			"Changes to protocol, bind, TLS, TCP, ToS or CoS options require a restart.\n",
+			transport_id);
+		transport->allow_reload = 0;
+	}
+
 	perm_state = find_internal_state_by_transport(transport);
 	if (perm_state) {
 		ast_sorcery_diff(sorcery, perm_state->transport, transport, &changes);

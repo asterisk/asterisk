@@ -2644,11 +2644,14 @@
 					<since>
 						<version>13.8.0</version>
 					</since>
-					<synopsis>Allow this transport to be reloaded.</synopsis>
+					<synopsis>No longer supported; transports are never reloaded.</synopsis>
 					<description>
-						<para>Allow this transport to be reloaded when res_pjsip is reloaded.
-						This option defaults to "no" because reloading a transport may disrupt
-						in-progress calls.</para>
+						<para>This option is ignored and an error is logged when it is set
+						to "yes".  Reloading a transport recreated its listener while
+						connections accepted by the previous one stayed in use, which could
+						crash Asterisk.  Changes to protocol, bind, TLS (other than renewed
+						certificate and key files at the same paths), TCP, ToS or CoS options
+						take effect after a restart.</para>
 					</description>
 				</configOption>
 				<configOption name="allow_wildcard_certs" default="false">
