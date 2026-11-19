@@ -41,6 +41,7 @@
 #include "asterisk/app.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/message.h"
+#include "asterisk/uuid.h"
 
 /*** DOCUMENTATION
 	<function name="MESSAGE" language="en_US">
@@ -1337,6 +1338,7 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	const char *from = astman_get_header(m, "From");
 	const char *body = astman_get_header(m, "Body");
 	const char *base64body = astman_get_header(m, "Base64Body");
+	const char *action_id = astman_get_header(m, "ActionID");
 	const char *to_override = NULL;
 	char base64decoded[1301] = { 0, };
 	char *tech_name = NULL;
@@ -1345,6 +1347,7 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	const struct ast_msg_tech *msg_tech;
 	struct ast_msg *msg;
 	int res = -1;
+	char delivery_id[AST_UUID_STR_LEN] = "";
 
 	if (!ast_strlen_zero(destination)) {
 		if (!ast_strlen_zero(to)) {
@@ -1385,6 +1388,9 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 		ast_msg_set_var_outbound(msg, vars->name, vars->value);
 	}
 
+	ast_uuid_generate_str(delivery_id, sizeof(delivery_id));
+	ast_msg_set_var(msg, "DeliveryID", delivery_id);
+
 	ast_msg_set_body(msg, "%s", body);
 
 	if (to_override) {
@@ -1401,7 +1407,14 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	if (res) {
 		astman_send_error(s, m, "Message failed to send.");
 	} else {
-		astman_send_ack(s, m, "Message successfully sent");
+		astman_append(s, "Response: Success\r\n");
+		if (!ast_strlen_zero(action_id)) {
+			astman_append(s, "ActionID: %s\r\n", action_id);
+		}
+		astman_append(s, "Message: Message successfully sent\r\n"
+			"DeliveryID: %s\r\n"
+			"\r\n",
+			delivery_id);
 	}
 	return 0;
 }
