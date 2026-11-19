@@ -1224,12 +1224,10 @@
                                 ; clients are slow to process the received
                                 ; information. Value is in milliseconds; default
                                 ; is 100 ms.
-;allow_reload=no    ; Although transports can now be reloaded, that may not be
-                    ; desirable because of the slight possibility of dropped
-                    ; calls. To make sure there are no unintentional drops, if
-                    ; this option is set to 'no' (the default) changes to the
-                    ; particular transport will be ignored. If set to 'yes',
-                    ; changes (if any) will be applied.
+;allow_reload=no    ; No longer supported and ignored. Existing listeners are
+                    ; kept on reload. Changes to protocol, bind, TCP, ToS, CoS
+                    ; or TLS options take effect after a restart, except for
+                    ; supported certificate and key renewal at the same paths.
 ;symmetric_transport=no ; When a request from a dynamic contact comes in on a
                         ; transport with this option set to 'yes', the transport
                         ; name will be saved and used for subsequent outgoing
