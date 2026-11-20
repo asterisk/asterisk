@@ -34,3 +34,37 @@ requirements=warn
 ; that from occuring, set order_multi_row_results_by_initial_column to 'no'.
 ;
 ;order_multi_row_results_by_initial_column=no
+
+; How long (in seconds) to wait for a connection to the database to be
+; established. The default (0) waits as long as libpq does, which can be
+; minutes when the server does not answer. libpq treats values below 2 as 2.
+; libpq applies it to each address of the host in turn, and it does not
+; limit looking up a host name: use an address in dbhost, or a reliable
+; resolver, if this matters.
+;
+;connect_timeout=3
+
+; How long (in milliseconds) to wait for the result of a query. When the
+; server does not answer in time, the query fails and the connection is
+; dropped, so the next query connects again. Set it well above your slowest
+; normal query (such as loading a large realtime table at startup). The
+; default (0) waits forever.
+; All realtime lookups share one connection, so a query that hangs blocks
+; every other lookup (such as PJSIP endpoint lookups) until it finishes.
+; This applies to writes too (realtime updates, stores and deletes, and the
+; ALTER TABLE statements of requirements=createclose/createchar). A write
+; that times out is reported as failed, but the server may still complete
+; it after the connection is dropped. The query is not cancelled, so a slow
+; statement keeps running on the server, holding any locks it took.
+;
+;query_timeout=1000
+
+; When connecting fails, how long (in seconds) to fail further queries at
+; once instead of trying to connect again. This keeps Asterisk responsive
+; while the database is unreachable. A query that times out only drops the
+; connection; the next query connects again, and connect_timeout limits how
+; long that takes. The default (0) tries to connect again for every query.
+; Without it, while the server does not answer, every query waits for
+; connect_timeout in turn, so set both when you set query_timeout.
+;
+;negative_connection_cache=5
