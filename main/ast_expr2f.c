@@ -2388,18 +2388,45 @@ void ast_yyfree(void *ptr, yyscan_t yyscanner)
 	free( (char *) ptr );
 }
 
+/*!
+ * \internal
+ * \brief Discard the value left behind by a failed parse.
+ *
+ * Bison may already have reduced 'start: expr' and stored a value in
+ * io->val before it detects a syntax error on a trailing token (the
+ * "expecting $end" case).  That value is only the leading fragment of the
+ * expression, so drop it and let the caller fall back to "0", the same
+ * result as any other syntax error.
+ */
+static void discard_parse_result(struct parse_io *io)
+{
+	if (!io->val) {
+		return;
+	}
+	if (io->val->type != AST_EXPR_number) {
+		free(io->val->u.s);
+	}
+	free(io->val);
+	io->val = NULL;
+}
+
 int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
 {
 	struct parse_io io = { .string = expr, .chan = chan };
 	int return_value = 0;
+	int parse_res;
 
 	ast_yylex_init(&io.scanner);
 
 	ast_yy_scan_string(expr, io.scanner);
 
-	ast_yyparse ((void *) &io);
+	parse_res = ast_yyparse ((void *) &io);
 
 	ast_yylex_destroy(io.scanner);
+
+	if (parse_res) {
+		discard_parse_result(&io);
+	}
 
 	if (!io.val) {
 		if (length > 1) {
@@ -2433,11 +2460,16 @@ int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
 int ast_str_expr(struct ast_str **str, ssize_t maxlen, struct ast_channel *chan, char *expr)
 {
 	struct parse_io io = { .string = expr, .chan = chan };
+	int parse_res;
 
 	ast_yylex_init(&io.scanner);
 	ast_yy_scan_string(expr, io.scanner);
-	ast_yyparse ((void *) &io);
+	parse_res = ast_yyparse ((void *) &io);
 	ast_yylex_destroy(io.scanner);
+
+	if (parse_res) {
+		discard_parse_result(&io);
+	}
 
 	if (!io.val) {
 		ast_str_set(str, maxlen, "0");
