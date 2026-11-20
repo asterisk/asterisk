@@ -1038,6 +1038,20 @@
                 ; NOTE: This doesn't just apply to 183 responses.  MOH will
                 ; be suppressed when the attribute appears in any SDP received
                 ; including INVITEs, re-INVITES, and other responses.
+;
+; restore_orig_contact_host = no
+                ; Only used when rewrite_contact is enabled. Requests sent to a
+                ; rewritten contact (calls, in-dialog requests such as ACK and
+                ; BYE, NOTIFY, OPTIONS) are still delivered to the source address
+                ; and port of the device, but the Request-URI and To header carry
+                ; the host and port the device announced in its Contact, as
+                ; RFC 3261 sections 12.2.1.1 and 16.5 describe. Some devices behind
+                ; NAT (for example Cisco CP-89xx phones) answer 404 Not Found or
+                ; ignore requests whose Request-URI carries the NAT address.
+                ; Contacts registered before the option changes keep the previous
+                ; behavior until they register again. WebSocket transports are
+                ; not affected.
+                ; (default: no)
                 ; (default: no)
 
 ;==========================AUTH SECTION OPTIONS=========================
