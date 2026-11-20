@@ -240,6 +240,7 @@ static void taskpool_taskprocessors_cleanup(struct taskpool_taskprocessors *task
 static int taskpool_dynamic_pool_shrink(const void *data)
 {
 	struct ast_taskpool *pool = (struct ast_taskpool *)data;
+	AST_VECTOR(, struct taskpool_taskprocessor *) removed;
 	int num_removed;
 
 	ao2_lock(pool);
@@ -251,9 +252,28 @@ static int taskpool_dynamic_pool_shrink(const void *data)
 		return 0;
 	}
 
+	/* Nothing to shrink, don't allocate on every tick */
+	if (!AST_VECTOR_SIZE(&pool->dynamic_taskprocessors.taskprocessors)) {
+		ao2_unlock(pool);
+		return pool->options.idle_timeout * 1000;
+	}
+
+	/* Removed taskprocessors must not be destroyed while holding the pool lock. Destroying one
+	 * joins its thread, and that thread may be in the middle of a task (TASKPROCESSOR_IS_IDLE only
+	 * looks at the last push time) which needs the pool lock, e.g. execute_tasks requeueing a
+	 * serializer. So they are moved aside here and released once the lock is dropped. Sizing the
+	 * vector up front guarantees the appends below cannot fail.
+	 */
+	if (AST_VECTOR_INIT(&removed, AST_VECTOR_SIZE(&pool->dynamic_taskprocessors.taskprocessors))) {
+		ao2_unlock(pool);
+		return pool->options.idle_timeout * 1000;
+	}
+
 	/* Go through the dynamic taskprocessors and find any which have been idle long enough and remove them */
+#define STASH_REMOVED(tp) AST_VECTOR_APPEND(&removed, tp)
 	num_removed = AST_VECTOR_REMOVE_ALL_CMP_UNORDERED(&pool->dynamic_taskprocessors.taskprocessors, pool->options.idle_timeout * 1000,
-		TASKPROCESSOR_IS_IDLE, ao2_cleanup);
+		TASKPROCESSOR_IS_IDLE, STASH_REMOVED);
+#undef STASH_REMOVED
 	if (num_removed) {
 		/* If we've removed any taskprocessors the taskprocessor_num may no longer be valid, so update it */
 		if (pool->dynamic_taskprocessors.taskprocessor_num >= AST_VECTOR_SIZE(&pool->dynamic_taskprocessors.taskprocessors)) {
@@ -262,6 +282,10 @@ static int taskpool_dynamic_pool_shrink(const void *data)
 	}
 
 	ao2_unlock(pool);
+
+	/* This may block until a removed taskprocessor finishes its current task, but no lock is held */
+	AST_VECTOR_CALLBACK_VOID(&removed, ao2_cleanup);
+	AST_VECTOR_FREE(&removed);
 
 	/* It is possible for the pool to have been shut down between unlocking and returning, this is
 	 * inherently a race condition we can't eliminate so we will catch it on the next iteration.
