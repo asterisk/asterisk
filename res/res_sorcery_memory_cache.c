@@ -939,6 +939,16 @@ static int stale_cache_update(const void *data)
 		return 0;
 	}
 
+	if (ast_sorcery_retrieve_failed()) {
+		/* Keep serving the stale objects, the next retrieval tries again */
+		ast_log(LOG_WARNING, "Could not refresh the sorcery memory cache of '%s' objects as the backend is unavailable, keeping the cached objects\n",
+			task_data->type);
+		ao2_ref(backend_objects, -1);
+		task_data->cache->stale_update_sched_id = -1;
+		ao2_ref(task_data, -1);
+		return 0;
+	}
+
 	if (task_data->cache->maximum_objects && ao2_container_count(backend_objects) >= task_data->cache->maximum_objects) {
 		ast_log(LOG_ERROR, "The backend contains %d objects while the sorcery memory cache '%s' is explicitly configured to only allow %d\n",
 			ao2_container_count(backend_objects), task_data->cache->name, task_data->cache->maximum_objects);
@@ -1119,6 +1129,13 @@ static int memory_cache_populate_external(const struct ast_sorcery *sorcery, con
 
 	if (!backend_objects) {
 		/* This will occur in off-nominal memory allocation failure scenarios */
+		return -1;
+	}
+
+	if (ast_sorcery_retrieve_failed()) {
+		ast_log(LOG_WARNING, "Could not populate sorcery memory cache '%s' as its backend is unavailable, keeping the cached objects\n",
+			cache->name);
+		ao2_ref(backend_objects, -1);
 		return -1;
 	}
 
@@ -3141,6 +3158,8 @@ static struct backend_data {
 	int pepper;
 	/*! Indicates whether the backend has data */
 	int exists;
+	/*! Indicates that the backend cannot be reached */
+	int failed;
 } *real_backend_data;
 
 /*!
@@ -3215,6 +3234,11 @@ static void mock_retrieve_multiple(const struct ast_sorcery *sorcery, void *data
 	int i;
 
 	if (fields) {
+		return;
+	}
+
+	if (real_backend_data->failed) {
+		ast_sorcery_wizard_retrieve_failed();
 		return;
 	}
 
@@ -3658,6 +3682,140 @@ cleanup:
 	return res;
 }
 
+/*!
+ * \brief Wait for the given number of seconds
+ */
+static void wait_seconds(int seconds)
+{
+	ast_mutex_t lock;
+	ast_cond_t cond;
+	struct timeval start = ast_tvnow();
+	struct timespec end = {
+		.tv_sec = start.tv_sec + seconds,
+		.tv_nsec = start.tv_usec * 1000,
+	};
+
+	ast_mutex_init(&lock);
+	ast_cond_init(&cond, NULL);
+	ast_mutex_lock(&lock);
+	while (ast_cond_timedwait(&cond, &lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&lock);
+	ast_cond_destroy(&cond);
+	ast_mutex_destroy(&lock);
+}
+
+/*!
+ * \brief Retrieve all test objects and check how many there are
+ */
+static int check_object_count(struct ast_test *test, struct ast_sorcery *sorcery, int expected, const char *when)
+{
+	struct ao2_container *objects;
+	int count;
+
+	objects = ast_sorcery_retrieve_by_fields(sorcery, "test", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!objects) {
+		ast_test_status_update(test, "Unable to retrieve all objects %s\n", when);
+		return -1;
+	}
+
+	count = ao2_container_count(objects);
+	ao2_ref(objects, -1);
+	if (count != expected) {
+		ast_test_status_update(test, "Expected %d objects %s but got %d\n", expected, when, count);
+		return -1;
+	}
+
+	return 0;
+}
+
+AST_TEST_DEFINE(full_backend_cache_stale_backend_failure)
+{
+	int res = AST_TEST_FAIL;
+	struct ast_sorcery *sorcery = NULL;
+	struct backend_data initial = {
+		.salt = 0,
+		.pepper = 0,
+		.exists = 4,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "full_backend_cache_stale_backend_failure";
+		info->category = "/res/res_sorcery_memory_cache/";
+		info->summary = "Ensure that a full backend cache survives a failed refresh";
+		info->description = "This test performs the following:\n"
+			"\t* Create a sorcery instance with two wizards"
+			"\t\t* The first is a memory cache that stales objects after 1 second and does full backend caching\n"
+			"\t\t* The second is a mock of a back-end\n"
+			"\t* Populates the cache by requesting all objects which returns 4.\n"
+			"\t* Wait for objects to go stale, then make the backend fail.\n"
+			"\t* Requests all objects, which queues a refresh, and waits for it.\n"
+			"\t* Confirms the cache still returns 4 objects.\n"
+			"\t* Makes the backend work again with 8 objects and confirms they are returned after a refresh.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_sorcery_wizard_register(&mock_wizard);
+
+	sorcery = ast_sorcery_open();
+	if (!sorcery) {
+		ast_test_status_update(test, "Failed to create sorcery instance\n");
+		goto cleanup;
+	}
+
+	ast_sorcery_apply_wizard_mapping(sorcery, "test", "memory_cache",
+			"object_lifetime_stale=1,full_backend_cache=yes", 1);
+	ast_sorcery_apply_wizard_mapping(sorcery, "test", "mock", NULL, 0);
+	ast_sorcery_internal_object_register(sorcery, "test", test_data_alloc, NULL, NULL);
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "salt", "0", OPT_UINT_T, 0, FLDSET(struct test_data, salt));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "pepper", "0", OPT_UINT_T, 0, FLDSET(struct test_data, pepper));
+
+	real_backend_data = &initial;
+
+	if (check_object_count(test, sorcery, 4, "when populating the cache")) {
+		goto cleanup;
+	}
+
+	wait_seconds(2);
+	initial.failed = 1;
+
+	/* The objects are stale, so this queues a refresh which fails */
+	if (check_object_count(test, sorcery, 4, "from the stale cache")) {
+		goto cleanup;
+	}
+	wait_seconds(2);
+	if (check_object_count(test, sorcery, 4, "after a failed refresh")) {
+		goto cleanup;
+	}
+
+	initial.failed = 0;
+	initial.exists = 8;
+
+	/* Still stale, so this queues a refresh which works */
+	if (check_object_count(test, sorcery, 4, "before the backend is back")) {
+		goto cleanup;
+	}
+	wait_seconds(2);
+	if (check_object_count(test, sorcery, 8, "after the backend is back")) {
+		goto cleanup;
+	}
+
+	/* The objects were stale again, so let the refresh that queued finish */
+	wait_seconds(2);
+
+	res = AST_TEST_PASS;
+
+cleanup:
+	if (sorcery) {
+		ast_sorcery_unref(sorcery);
+	}
+	ast_sorcery_wizard_unregister(&mock_wizard);
+	return res;
+}
+
 #endif
 
 static int unload_module(void)
@@ -3672,6 +3830,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(stale);
 	AST_TEST_UNREGISTER(full_backend_cache_expiration);
 	AST_TEST_UNREGISTER(full_backend_cache_stale);
+	AST_TEST_UNREGISTER(full_backend_cache_stale_backend_failure);
 
 	ast_manager_unregister("SorceryMemoryCacheExpireObject");
 	ast_manager_unregister("SorceryMemoryCacheExpire");
@@ -3754,6 +3913,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(expiration);
 	AST_TEST_REGISTER(full_backend_cache_expiration);
 	AST_TEST_REGISTER(full_backend_cache_stale);
+	AST_TEST_REGISTER(full_backend_cache_stale_backend_failure);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

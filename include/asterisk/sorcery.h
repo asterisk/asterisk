@@ -1423,6 +1423,30 @@ void *ast_sorcery_retrieve_by_id(const struct ast_sorcery *sorcery, const char *
 void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const char *type, unsigned int flags, struct ast_variable *fields);
 
 /*!
+ * \brief Report that a wizard could not reach its backend during a retrieval
+ *
+ * \details
+ * A wizard calls this from its retrieve_multiple callback when the backend
+ * failed, as opposed to having no objects to return. The caller of
+ * ast_sorcery_retrieve_by_fields() can then tell the two apart with
+ * ast_sorcery_retrieve_failed().
+ */
+void ast_sorcery_wizard_retrieve_failed(void);
+
+/*!
+ * \brief Whether a wizard reported a failed backend during the last retrieval
+ *
+ * \details
+ * Applies to the last call of ast_sorcery_retrieve_by_fields() made by the
+ * calling thread. When it returns non-zero, an empty or short result may not
+ * reflect what the backend holds.
+ *
+ * \retval 0 No wizard reported a failure
+ * \retval non-zero A wizard reported a failure
+ */
+int ast_sorcery_retrieve_failed(void);
+
+/*!
  * \brief Retrieve multiple objects using a regular expression on their id
  *
  * \param sorcery Pointer to a sorcery structure

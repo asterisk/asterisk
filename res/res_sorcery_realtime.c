@@ -222,7 +222,11 @@ static void sorcery_realtime_retrieve_multiple(const struct ast_sorcery *sorcery
 		fields = all;
 	}
 
-	if (!(rows = ast_load_realtime_multientry_fields(config->family, fields))) {
+	if (ast_load_realtime_multientry_fields_checked(config->family, fields, &rows)) {
+		ast_sorcery_wizard_retrieve_failed();
+		return;
+	}
+	if (!rows) {
 		return;
 	}
 
