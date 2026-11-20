@@ -3860,7 +3860,8 @@ int ast_unload_realtime(const char *family)
 	return res;
 }
 
-struct ast_config *ast_load_realtime_multientry_fields(const char *family, const struct ast_variable *fields)
+int ast_load_realtime_multientry_fields_checked(const char *family, const struct ast_variable *fields,
+	struct ast_config **result)
 {
 	struct ast_config_engine *eng;
 	char db[256];
@@ -3868,20 +3869,33 @@ struct ast_config *ast_load_realtime_multientry_fields(const char *family, const
 	struct ast_config *res = NULL;
 	int i;
 
+	*result = NULL;
+
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
+			/* An engine returns NULL on failure and an empty cfg when nothing matched */
 			if (eng->realtime_multi_func && (res = eng->realtime_multi_func(db, table, fields))) {
 				/* If we were returned an empty cfg, destroy it and return NULL */
 				if (!res->root) {
 					ast_config_destroy(res);
 					res = NULL;
 				}
-				break;
+				*result = res;
+				return 0;
 			}
 		} else {
 			break;
 		}
 	}
+
+	return -1;
+}
+
+struct ast_config *ast_load_realtime_multientry_fields(const char *family, const struct ast_variable *fields)
+{
+	struct ast_config *res;
+
+	ast_load_realtime_multientry_fields_checked(family, fields, &res);
 
 	return res;
 }

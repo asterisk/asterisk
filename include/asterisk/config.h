@@ -550,6 +550,26 @@ int ast_realtime_require_field(const char *family, ...) attribute_sentinel;
 struct ast_config *ast_load_realtime_multientry_fields(const char *family, const struct ast_variable *fields);
 
 /*!
+ * \brief Retrieve realtime configuration, telling a failed lookup from one without results
+ *
+ * \param family which family/config to lookup
+ * \param fields list of fields
+ * \param[out] result An ast_config with one or more results, or NULL when nothing matched
+ *                    or the lookup failed
+ *
+ * \details
+ * Works like ast_load_realtime_multientry_fields(), but also says whether a
+ * realtime backend answered the lookup. A caller that keeps a copy of the data
+ * can use this to keep its copy when the backend is unavailable, rather than
+ * treating the failure as an empty result.
+ *
+ * \retval 0 A backend answered (result is NULL if nothing matched)
+ * \retval -1 No backend could answer, for example because the database is unreachable
+ */
+int ast_load_realtime_multientry_fields_checked(const char *family, const struct ast_variable *fields,
+	struct ast_config **result);
+
+/*!
  * \brief Retrieve realtime configuration
  *
  * \param family which family/config to lookup

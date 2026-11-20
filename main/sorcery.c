@@ -43,6 +43,7 @@
 #include "asterisk/json.h"
 #include "asterisk/vector.h"
 #include "asterisk/cli.h"
+#include "asterisk/threadstorage.h"
 
 /* To prevent DEBUG_FD_LEAKS from interfering with things we undef open and close */
 #undef open
@@ -1958,15 +1959,45 @@ void *ast_sorcery_retrieve_by_id(const struct ast_sorcery *sorcery, const char *
 	return object;
 }
 
+/*! \brief Thread storage for whether a wizard reported a failed backend */
+AST_THREADSTORAGE(retrieve_failed_storage);
+
+static int *retrieve_failed_flag(void)
+{
+	return ast_threadstorage_get(&retrieve_failed_storage, sizeof(int));
+}
+
+void ast_sorcery_wizard_retrieve_failed(void)
+{
+	int *failed = retrieve_failed_flag();
+
+	if (failed) {
+		*failed = 1;
+	}
+}
+
+int ast_sorcery_retrieve_failed(void)
+{
+	int *failed = retrieve_failed_flag();
+
+	return failed ? *failed : 0;
+}
+
 void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const char *type, unsigned int flags, struct ast_variable *fields)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 	void *object = NULL;
 	int i;
 	unsigned int cached = 0;
+	int *failed;
 
 	if (!object_type) {
 		return NULL;
+	}
+
+	failed = retrieve_failed_flag();
+	if (failed) {
+		*failed = 0;
 	}
 
 	/* If returning multiple objects create a container to store them in */
