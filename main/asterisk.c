@@ -561,6 +561,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Generic PLC on equal codecs: %s\n", ast_opt_generic_plc_on_equal_codecs ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Hide Msg Chan AMI events:    %s\n", ast_opt_hide_messaging_ami_events ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Sounds search custom dir:    %s\n", ast_opt_sounds_search_custom ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  safe_system_spawn option:    %s\n", ast_safe_system_spawn_status());
 	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
 #if !defined(LOW_MEMORY)
 	ast_cli(a->fd, "  Cache media frames:          %s\n", ast_opt_cache_media_frames ? "Enabled" : "Disabled");
@@ -1246,7 +1247,14 @@ int ast_safe_execvp(int dualfork, const char *file, char *const argv[])
 
 int ast_safe_system(const char *s)
 {
-	pid_t pid = safe_exec_prep(0);
+	pid_t pid;
+
+	pid = ast_safe_system_spawn(s);
+	if (pid > 0) {
+		return safe_exec_wait(pid);
+	}
+
+	pid = safe_exec_prep(0);
 
 	if (pid == 0) {
 		execl("/bin/sh", "/bin/sh", "-c", s, (char *) NULL);

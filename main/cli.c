@@ -456,7 +456,7 @@ static char *handle_debug_or_trace(int handler, struct ast_cli_entry *e, int cmd
 	int atleast = 0;
 	struct module_level *ml;
 	struct module_level_list *modules;
-	unsigned int module_option;
+	uint64_t module_option;
 	int *core_option;
 	const char *handler_name;
 
