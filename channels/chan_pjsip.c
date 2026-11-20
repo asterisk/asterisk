@@ -2167,6 +2167,15 @@ static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 				status_line.reason = msg->line.status.reason;
 			}
 		} else {
+			if (event->type == PJSIP_EVENT_TSX_STATE) {
+				ast_debug(3, "Unexpected transfer event %d, type %d on channel %s\n",
+						event->type, event->body.tsx_state.type,
+						ast_channel_name(chan));
+			} else {
+				ast_debug(3, "Unexpected transfer event %d on channel %s\n",
+						event->type,
+						ast_channel_name(chan));
+			}
 			status_line.code = 500;
 			status_line.reason = *pjsip_get_status_text(500);
 		}
@@ -2223,6 +2232,15 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 	char local_info[pj_strlen(&session->inv_session->dlg->local.info_str) + 1];
 	struct pjsip_evsub_user xfer_cb;
 	struct ast_channel *chan = session->channel;
+	const char *chan_name;
+
+	/*
+	 * xfer_client_on_evsub_state() may release its channel reference
+	 * before pjsip_xfer_send_request() returns. Copy the name now so
+	 * the failure path can log it without accessing the channel after
+	 * that reference is released.
+	 */
+	chan_name = ast_strdupa(ast_channel_name(chan));
 
 	pj_bzero(&xfer_cb, sizeof(xfer_cb));
 	xfer_cb.on_evsub_state = &xfer_client_on_evsub_state;
@@ -2257,6 +2275,22 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 	}
 
 failure:
+		/*
+		 * If pjsip_xfer_send_request() failed synchronously, PJSIP may have
+		 * already called xfer_client_on_evsub_state() on this thread. That
+		 * callback clears mod_data and releases the channel reference, so
+		 * skip the cleanup below when mod_data is already NULL.
+		 *
+		 * Checking mod_data without a lock is safe. This function runs on
+		 * the session serializer, and the res_pjsip distributor queues all
+		 * later responses and NOTIFYs for this dialog to that same
+		 * serializer. The callback can't run on another thread and clear
+		 * mod_data between this check and the cleanup.
+		 */
+	if (!pjsip_evsub_get_mod_data(sub, chan_pjsip_module.id)) {
+		ast_log(LOG_WARNING, "Failed to send REFER on channel %s; transfer subscription already terminated\n", chan_name);
+		return;
+	}
 	message = AST_TRANSFER_FAILED;
 	ast_queue_control_data(chan, AST_CONTROL_TRANSFER, &message, sizeof(message));
 	pjsip_evsub_set_mod_data(sub, chan_pjsip_module.id, NULL);
