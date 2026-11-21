@@ -88,6 +88,8 @@ struct iax_ies {
 #define DIRECTION_INGRESS 1
 #define DIRECTION_OUTGRESS 2
 
+#define IAX2_PEER_ADDR_NONE -1
+
 struct iax_frame {
 #ifdef LIBIAX
 	struct iax_session *session;
@@ -110,6 +112,8 @@ struct iax_frame {
 	unsigned int ts;
 	/*! How long to wait before retrying */
 	int retrytime;
+	/*! Peer address index for reliable setup frame transmission */
+	int peer_addr_index;
 	/*! Are we received out of order?  */
 	unsigned int outoforder:1;
 	/*! Have we been sent at all yet? */

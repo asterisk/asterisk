@@ -300,8 +300,22 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
 	hints.ai_socktype = SOCK_DGRAM;
 
 	if ((e = getaddrinfo(host, port, &hints, &res))) {
-		ast_log(LOG_ERROR, "getaddrinfo(\"%s\", \"%s\", ...): %s\n",
-			host, S_OR(port, "(null)"), gai_strerror(e));
+		int log;
+
+#ifdef EAI_NODATA
+#define IS_SUPPRESSIBLE_EAI_ERROR(_err) ((_err) == EAI_NONAME || (_err) == EAI_NODATA)
+#else
+#define IS_SUPPRESSIBLE_EAI_ERROR(_err) ((_err) == EAI_NONAME)
+#endif
+		log = !IS_SUPPRESSIBLE_EAI_ERROR(e) ||
+			(!(ast_sockaddr_resolve_flags_get() & AST_SOCKADDR_RESOLVE_FLAG_SUPPRESS_EAI_NONAME_LOGS));
+		if (log) {
+			ast_log(LOG_ERROR, "getaddrinfo(\"%s\", \"%s\", ...): %s\n",
+				host, S_OR(port, "(null)"), gai_strerror(e));
+		}
+
+#undef IS_SUPPRESSIBLE_EAI_ERROR
+
 		*addrs = NULL;
 		return 0;
 	}
@@ -696,4 +710,62 @@ void _ast_sockaddr_from_sin(struct ast_sockaddr *addr, const struct sockaddr_in 
 	}
 
 	addr->len = sizeof(*sin);
+}
+
+/*
+ * Thread-local sockaddr resolver flags.
+ *
+ * This intentionally provides ambient per-thread context so higher-level
+ * callers can adjust expected resolver logging/behavior without adding
+ * flags through every resolver helper API.
+ */
+AST_THREADSTORAGE(ast_sockaddr_resolve_flags);
+
+static int *sockaddr_resolve_flags_get_storage(void)
+{
+	return ast_threadstorage_get(&ast_sockaddr_resolve_flags, sizeof(int));
+}
+
+int ast_sockaddr_resolve_flags_get(void)
+{
+	int *flags;
+
+	flags = sockaddr_resolve_flags_get_storage();
+	if (!flags) {
+		return 0;
+	}
+
+	return *flags;
+}
+
+int ast_sockaddr_resolve_flags_set(int new_flags)
+{
+	int *flags;
+	int old_flags = 0;
+
+	flags = sockaddr_resolve_flags_get_storage();
+	if (!flags) {
+		return 0;
+	}
+
+	old_flags = *flags;
+	*flags = new_flags;
+
+	return old_flags;
+}
+
+int ast_sockaddr_resolve_flags_suppress(int suppress_flags)
+{
+	int *flags;
+	int old_flags = 0;
+
+	flags = sockaddr_resolve_flags_get_storage();
+	if (!flags) {
+		return 0;
+	}
+
+	old_flags = *flags;
+	*flags |= suppress_flags;
+
+	return old_flags;
 }

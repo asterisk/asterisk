@@ -1285,6 +1285,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 
 	fr->direction = direction;
 	fr->retrans = -1;
+	fr->peer_addr_index = IAX2_PEER_ADDR_NONE;
 
 	if (fr->direction == DIRECTION_INGRESS)
 		ast_atomic_fetchadd_int(&iframes, 1);

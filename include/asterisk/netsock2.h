@@ -818,6 +818,48 @@ static inline int _ast_addressfamily_to_sockaddrsize(int af, const char *file, i
  */
 #define ast_sockaddr_from_sockaddr(addr,sa)	ast_sockaddr_copy_sockaddr(addr, sa, ast_addressfamily_to_sockaddrsize(((const struct sockaddr*)(sa))->sa_family))
 
+/*!
+ * \brief Suppress logging for EAI_NONAME results from sockaddr resolution.
+ *
+ * This does not change the resolver result. It only suppresses selected log messages
+ * when the caller expects EAI_NONAME to be a possible/non-fatal result.
+ */
+#define AST_SOCKADDR_RESOLVE_FLAG_SUPPRESS_EAI_NONAME_LOGS  (1 << 0)
+
+/*!
+ * \since 23.0.0
+ *
+ * \brief Get the current thread's sockaddr resolver flags.
+ *
+ * These flags are thread-local and affect resolver behavior/logging in the
+ * current thread only.
+ *
+ * \retval flags Current thread-local sockaddr resolver flags.
+ */
+int ast_sockaddr_resolve_flags_get(void);
+
+/*!
+ * \since 23.0.0
+ *
+ * \brief Set the current thread's sockaddr resolver flags.
+ *
+ * \param new_flags New sockaddr resolver flags.
+ * \retval The previous sockaddr resolver flags for this thread.
+ */
+int ast_sockaddr_resolve_flags_set(int new_flags);
+
+/*!
+ * \since 23.0.0
+ *
+ * \brief Add sockaddr resolver flags for the current thread.
+ *
+ * This ORs suppress_flags into the current thread's sockaddr resolver flags.
+ *
+ * \param suppress_flags Sockaddr resolver flags to add.
+ * \retval The previous sockaddr resolver flags for this thread.
+ */
+int ast_sockaddr_resolve_flags_suppress(int suppress_flags);
+
 /*! @} */
 
 #if defined(__cplusplus) || defined(c_plusplus)
