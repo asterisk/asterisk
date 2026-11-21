@@ -61,6 +61,7 @@ static void channel_info_destroy(void *data)
 	ast_free(info->remote_tag);
 	ao2_cleanup(info->audio_rtp);
 	ao2_cleanup(info->video_rtp);
+	ao2_cleanup(info->text_rtp);
 	ast_free(info);
 }
 
@@ -182,6 +183,12 @@ static void channel_info_update_locked(struct pjsip_channel_info *info,
 	info->video_secure = media && media->srtp
 		&& ast_test_flag(media->srtp, AST_SRTP_CRYPTO_OFFER_OK);
 	info->video_held = media && media->remotely_held;
+	media = session->active_media_state
+		? session->active_media_state->default_session[AST_MEDIA_TYPE_TEXT] : NULL;
+	ao2_replace(info->text_rtp, media ? media->rtp : NULL);
+	info->text_secure = media && media->srtp
+		&& ast_test_flag(media->srtp, AST_SRTP_CRYPTO_OFFER_OK);
+	info->text_held = media && media->remotely_held;
 }
 
 int pjsip_channel_info_create(struct ast_channel *chan,

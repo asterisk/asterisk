@@ -50,10 +50,13 @@ struct pjsip_channel_info {
 	 */
 	struct ast_rtp_instance *audio_rtp;
 	struct ast_rtp_instance *video_rtp;
+	struct ast_rtp_instance *text_rtp;
 	unsigned int audio_secure;
 	unsigned int video_secure;
+	unsigned int text_secure;
 	unsigned int audio_held;
 	unsigned int video_held;
+	unsigned int text_held;
 };
 
 /*!
