@@ -542,6 +542,19 @@ enum ast_sip_100rel_mode {
 };
 
 /*!
+ * \brief Values of the rtp_ipv6 endpoint option
+ */
+enum ast_sip_rtp_ipv6 {
+	/*! Use IPv4 for RTP. (no) */
+	AST_SIP_RTP_IPV6_NO = 0,
+	/*! Use IPv6 for RTP. (yes) */
+	AST_SIP_RTP_IPV6_YES,
+	/*! Like yes, but answer an IPv4 offer with IPv4 and keep the address family
+	 * of the offer in an answer even if the signaling transport differs. (follow_offer) */
+	AST_SIP_RTP_IPV6_FOLLOW_OFFER,
+};
+
+/*!
  * \brief DTMF modes for SIP endpoints
  */
 enum ast_sip_dtmf_mode {
@@ -936,7 +949,7 @@ struct ast_sip_media_rtp_configuration {
 		/*! Configured RTP engine for this endpoint. */
 		AST_STRING_FIELD(engine);
 	);
-	/*! Whether IPv6 RTP is enabled or not */
+	/*! Whether IPv6 RTP is enabled or not, an enum ast_sip_rtp_ipv6 value */
 	unsigned int ipv6;
 	/*! Whether symmetric RTP is enabled or not */
 	unsigned int symmetric;

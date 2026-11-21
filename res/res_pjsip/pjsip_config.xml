@@ -789,6 +789,39 @@
 						<version>12.0.0</version>
 					</since>
 					<synopsis>Allow use of IPv6 for RTP traffic</synopsis>
+					<description>
+						<para>Selects the address family of the connection address in
+						SDP offers and answers. If <literal>media_address</literal> is
+						set, it is used as is and this option does not change its
+						family. If the connection address is the host address, it is
+						replaced with the address of the transport the message is sent
+						on, so the SDP takes the address family of the signaling.</para>
+						<enumlist>
+							<enum name="no">
+							<para>The default. The connection address in SDP offers and
+							answers matches the address family of the signaling
+							transport.</para>
+							</enum>
+							<enum name="yes">
+							<para>Use an IPv6 connection address in SDP offers and answers.</para>
+							</enum>
+							<enum name="follow_offer">
+							<para>Like <literal>yes</literal> for the first SDP offer of a
+							call. An SDP answer matches the address family of the remote
+							offer for each stream, using the connection address of the
+							stream or else the session level one, and keeps that family
+							even if the signaling transport is of the other family. Later
+							offers in the call keep the address family negotiated for each
+							stream. An IPv4 address is only used if the RTP socket receives
+							IPv4, as the default socket bound to the IPv6 wildcard address
+							does. The <literal>external_media_address</literal> of the
+							transport is only applied to a connection address of its own
+							address family.</para>
+							<para>The <literal>follow_offer</literal> value is available
+							since Asterisk 20.23.0, 22.13.0, 23.7.0 and 24.1.0.</para>
+							</enum>
+						</enumlist>
+					</description>
 				</configOption>
 				<configOption name="rtp_symmetric" default="no">
 					<since>
