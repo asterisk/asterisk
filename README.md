@@ -83,7 +83,14 @@ So, let's proceed:
 The [Asterisk Documentation](https://docs.asterisk.org) website has full
 information for building, installing, configuring and running Asterisk.
 
-2. Run `./configure`<br>
+2. If building Asterisk directly from source control, run `./bootstrap.sh`<br>
+This uses the GNU Autotools (`autoconf`, `automake`, etc.) to generate the
+`configure` script and supporting files that you will run next. If an error
+occurs you should consider running `./contrib/scripts/install_prereq minimal`
+which will install just the packages necessary to generate the build scripts
+and a basic Asterisk build.
+
+3. Run `./configure`<br>
 Execute the configure script to guess values for system-dependent
 variables used during compilation. If the script indicates that some required
 components are missing, you can run `./contrib/scripts/install_prereq install`
@@ -91,21 +98,21 @@ to install the necessary components. Note that this will install all dependencie
 for every functionality of Asterisk. After running the script, you will need
 to rerun `./configure`.
 
-3. Run `make menuselect`<br>
+4. Run `make menuselect`<br>
 This is needed if you want to select the modules that will be compiled and to
 check dependencies for various optional modules.
 
-4. Run `make`<br>
+5. Run `make`<br>
 Assuming the build completes successfully:
 
-5. Run `make install`<br>
+6. Run `make install`<br>
 If this is your first time working with Asterisk, you may wish to install
 the sample PBX, with demonstration extensions, etc.  If so, run:
 
-6. Run `make samples`<br>
+7. Run `make samples`<br>
 Doing so will overwrite any existing configuration files you have installed.
 
-7. Finally, you can launch Asterisk in the foreground mode (not a daemon) with
+8. Finally, you can launch Asterisk in the foreground mode (not a daemon) with
 `asterisk -vvvc`<br>
 You'll see a bunch of verbose messages fly by your screen as Asterisk
 initializes (that's the "very very verbose" mode).  When it's ready, if
