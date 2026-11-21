@@ -52,6 +52,8 @@
 #include "asterisk/test.h"
 #include "asterisk/stream.h"
 #include "asterisk/vector.h"
+#include "asterisk/rtp_engine.h"
+#include "asterisk/udptl.h"
 
 #include "res_pjsip_session/pjsip_session.h"
 
@@ -5686,6 +5688,145 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 
 }
 
+/*! \brief Set the address the media of a media state is sent from */
+static void set_media_state_source_address(struct ast_sip_session_media_state *media_state,
+	const struct ast_sockaddr *source)
+{
+	int i;
+
+	if (!media_state) {
+		return;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&media_state->sessions); i++) {
+		struct ast_sip_session_media *session_media = AST_VECTOR_GET(&media_state->sessions, i);
+
+		if (!session_media) {
+			continue;
+		}
+		if (session_media->rtp) {
+			ast_rtp_instance_set_source_address(session_media->rtp, source);
+		}
+		if (session_media->udptl) {
+			ast_udptl_set_source_address(session_media->udptl, source);
+		}
+	}
+}
+
+/*! \brief Set the address the media of a session is sent from */
+static void set_session_media_source_address(struct ast_sip_session *session,
+	const struct ast_sockaddr *source)
+{
+	/* The media state belongs to the session serializer */
+	ast_assert(ast_taskprocessor_is_task(session->serializer));
+
+	ast_debug(4, "%s: Media will be sent from %s\n", ast_sip_session_get_name(session),
+		ast_sockaddr_isnull(source) ? "the address the kernel selects" : ast_sockaddr_stringify_addr(source));
+	set_media_state_source_address(session->pending_media_state, source);
+	set_media_state_source_address(session->active_media_state, source);
+}
+
+struct session_media_source {
+	struct ast_sip_session *session;
+	struct ast_sockaddr source;
+};
+
+static int set_session_media_source_address_task(void *data)
+{
+	struct session_media_source *media_source = data;
+
+	set_session_media_source_address(media_source->session, &media_source->source);
+	ao2_ref(media_source->session, -1);
+	ast_free(media_source);
+	return 0;
+}
+
+static pjsip_module session_media_source_module;
+
+/*!
+ * \brief Send the session's media from the address its outgoing SDP advertises
+ *
+ * The media sockets are bound to a wildcard address unless configured
+ * otherwise, so the kernel picks the source address of outgoing media from the
+ * routing table. That can differ from the address the SDP advertises, which
+ * breaks media through NAT and on multihomed hosts. This runs after the
+ * transport has been selected and the SDP connection address set, every time
+ * a message with SDP is sent.
+ *
+ * A message sent again (after an authentication challenge, as a
+ * retransmission, on DNS failover) keeps the SDP connection address of its
+ * first send, and the media keeps the source address set then. When the
+ * transports set external_media_address, failover to a transport bound to
+ * another address can advertise that transport's external address while the
+ * media is still sent from the first transport's address.
+ */
+static pj_status_t session_media_source_on_tx_message(pjsip_tx_data *tdata)
+{
+	pjsip_dialog *dlg = pjsip_tdata_get_dlg(tdata);
+	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	struct ast_sockaddr source;
+	struct ast_sockaddr *applied;
+	struct session_media_source *media_source;
+
+	/* Nothing is recorded when there is no SDP, or it advertises an address other than ours */
+	if (!dlg || ast_sip_get_media_source_address(tdata, &source)) {
+		return PJ_SUCCESS;
+	}
+
+	/*
+	 * A message sent again (a retransmission, for instance) normally carries
+	 * the address already applied when it was sent before. Applying it again
+	 * could undo the address of a newer message sent in the meantime.
+	 */
+	applied = tdata->mod_data[session_media_source_module.id];
+	if (applied && !ast_sockaddr_cmp(applied, &source)) {
+		return PJ_SUCCESS;
+	}
+
+	session = ast_sip_dialog_get_session(dlg);
+	if (!session) {
+		return PJ_SUCCESS;
+	}
+
+	/*
+	 * The media state belongs to the session serializer, which sends the
+	 * message the first time. Retransmissions are sent from the pjsip timer
+	 * thread, so the address is applied on the serializer for those.
+	 */
+	if (ast_taskprocessor_is_task(session->serializer)) {
+		set_session_media_source_address(session, &source);
+	} else {
+		media_source = ast_malloc(sizeof(*media_source));
+		if (!media_source) {
+			return PJ_SUCCESS;
+		}
+		media_source->session = ao2_bump(session);
+		ast_sockaddr_copy(&media_source->source, &source);
+		if (ast_sip_push_task(session->serializer, set_session_media_source_address_task, media_source)) {
+			ao2_ref(media_source->session, -1);
+			ast_free(media_source);
+			return PJ_SUCCESS;
+		}
+	}
+
+	/* Recorded only once applied or queued, so that sending the message again retries otherwise */
+	if (!applied) {
+		applied = PJ_POOL_ALLOC_T(tdata->pool, struct ast_sockaddr);
+		tdata->mod_data[session_media_source_module.id] = applied;
+	}
+	ast_sockaddr_copy(applied, &source);
+	return PJ_SUCCESS;
+}
+
+/*! \brief Runs after the message filter (PJSIP_MOD_PRIORITY_TSX_LAYER - 1) has chosen the transport */
+static pjsip_module session_media_source_module = {
+	.name = { "Session Media Source", 20 },
+	.id = -1,
+	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 3,
+	.on_tx_request = session_media_source_on_tx_message,
+	.on_tx_response = session_media_source_on_tx_message,
+};
+
 #ifdef TEST_FRAMEWORK
 
 static struct ast_stream *test_stream_alloc(const char *name, enum ast_media_type type, enum ast_stream_state state)
@@ -6265,6 +6406,7 @@ static int load_module(void)
 	}
 	ast_sip_register_service(&session_reinvite_module);
 	ast_sip_register_service(&outbound_invite_auth_module);
+	ast_sip_register_service(&session_media_source_module);
 
 	pjsip_reason_header_load();
 
@@ -6282,6 +6424,7 @@ static int unload_module(void)
 #ifdef TEST_FRAMEWORK
 	AST_TEST_UNREGISTER(test_resolve_refresh_media_states);
 #endif
+	ast_sip_unregister_service(&session_media_source_module);
 	ast_sip_unregister_service(&outbound_invite_auth_module);
 	ast_sip_unregister_service(&session_reinvite_module);
 	ast_sip_unregister_service(&session_module);

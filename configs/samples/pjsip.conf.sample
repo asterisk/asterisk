@@ -1241,6 +1241,14 @@
                         ; URI is not a hostname, the saved transport will be
                         ; used and the 'x-ast-txp' parameter stripped from the
                         ; outgoing packet.
+;pin_media_source=no    ; If 'yes' and the transport is bound to a specific
+                        ; address that the SDP sent on it advertises, send
+                        ; RTP and UDPTL from that address rather than from
+                        ; the one the operating system selects for the
+                        ; wildcard-bound media sockets.
+                        ; Leave it 'no' if the routes to the media peers use
+                        ; another interface and packets from that address
+                        ; would be dropped. Defaults to 'no'.
 ;allow_wildcard_certs=no ; In conjunction with verify_server, if 'yes' allow use
                          ; of wildcards, i.e. '*.' in certs for common, and
                          ; subject alt names of type DNS for TLS transport

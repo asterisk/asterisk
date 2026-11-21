@@ -2688,6 +2688,36 @@
 						</para>
 					</description>
 				</configOption>
+				<configOption name="pin_media_source" default="no">
+					<since>
+						<version>20.23.0</version>
+						<version>22.13.0</version>
+						<version>23.7.0</version>
+						<version>24.1.0</version>
+					</since>
+					<synopsis>Send media from the address this transport is bound to.</synopsis>
+					<description>
+						<para>RTP and UDPTL sockets are bound to a wildcard address
+							unless the endpoint sets <literal>transport</literal>, or
+							<literal>bind_rtp_to_media_address</literal> (RTP) or
+							<literal>t38_bind_udptl_to_media_address</literal> (UDPTL),
+							so the operating system would choose the source address of
+							outgoing media from its routing table. Sockets bound to a
+							specific address keep sending from it. When this option is
+							'yes', the transport is bound to a specific address and the
+							SDP sent on it advertises that address, media for the
+							session is sent from that address instead, so it leaves
+							from the address the remote party was given. This fixes
+							one-way media on NAT gateways and multihomed hosts where
+							that address and the one the routing table selects differ.
+						</para>
+						<para>Leave it 'no' (the default) when packets with that
+							source address would be dropped on the way to the media
+							peers, for instance when the routes to them use another
+							interface and the host does no source-based routing.
+						</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="contact">
 				<synopsis>A way of creating an aliased name to a SIP URI</synopsis>

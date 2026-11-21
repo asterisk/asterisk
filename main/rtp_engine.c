@@ -204,6 +204,8 @@ struct ast_rtp_instance {
 	struct ast_sockaddr requested_target_address;
 	/*! Address that we are sending RTP to */
 	struct ast_sockaddr incoming_source_address;
+	/*! Local address to send RTP and RTCP from (null to let the kernel choose) */
+	struct ast_sendto_source source_address;
 	/*! Instance that we are bridged to if doing remote or local bridging */
 	struct ast_rtp_instance *bridged;
 	/*! Payload and packetization information */
@@ -697,6 +699,28 @@ void ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance,
 	ao2_lock(instance);
 	ast_sockaddr_copy(address, &instance->local_address);
 	ao2_unlock(instance);
+}
+
+void ast_rtp_instance_set_source_address(struct ast_rtp_instance *instance,
+	const struct ast_sockaddr *address)
+{
+	struct ast_sockaddr bound;
+	int fd;
+
+	ao2_lock(instance);
+	/* A socket bound to a specific address keeps sending from it (the kernel would honour the source even there) */
+	fd = ast_rtp_instance_fd(instance, 0);
+	if (fd >= 0 && !ast_getsockname(fd, &bound) && !ast_sockaddr_is_any(&bound)) {
+		address = NULL;
+	}
+	ast_sendto_source_set(&instance->source_address, address);
+	ao2_unlock(instance);
+}
+
+ssize_t ast_rtp_instance_sendto(struct ast_rtp_instance *instance, int sockfd, const void *buf,
+	size_t len, int flags, const struct ast_sockaddr *dest_addr)
+{
+	return ast_sendto_from_source(sockfd, buf, len, flags, dest_addr, &instance->source_address);
 }
 
 int ast_rtp_instance_get_and_cmp_requested_target_address(struct ast_rtp_instance *instance,
