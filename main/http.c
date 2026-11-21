@@ -65,6 +65,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/json.h"
+#include "asterisk/test.h"
 
 #define MAX_PREFIX 80
 #define DEFAULT_PORT 8088
@@ -517,7 +518,137 @@ struct http_worker_private_data {
 	int body_length;
 	/*! HTTP body tracking flags */
 	struct ast_flags flags;
+	/*! Address of the TCP peer, kept when a trusted proxy header replaces remote_address */
+	struct ast_sockaddr peer_address;
 };
+
+/*! Proxies whose X-Forwarded-For / X-Real-IP headers are trusted (NULL = none) */
+static struct ast_ha *trusted_proxies;
+AST_RWLOCK_DEFINE_STATIC(trusted_proxies_lock);
+
+/*!
+ * \internal
+ * \brief Whether an address belongs to the trusted proxies.
+ *
+ * \note The list starts with deny rules for every address, so an address
+ *       is trusted only when a configured permit matches it.
+ */
+static int http_is_trusted_proxy(const struct ast_ha *trusted, const struct ast_sockaddr *addr)
+{
+	return trusted && ast_apply_ha(trusted, addr) == AST_SENSE_ALLOW;
+}
+
+/*!
+ * \internal
+ * \brief Client address announced by trusted proxies.
+ *
+ * X-Forwarded-For is read from right to left: entries added by trusted
+ * proxies are skipped and the first other entry is the client.  When every
+ * entry is a trusted proxy the leftmost one is used.  Without
+ * X-Forwarded-For, X-Real-IP is used.  Nothing is read when the TCP peer
+ * itself is not a trusted proxy.
+ *
+ * \param trusted Trusted proxies
+ * \param peer Address of the TCP peer
+ * \param x_forwarded_for Value of X-Forwarded-For (may be NULL)
+ * \param x_real_ip Value of X-Real-IP (may be NULL)
+ * \param[out] client Client address, with the port of \a peer
+ *
+ * \retval 1 \a client was set
+ * \retval 0 no trusted header; keep \a peer
+ */
+static int http_proxy_client_address(const struct ast_ha *trusted, const struct ast_sockaddr *peer,
+	const char *x_forwarded_for, const char *x_real_ip, struct ast_sockaddr *client)
+{
+	struct ast_sockaddr candidate;
+	char *list;
+	char *entry;
+	int found = 0;
+
+	if (!http_is_trusted_proxy(trusted, peer)) {
+		return 0;
+	}
+
+	if (!ast_strlen_zero(x_forwarded_for)) {
+		list = ast_strdupa(x_forwarded_for);
+		while (!ast_strlen_zero(list)) {
+			entry = strrchr(list, ',');
+			if (entry) {
+				*entry++ = '\0';
+			} else {
+				entry = list;
+				list = NULL;
+			}
+			entry = ast_strip(entry);
+			if (ast_strlen_zero(entry)
+				|| !ast_sockaddr_parse(&candidate, entry, PARSE_PORT_FORBID)) {
+				ast_debug(1, "HTTP: ignoring invalid X-Forwarded-For entry '%s'\n", entry);
+				return 0;
+			}
+			ast_sockaddr_copy(client, &candidate);
+			found = 1;
+			if (!http_is_trusted_proxy(trusted, &candidate)) {
+				break;
+			}
+		}
+	} else if (!ast_strlen_zero(x_real_ip)) {
+		entry = ast_strip(ast_strdupa(x_real_ip));
+		if (ast_sockaddr_parse(&candidate, entry, PARSE_PORT_FORBID)) {
+			ast_sockaddr_copy(client, &candidate);
+			found = 1;
+		} else {
+			ast_debug(1, "HTTP: ignoring invalid X-Real-IP '%s'\n", entry);
+		}
+	}
+
+	if (!found) {
+		return 0;
+	}
+	ast_sockaddr_set_port(client, ast_sockaddr_port(peer));
+	return 1;
+}
+
+/*!
+ * \internal
+ * \brief Set remote_address of the session for the current request.
+ *
+ * Every request starts from the TCP peer address, so a persistent
+ * connection from a proxy never keeps the client of a previous request.
+ */
+static void http_request_set_remote_address(struct ast_tcptls_session_instance *ser,
+	struct http_worker_private_data *request, struct ast_variable *headers)
+{
+	const char *x_forwarded_for = NULL;
+	const char *x_real_ip = NULL;
+	struct ast_sockaddr client;
+	struct ast_variable *v;
+	int res;
+
+	ast_sockaddr_copy(&ser->remote_address, &request->peer_address);
+
+	for (v = headers; v; v = v->next) {
+		if (!strcasecmp(v->name, "X-Forwarded-For")) {
+			x_forwarded_for = v->value;
+		} else if (!strcasecmp(v->name, "X-Real-IP")) {
+			x_real_ip = v->value;
+		}
+	}
+	if (!x_forwarded_for && !x_real_ip) {
+		return;
+	}
+
+	ast_rwlock_rdlock(&trusted_proxies_lock);
+	res = http_proxy_client_address(trusted_proxies, &request->peer_address,
+		x_forwarded_for, x_real_ip, &client);
+	ast_rwlock_unlock(&trusted_proxies_lock);
+
+	if (res) {
+		ast_debug(1, "HTTP: request from proxy %s on behalf of %s\n",
+			ast_strdupa(ast_sockaddr_stringify(&request->peer_address)),
+			ast_sockaddr_stringify_addr(&client));
+		ast_sockaddr_copy(&ser->remote_address, &client);
+	}
+}
 
 void ast_http_send(struct ast_tcptls_session_instance *ser,
 	enum ast_http_method method, int status_code, const char *status_title,
@@ -2049,6 +2180,8 @@ static int httpd_process_request(struct ast_tcptls_session_instance *ser)
 		return -1;
 	}
 
+	http_request_set_remote_address(ser, request, headers);
+
 	transfer_encoding = get_transfer_encoding(headers);
 	/* Transfer encoding defaults to identity */
 	if (!transfer_encoding) {
@@ -2113,6 +2246,8 @@ static void *httpd_helper_thread(void *data)
 		goto done;
 	}
 	http_request_tracking_init(ser->private_data);
+	ast_sockaddr_copy(&((struct http_worker_private_data *) ser->private_data)->peer_address,
+		&ser->remote_address);
 
 	/* Determine initial HTTP request wait timeout. */
 	timeout = session_keep_alive;
@@ -2551,6 +2686,9 @@ static int __ast_http_load(int reload)
 	int http_tls_was_enabled = 0;
 	const char *bindaddr = NULL;
 	const char *cat = NULL;
+	struct ast_ha *new_trusted_proxies = NULL;
+	struct ast_ha *old_trusted_proxies;
+	int ha_error = 0;
 
 	cfg = ast_config_load2("http.conf", "http", config_flags);
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
@@ -2653,6 +2791,16 @@ static int __ast_http_load(int reload)
 				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of http.conf\n",
 					v->name, v->value, v->lineno);
 			}
+		} else if (!strcasecmp(v->name, "trusted_proxies")) {
+			if (!new_trusted_proxies) {
+				/* Nothing is trusted unless a permit below matches */
+				new_trusted_proxies = ast_append_ha("deny", "0.0.0.0/0,::/0", NULL, &ha_error);
+			}
+			new_trusted_proxies = ast_append_ha("permit", v->value, new_trusted_proxies, &ha_error);
+			if (ha_error) {
+				ast_log(LOG_ERROR, "Invalid %s '%s' at line %d of http.conf; no proxy is trusted\n",
+					v->name, v->value, v->lineno);
+			}
 		} else if (!strcasecmp(v->name, "session_keep_alive")) {
 			if (sscanf(v->value, "%30d", &session_keep_alive) != 1
 				|| session_keep_alive < 0) {
@@ -2664,6 +2812,16 @@ static int __ast_http_load(int reload)
 			ast_log(LOG_WARNING, "Ignoring unknown option '%s' in http.conf\n", v->name);
 		}
 	}
+
+	if (ha_error) {
+		ast_free_ha(new_trusted_proxies);
+		new_trusted_proxies = NULL;
+	}
+	ast_rwlock_wrlock(&trusted_proxies_lock);
+	old_trusted_proxies = trusted_proxies;
+	trusted_proxies = new_trusted_proxies;
+	ast_rwlock_unlock(&trusted_proxies_lock);
+	ast_free_ha(old_trusted_proxies);
 
 	while ((cat = ast_category_browse(cfg, cat))) {
 		const char *type;
@@ -2817,6 +2975,24 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		}
 	}
 
+	ast_cli(a->fd, "Trusted proxies:\n");
+	ast_rwlock_rdlock(&trusted_proxies_lock);
+	if (!trusted_proxies) {
+		ast_cli(a->fd, "  None.\n");
+	} else {
+		const struct ast_ha *ha;
+
+		for (ha = trusted_proxies; ha; ha = ha->next) {
+			if (ha->sense != AST_SENSE_ALLOW) {
+				continue;
+			}
+			ast_cli(a->fd, "  %s/", ast_sockaddr_stringify_addr(&ha->addr));
+			ast_cli(a->fd, "%s\n", ast_sockaddr_stringify_addr(&ha->netmask));
+		}
+	}
+	ast_rwlock_unlock(&trusted_proxies_lock);
+	ast_cli(a->fd, "\n");
+
 	ast_cli(a->fd, "Enabled URI's:\n");
 	AST_RWLIST_RDLOCK(&uris);
 	if (AST_RWLIST_EMPTY(&uris)) {
@@ -2856,6 +3032,86 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 	return CLI_SUCCESS;
 }
+
+#ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(http_proxy_client_address_test)
+{
+	static const struct {
+		const char *peer;
+		const char *x_forwarded_for;
+		const char *x_real_ip;
+		const char *expected;
+	} cases[] = {
+		/* untrusted peer: headers ignored */
+		{ "192.0.2.10:4000", "203.0.113.7", NULL, NULL },
+		{ "192.0.2.10:4000", NULL, "203.0.113.7", NULL },
+		/* trusted peer, single proxy */
+		{ "127.0.0.1:4000", "203.0.113.7", NULL, "203.0.113.7:4000" },
+		{ "[::1]:4000", "203.0.113.7", NULL, "203.0.113.7:4000" },
+		{ "[::ffff:127.0.0.1]:4000", "203.0.113.7", NULL, "203.0.113.7:4000" },
+		{ "127.0.0.1:4000", NULL, "2001:db8::7", "[2001:db8::7]:4000" },
+		/* right to left: spoofed leftmost entry and trusted hops skipped */
+		{ "127.0.0.1:4000", "198.51.100.1, 203.0.113.7", NULL, "203.0.113.7:4000" },
+		{ "127.0.0.1:4000", "198.51.100.1, 203.0.113.7, 10.1.2.3", NULL, "203.0.113.7:4000" },
+		/* every entry trusted: leftmost */
+		{ "127.0.0.1:4000", "10.0.0.1, 10.0.0.2", NULL, "10.0.0.1:4000" },
+		/* X-Forwarded-For wins over X-Real-IP */
+		{ "127.0.0.1:4000", "203.0.113.7", "198.51.100.1", "203.0.113.7:4000" },
+		/* invalid values: keep the peer */
+		{ "127.0.0.1:4000", "not-an-address", NULL, NULL },
+		{ "127.0.0.1:4000", "203.0.113.7:5060", NULL, NULL },
+		{ "127.0.0.1:4000", NULL, "", NULL },
+	};
+	struct ast_ha *trusted;
+	struct ast_sockaddr peer;
+	struct ast_sockaddr client;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	int error = 0;
+	int i;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "proxy_client_address";
+		info->category = "/main/http/";
+		info->summary = "Client address from trusted proxy headers";
+		info->description = "Checks X-Forwarded-For / X-Real-IP handling with trusted_proxies.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	trusted = ast_append_ha("deny", "0.0.0.0/0,::/0", NULL, &error);
+	trusted = ast_append_ha("permit", "127.0.0.0/8,::1,10.0.0.0/8", trusted, &error);
+	if (error || !trusted) {
+		ast_test_status_update(test, "Could not build the trusted proxy list\n");
+		ast_free_ha(trusted);
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(cases); i++) {
+		int found;
+
+		ast_sockaddr_parse(&peer, cases[i].peer, 0);
+		found = http_proxy_client_address(trusted, &peer, cases[i].x_forwarded_for,
+			cases[i].x_real_ip, &client);
+		if (!cases[i].expected ? found
+			: (!found || strcmp(ast_sockaddr_stringify(&client), cases[i].expected))) {
+			ast_test_status_update(test, "Case %d (peer %s, XFF '%s', X-Real-IP '%s'): expected %s, got %s\n",
+				i, cases[i].peer, S_OR(cases[i].x_forwarded_for, ""), S_OR(cases[i].x_real_ip, ""),
+				S_OR(cases[i].expected, "peer"), found ? ast_sockaddr_stringify(&client) : "peer");
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	if (http_proxy_client_address(NULL, &peer, "203.0.113.7", NULL, &client)) {
+		ast_test_status_update(test, "Headers used without trusted proxies\n");
+		res = AST_TEST_FAIL;
+	}
+
+	ast_free_ha(trusted);
+	return res;
+}
+#endif
 
 static int reload_module(void)
 {
@@ -2906,12 +3162,20 @@ static int unload_module(void)
 	}
 	AST_RWLIST_UNLOCK(&restrictions);
 
+	ast_rwlock_wrlock(&trusted_proxies_lock);
+	ast_free_ha(trusted_proxies);
+	trusted_proxies = NULL;
+	ast_rwlock_unlock(&trusted_proxies_lock);
+
+	AST_TEST_UNREGISTER(http_proxy_client_address_test);
+
 	return 0;
 }
 
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_http, ARRAY_LEN(cli_http));
+	AST_TEST_REGISTER(http_proxy_client_address_test);
 
 	http_servers = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		HTTP_SERVER_BUCKETS, ast_http_server_hash_fn, NULL, ast_http_server_cmp_fn);
