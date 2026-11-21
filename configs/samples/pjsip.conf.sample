@@ -1040,6 +1040,29 @@
                 ; including INVITEs, re-INVITES, and other responses.
                 ; (default: no)
 
+;
+; device_feature_key_autoapprove = no
+                ; Support for Broadworks device feature key synchronization,
+                ; which allows hotkeys on the phone to change feature settings for:
+                ; - Do Not Disturb
+                ; - Call Forwarding Variable (Always)
+                ; - Call Forwarding Busy
+                ; - Call Forward Don't Answer (No Answer)
+                ; - Ring Control (Number of Rings)
+				; To use this feature, you must load res_pjsip_device_features.
+                ; This setting controls whether or not to automatically
+                ; approve incoming requests from device feature keys.
+                ; If enabled, res_pjsip_device_features automatically updates
+                ; state when devices make changes. If disabled, you will need
+                ; to receive events using AMI and inform the module whether to
+                ; update its internal state. If this is not done, 'no' is equivalent
+                ; to disabling this feature.
+                ; In simple environments, setting this to 'yes' is sufficient for this
+                ; feature to operate as desired. To integrate your own logic, set this
+                ; to no and use AMI to receive DeviceFeatureSync AMI events and write
+				; to the PJSIP_DEVICE_FEATURES function to make updates.
+                ; (default: no)
+
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
 ;  SYNOPSIS: Authentication type

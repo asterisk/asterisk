@@ -74,4 +74,30 @@ struct ast_sip_message_accumulator {
 	char message_account[PJSIP_MAX_URL_SIZE];
 };
 
+/*!
+ * \brief Synchronization data used for as-feature-event XML bodies
+ *
+ * This is used for x-as-feature-event+xml bodies.
+ */
+struct ast_sip_device_feature_sync_data {
+	/* Device ID */
+	char deviceid[64];
+	/* DND status */
+	unsigned int dnd:1;
+	/* Whether a DND update is needed */
+	unsigned int update_needed_dnd:1;
+	/* Whether a Call Forwarding Always update is needed */
+	unsigned int update_needed_fwd_always:1;
+	/* Whether a Call Forwarding Busy update is needed */
+	unsigned int update_needed_fwd_busy:1;
+	/* Whether a Call Forwarding No Answer update is needed */
+	unsigned int update_needed_fwd_noanswer:1;
+	/* Current forwarding numbers */
+	char fwd_exten_always[AST_MAX_EXTENSION];
+	char fwd_exten_busy[AST_MAX_EXTENSION];
+	char fwd_exten_noanswer[AST_MAX_EXTENSION];
+	/* Ring Count */
+	unsigned int ring_count;
+};
+
 #endif /* _RES_PJSIP_BODY_GENERATOR_TYPES_H */
