@@ -6221,6 +6221,7 @@ static int update_queue_local(struct call_queue *q, struct member *member,
 {
 	int oldtalktime;
 	int newtalktime;
+	struct member *live;
 
 	if (!starttime) {
 		return 0;
@@ -6228,13 +6229,24 @@ static int update_queue_local(struct call_queue *q, struct member *member,
 
 	newtalktime = (int)(time(NULL) - starttime);
 
+	ao2_lock(q);
+	/* A reload replaces each static member with a new object (see
+	 * reload_single_member()), but a call answered before the reload still
+	 * references the old one. Update whichever object is in the queue now,
+	 * or the call is credited to a member that no longer exists.
+	 */
+	live = ao2_find(q->members, member, OBJ_POINTER);
+	if (live) {
+		member = live;
+	}
+
 	/* It is possible for us to be called when a call has already been considered terminated
 	 * and data updated, so to ensure we only act on the call that the agent is currently in
 	 * we check when the call was bridged.
 	 */
-	ao2_lock(q);
 	if (member->starttime != starttime) {
 		ao2_unlock(q);
+		ao2_cleanup(live);
 		return 0;
 	}
 	member->starttime = 0;
@@ -6263,6 +6275,7 @@ static int update_queue_local(struct call_queue *q, struct member *member,
 	 * calls will not occur.
 	 */
 	pending_members_remove(member);
+	ao2_cleanup(live);
 
 	return 1;
 }
@@ -10095,6 +10108,10 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 			/* Don't reset agent stats either */
 			newm->calls = cur->calls;
 			newm->lastcall = cur->lastcall;
+			newm->lastqueue = cur->lastqueue;
+			/* Carry over a call in progress, so it's credited to this member when it ends */
+			newm->starttime = cur->starttime;
+			newm->callcompletedinsl = cur->callcompletedinsl;
 
 			ao2_link(q->members, newm);
 			ao2_unlink(q->members, cur);
