@@ -52,6 +52,7 @@
 #include "asterisk/test.h"
 #include "asterisk/stream.h"
 #include "asterisk/vector.h"
+#include "asterisk/rtp_engine.h"
 
 #include "res_pjsip_session/pjsip_session.h"
 
@@ -475,6 +476,24 @@ static int stream_destroy(void *obj, void *arg, int flags)
 	return 0;
 }
 
+int ast_sip_session_media_set_direct_media_payloads(
+	struct ast_sip_session_media *session_media, struct ast_rtp_instance *rtp)
+{
+	if (!rtp) {
+		int changed = session_media->direct_media_payloads != NULL;
+
+		ao2_cleanup(session_media->direct_media_payloads);
+		session_media->direct_media_payloads = NULL;
+		return changed;
+	}
+
+	if (!session_media->rtp) {
+		return -1;
+	}
+	return ast_rtp_codecs_payloads_set_common(&session_media->direct_media_payloads,
+		session_media->rtp, rtp);
+}
+
 static void session_media_dtor(void *obj)
 {
 	struct ast_sip_session_media *session_media = obj;
@@ -489,6 +508,8 @@ static void session_media_dtor(void *obj)
 	if (session_media->srtp) {
 		ast_sdp_srtp_destroy(session_media->srtp);
 	}
+
+	ao2_cleanup(session_media->direct_media_payloads);
 
 	ast_free(session_media->mid);
 	ast_free(session_media->remote_mslabel);
