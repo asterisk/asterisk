@@ -106,6 +106,60 @@ struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list, struct ast_s
 	return sock;
 }
 
+struct ast_netsock *ast_netsock_select(struct ast_netsock_list *list, const struct ast_sockaddr *addr)
+{
+	struct ast_netsock *wildcard = NULL;
+	struct ast_netsock *specific = NULL;
+	int specific_count = 0;
+	int family;
+
+	if (!list || !addr || ast_sockaddr_isnull(addr)) {
+		return NULL;
+	}
+
+	family = ast_sockaddr_is_ipv6(addr) ? AF_INET6 : AF_INET;
+
+	ASTOBJ_CONTAINER_TRAVERSE(list, !wildcard, {
+		const struct ast_sockaddr *bound;
+		int bound_family;
+
+		ASTOBJ_RDLOCK(iterator);
+
+		bound = ast_netsock_boundaddr(iterator);
+		if (!bound || ast_sockaddr_isnull(bound)) {
+			ASTOBJ_UNLOCK(iterator);
+			continue;
+		}
+
+		bound_family = ast_sockaddr_is_ipv6(bound) ? AF_INET6 : AF_INET;
+		if (bound_family != family) {
+			ASTOBJ_UNLOCK(iterator);
+			continue;
+		}
+
+		if (ast_sockaddr_is_any(bound)) {
+			wildcard = iterator;
+		} else {
+			specific_count++;
+			if (!specific) {
+				specific = iterator;
+			}
+		}
+
+		ASTOBJ_UNLOCK(iterator);
+	});
+
+	if (wildcard) {
+		return wildcard;
+	}
+
+	if (specific_count == 1) {
+		return specific;
+	}
+
+	return NULL;
+}
+
 struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc, struct ast_sockaddr *bindaddr, int tos, int cos, ast_io_cb callback, void *data)
 {
 	int netsocket = -1;

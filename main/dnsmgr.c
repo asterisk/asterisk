@@ -205,13 +205,20 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 {
 	struct ast_sockaddr tmp = { .len = 0, };
 	int changed = 0;
+	int ret;
+	int old_flags;
 
 	ast_mutex_lock(&entry->lock);
 
 	ast_debug(6, "refreshing '%s'\n", entry->name);
 
 	tmp.ss.ss_family = entry->family;
-	if (!ast_get_ip_or_srv_with_preference(&tmp, entry->name, entry->service, entry->result)) {
+
+	old_flags = ast_sockaddr_resolve_flags_suppress(AST_SOCKADDR_RESOLVE_FLAG_SUPPRESS_EAI_NONAME_LOGS);
+	ret = ast_get_ip_or_srv_with_preference(&tmp, entry->name, entry->service, entry->result);
+	ast_sockaddr_resolve_flags_set(old_flags);
+
+	if (!ret) {
 		if (!ast_sockaddr_port(&tmp)) {
 			ast_sockaddr_set_port(&tmp, ast_sockaddr_port(entry->result));
 		}

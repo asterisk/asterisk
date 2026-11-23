@@ -178,6 +178,16 @@ AST_TEST_DEFINE(split_hostport)
 	TEST_SPLIT_HOSTPORT("::ffff:5.6.7.8", PARSE_PORT_REQUIRE, "<undefined>", "<undefined>", 0);
 	TEST_SPLIT_HOSTPORT("[::ffff:5.6.7.8]:5060", PARSE_PORT_FORBID, "<undefined>", "<undefined>", 0);
 
+	/* Make sure it fails for malformed bracket syntax even when ports are ignored */
+	TEST_SPLIT_HOSTPORT("[2001:db8::10", 0, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("[2001:db8::10:8443", 0, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("[2001:db8::10]8443", 0, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("[2001:db8::10]junk", 0, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("[2001:db8::10]8443", PARSE_PORT_IGNORE, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("[2001:db8::10]8443", PARSE_PORT_REQUIRE, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("[2001:db8::10]8443", PARSE_PORT_FORBID, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("[2001:db8::10", PARSE_PORT_IGNORE, "<undefined>", "<undefined>", 0);
+
 	return res;
 }
 
