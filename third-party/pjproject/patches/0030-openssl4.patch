@@ -1,0 +1,38 @@
+From 3923fad2e4f6f3403c3d6f1176b113c1c1b91066 Mon Sep 17 00:00:00 2001
+From: Ravi Kant Sharma <rks1986@gmail.com>
+Date: Wed, 24 Jun 2026 11:30:40 +0200
+Subject: [PATCH] ssl_sock_ossl: fix OpenSSL 4.0 compatibility (#5036)
+
+---
+ pjlib/src/pj/ssl_sock_ossl.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
+index 000aabad61..93fcf10f14 100644
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -1645,10 +1645,7 @@ static pj_status_t init_ossl_ctx(pj_ssl_sock_t *ssock)
+                     if (PEM_read_bio_X509(new_bio, &x, NULL, NULL) == NULL)
+                         break;
+ 
+-                    if ((xn = X509_get_subject_name(x)) == NULL)
+-                        break;
+-
+-                    if ((xn = X509_NAME_dup(xn)) == NULL )
++                    if ((xn = X509_NAME_dup(X509_get_subject_name(x))) == NULL )
+                         break;
+ 
+ #if !USING_BORINGSSL
+@@ -2105,9 +2102,9 @@ static pj_bool_t parse_ossl_asn1_time(pj_time_val *tv, pj_bool_t *gmt,
+     pj_parsed_time pt;
+     int i;
+ 
+-    utc = tm->type == V_ASN1_UTCTIME;
+-    p = (char*)tm->data;
+-    len = tm->length;
++    utc = ASN1_STRING_type(tm) == V_ASN1_UTCTIME;
++    p = (char*)M_ASN1_STRING_data(tm);
++    len = M_ASN1_STRING_length(tm);
+     end = p + len - 1;
+ 
+     /* GMT */

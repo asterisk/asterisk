@@ -28,6 +28,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/x509_vfy.h>
+#include <openssl/asn1.h>
 
 #include "crypto_utils.h"
 
@@ -104,11 +105,18 @@ int crypto_register_x509_extension(const char *oid, const char *short_name,
 	return nid;
 }
 
-ASN1_OCTET_STRING *crypto_get_cert_extension_data(X509 *cert,
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+const ASN1_OCTET_STRING *crypto_get_cert_extension_data(X509 *cert,
 	int nid, const char *short_name)
 {
+	const X509_EXTENSION *ex;
+#else
+	ASN1_OCTET_STRING *crypto_get_cert_extension_data(X509 *cert,
+		int nid, const char *short_name)
+	{
+		X509_EXTENSION *ex;
+#endif
 	int ex_idx;
-	X509_EXTENSION *ex;
 
 	if (nid <= 0) {
 		nid = OBJ_sn2nid(short_name);
@@ -606,7 +614,14 @@ int crypto_load_untrusted_cert_store(struct crypto_cert_store *store, const char
 	 * The store holds the references to the certs so we can't
 	 * free it.
 	 */
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+	objs = X509_STORE_get1_objects(store->untrusted);
+#else
 	objs = X509_STORE_get0_objects(store->untrusted);
+#endif
+	if (!objs) {
+		return -1;
+	}
 	count = sk_X509_OBJECT_num(objs);
 	for (i = 0; i < count ; i++) {
 		X509_OBJECT *o = sk_X509_OBJECT_value(objs, i);
@@ -615,7 +630,9 @@ int crypto_load_untrusted_cert_store(struct crypto_cert_store *store, const char
 			sk_X509_push(store->untrusted_stack, c);
 		}
 	}
-
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+	sk_X509_OBJECT_pop_free(objs, X509_OBJECT_free);
+#endif
 	return 0;
 }
 
@@ -649,7 +666,14 @@ int crypto_load_crl_store(struct crypto_cert_store *store, const char *file,
 	 * The store holds the references to the CRLs so we can't
 	 * free it.
 	 */
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+	objs = X509_STORE_get1_objects(store->crls);
+#else
 	objs = X509_STORE_get0_objects(store->crls);
+#endif
+	if (!objs) {
+		return -1;
+	}
 	count = sk_X509_OBJECT_num(objs);
 	for (i = 0; i < count ; i++) {
 		X509_OBJECT *o = sk_X509_OBJECT_value(objs, i);
@@ -658,6 +682,9 @@ int crypto_load_crl_store(struct crypto_cert_store *store, const char *file,
 			sk_X509_CRL_push(store->crl_stack, c);
 		}
 	}
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+	sk_X509_OBJECT_pop_free(objs, X509_OBJECT_free);
+#endif
 
 	return 0;
 }
@@ -675,7 +702,14 @@ int crypto_show_cli_store(struct crypto_cert_store *store, int fd)
 	/*
 	 * The CA certificates are stored in the certs store.
 	 */
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+	objs = X509_STORE_get1_objects(store->certs);
+#else
 	objs = X509_STORE_get0_objects(store->certs);
+#endif
+	if (!objs) {
+		return 0;
+	}
 	count = sk_X509_OBJECT_num(objs);
 
 	for (i = 0; i < count ; i++) {
@@ -688,7 +722,9 @@ int crypto_show_cli_store(struct crypto_cert_store *store, int fd)
 			ast_log(LOG_ERROR, "CRLs are not allowed in the CA cert store\n");
 		}
 	}
-
+#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
+	sk_X509_OBJECT_pop_free(objs, X509_OBJECT_free);
+#endif
 	/*
 	 * Although the untrusted certs are stored in the untrusted store,
 	 * we already have the stack of certificates so we can just
@@ -720,8 +756,9 @@ int crypto_show_cli_store(struct crypto_cert_store *store, int fd)
 
 int crypto_is_cert_time_valid(X509*cert, time_t reftime)
 {
-	ASN1_STRING *notbefore;
-	ASN1_STRING *notafter;
+	const ASN1_TIME *notbefore;
+	const ASN1_TIME *notafter;
+	int valid=0;
 
 	if (!reftime) {
 		reftime = time(NULL);
@@ -733,8 +770,11 @@ int crypto_is_cert_time_valid(X509*cert, time_t reftime)
 		return 0;
 	}
 
-	return (X509_cmp_time(notbefore, &reftime) < 0 &&
-		X509_cmp_time(notafter, &reftime) > 0);
+	valid=(ASN1_TIME_cmp_time_t(notbefore, reftime) < 0 &&
+			ASN1_TIME_cmp_time_t(notafter, reftime) > 0);
+	ast_debug(4, "Certificate time valid: %s\n", AST_YESNO(valid));
+
+	return valid;
 }
 
 int crypto_is_cert_trusted(struct crypto_cert_store *store, X509 *cert, const char **err_msg)
@@ -803,7 +843,7 @@ char *crypto_get_cert_subject(X509 *cert, const char *short_name)
 		short_name ? XN_FLAG_FN_SN | XN_FLAG_SEP_MULTILINE : XN_FLAG_ONELINE;
 	FILE *fp = open_memstream(&buffer, &len);
 	BIO *bio = fp ? BIO_new_fp(fp, BIO_CLOSE) : NULL;
-	X509_NAME *subject = X509_get_subject_name(cert);
+	const X509_NAME *subject = X509_get_subject_name(cert);
 	int rc = 0;
 
 	if (!fp || !bio || !subject) {
