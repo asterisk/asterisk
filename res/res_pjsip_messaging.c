@@ -122,6 +122,7 @@
 #include <pjsip.h>
 #include <pjsip_ua.h>
 
+#include "asterisk/manager.h"
 #include "asterisk/message.h"
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
@@ -255,6 +256,7 @@ static int is_msg_var_blocked(const char *name)
 		"Content-Length",
 		"Content-Type",
 		"Request-URI",
+		"DeliveryID",
 	};
 
 	for (i = 0; i < ARRAY_LEN(hdr); ++i) {
@@ -590,6 +592,7 @@ struct message_response_data {
 	char *to;
 	char *body;
 	char *content_type;
+	char *delivery_id;
 	struct ast_sip_redirect_state *redirect_state;
 };
 
@@ -601,6 +604,7 @@ static void message_response_data_destroy(void *obj)
 	ast_free(resp_data->to);
 	ast_free(resp_data->body);
 	ast_free(resp_data->content_type);
+	ast_free(resp_data->delivery_id);
 
 	if (resp_data->redirect_state) {
 		ast_sip_redirect_state_destroy(resp_data->redirect_state);
@@ -613,7 +617,8 @@ static struct message_response_data *message_response_data_create(
 	const char *to,
 	const char *body,
 	const char *content_type,
-	const char *initial_uri)
+	const char *initial_uri,
+	const char *delivery_id)
 {
 	struct message_response_data *resp_data;
 
@@ -626,8 +631,9 @@ static struct message_response_data *message_response_data_create(
 	resp_data->to = ast_strdup(to);
 	resp_data->body = ast_strdup(body);
 	resp_data->content_type = ast_strdup(content_type);
+	resp_data->delivery_id = ast_strdup(S_OR(delivery_id, ""));
 
-	if (!resp_data->from || !resp_data->to || !resp_data->body || !resp_data->content_type) {
+	if (!resp_data->from || !resp_data->to || !resp_data->body || !resp_data->content_type || !resp_data->delivery_id) {
 		ast_log(LOG_ERROR, "Failed to allocate memory for response data strings on endpoint '%s'.\n",
 			ast_sorcery_object_get_id(endpoint));
 		ao2_ref(resp_data, -1);
@@ -753,9 +759,11 @@ static int send_message_to_uri(struct message_response_data *resp_data, const ch
 	new_resp_data->to = ast_strdup(resp_data->to);
 	new_resp_data->body = ast_strdup(resp_data->body);
 	new_resp_data->content_type = ast_strdup(resp_data->content_type);
+	new_resp_data->delivery_id = ast_strdup(resp_data->delivery_id);
 
 	/* Check for allocation failures */
-	if (!new_resp_data->from || !new_resp_data->to || !new_resp_data->body || !new_resp_data->content_type) {
+	if (!new_resp_data->from || !new_resp_data->to || !new_resp_data->body ||
+	    !new_resp_data->content_type || !new_resp_data->delivery_id) {
 		pjsip_tx_data_dec_ref(tdata);
 		ao2_ref(new_resp_data, -1);
 		ast_log(LOG_ERROR, "Failed to allocate memory for redirect callback strings for endpoint '%s'.\n",
@@ -769,9 +777,9 @@ static int send_message_to_uri(struct message_response_data *resp_data, const ch
 
 	/* Send with callback for potential further redirects */
 	if (ast_sip_send_request(tdata, NULL, endpoint, new_resp_data, msg_response_callback)) {
-		ao2_ref(new_resp_data, -1);
 		ast_log(LOG_ERROR, "Failed to send redirect request to '%s' on endpoint '%s'.\n",
 			new_resp_data->to, ast_sorcery_object_get_id(endpoint));
+		ao2_ref(new_resp_data, -1);
 		return -1;
 	}
 
@@ -784,29 +792,32 @@ static int send_message_to_uri(struct message_response_data *resp_data, const ch
  *
  * \param resp_data Response callback data
  * \param rdata The redirect response data
+ *
+ * \return 0: success, -1: failure
  */
-static void handle_message_redirect(struct message_response_data *resp_data, pjsip_rx_data *rdata)
+static int handle_message_redirect(struct message_response_data *resp_data, pjsip_rx_data *rdata)
 {
 	char *uri = NULL;
 	int hop_count;
+	int response;
 
 	if (!resp_data->redirect_state) {
 		ast_log(LOG_ERROR, "MESSAGE redirect: no redirect state available\n");
-		return;
+		return -1;
 	}
 
 	/* Parse the redirect response and extract contacts */
 	if (ast_sip_redirect_parse_3xx(rdata, resp_data->redirect_state)) {
 		ast_debug(1, "MESSAGE redirect on endpoint '%s': not following redirect (parse failed or conditions not met)\n",
 			ast_sorcery_object_get_id(ast_sip_redirect_get_endpoint(resp_data->redirect_state)));
-		return;
+		return -1;
 	}
 
 	/* Get the first URI to try */
 	if (ast_sip_redirect_get_next_uri(resp_data->redirect_state, &uri)) {
 		ast_log(LOG_WARNING, "MESSAGE redirect on endpoint '%s': no valid URIs to try\n",
 			ast_sorcery_object_get_id(ast_sip_redirect_get_endpoint(resp_data->redirect_state)));
-		return;
+		return -1;
 	}
 
 	hop_count = ast_sip_redirect_get_hop_count(resp_data->redirect_state);
@@ -814,8 +825,9 @@ static void handle_message_redirect(struct message_response_data *resp_data, pjs
 		ast_sorcery_object_get_id(ast_sip_redirect_get_endpoint(resp_data->redirect_state)), uri, hop_count, AST_SIP_MAX_REDIRECT_HOPS);
 
 	/* Try the first contact */
-	send_message_to_uri(resp_data, uri);
+	response = send_message_to_uri(resp_data, uri);
 	ast_free(uri);
+	return response;
 }
 
 /*!
@@ -841,8 +853,14 @@ static void msg_response_callback(void *token, pjsip_event *e)
 		if (state && !ast_sip_redirect_get_next_uri(state, &next_uri)) {
 			ast_log(LOG_NOTICE, "MESSAGE timed out on endpoint '%s', trying next Contact: '%s'\n",
 				ast_sorcery_object_get_id(endpoint), next_uri);
-			send_message_to_uri(resp_data, next_uri);
+			if (send_message_to_uri(resp_data, next_uri) == -1) {
+				ast_msg_event(resp_data->to, resp_data->from, ast_sorcery_object_get_id(endpoint),
+					0, 0, resp_data->delivery_id);
+			}
 			ast_free(next_uri);
+		} else {
+			ast_msg_event(resp_data->to, resp_data->from, ast_sorcery_object_get_id(endpoint),
+				0, 0, resp_data->delivery_id);
 		}
 		ao2_ref(resp_data, -1);
 		return;
@@ -858,22 +876,33 @@ static void msg_response_callback(void *token, pjsip_event *e)
 	rdata = e->body.tsx_state.src.rdata;
 	status_code = e->body.tsx_state.tsx->status_code;
 
-	ast_debug(3, "Received MESSAGE response %d on endpoint '%s'.\n", status_code, ast_sorcery_object_get_id(endpoint));
-
 	/* Handle 3xx redirects */
 	if (PJSIP_IS_STATUS_IN_CLASS(status_code, 300)) {
-		handle_message_redirect(resp_data, rdata);
+		if (handle_message_redirect(resp_data, rdata) == -1) {
+			ast_msg_event(resp_data->to, resp_data->from, ast_sorcery_object_get_id(endpoint),
+				0, status_code, resp_data->delivery_id);
+		}
 	}
 	/* If non-2xx response and we have pending contacts, try the next one */
 	else if (status_code >= 400 && state && !ast_sip_redirect_get_next_uri(state, &next_uri)) {
 		ast_log(LOG_NOTICE, "MESSAGE to redirect target failed (%d) on endpoint '%s', trying next Contact: '%s'\n",
 			status_code, ast_sorcery_object_get_id(endpoint), next_uri);
-		send_message_to_uri(resp_data, next_uri);
+		if (send_message_to_uri(resp_data, next_uri) == -1) {
+			ast_msg_event(resp_data->to, resp_data->from, ast_sorcery_object_get_id(endpoint),
+				0, status_code, resp_data->delivery_id);
+		}
 		ast_free(next_uri);
 	}
 	/* Success (2xx) - don't try other contacts */
 	else if (PJSIP_IS_STATUS_IN_CLASS(status_code, 200)) {
 		ast_debug(1, "MESSAGE successfully delivered (%d) for endpoint '%s'.\n", status_code, ast_sorcery_object_get_id(endpoint));
+		ast_msg_event(resp_data->to, resp_data->from, ast_sorcery_object_get_id(endpoint),
+			1, status_code, resp_data->delivery_id);
+	/* Failed and there are no further contacts. */
+	} else if (status_code >= 400) {
+		ast_debug(1, "MESSAGE failed (%d) for endpoint '%s'.\n", status_code, ast_sorcery_object_get_id(endpoint));
+		ast_msg_event(resp_data->to, resp_data->from, ast_sorcery_object_get_id(endpoint),
+			0, status_code, resp_data->delivery_id);
 	}
 
 	ao2_ref(resp_data, -1);
@@ -905,6 +934,7 @@ static int msg_send(void *data)
 	struct message_response_data *resp_data;
 	const char *from_uri;
 	const char *to_uri;
+	const char *delivery_id;
 
 	struct ast_sip_body body = {
 		.type = "text",
@@ -1053,15 +1083,18 @@ static int msg_send(void *data)
 	if (!ast_strlen_zero(ast_msg_get_to(mdata->msg))) {
 		to_uri = ast_msg_get_to(mdata->msg);
 	} else {
-		to_uri = "";
+		to_uri = uri; 
 	}
 
 	/* Build content type string */
 	ast_str_set(&content_type_buf, 0, "%s/%s", body.type, body.subtype);
 
+	/* Retrieve DeliveryID, if there was one */
+	delivery_id = ast_msg_get_var(mdata->msg, "DeliveryID");
+
 	/* Create callback data */
 	resp_data = message_response_data_create(endpoint, from_uri, to_uri,
-		body.body_text, ast_str_buffer(content_type_buf), uri);
+		body.body_text, ast_str_buffer(content_type_buf), uri, delivery_id);
 
 	if (!resp_data) {
 		pjsip_tx_data_dec_ref(tdata);
@@ -1077,7 +1110,8 @@ static int msg_send(void *data)
 		return -1;
 	}
 
-	return 0;
+	/* Return 1 to indicate we will handle ast_msg_event in the callback. */
+	return 1;
 }
 
 static int sip_msg_send(const struct ast_msg *msg, const char *destination, const char *from)

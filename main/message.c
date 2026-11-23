@@ -41,6 +41,7 @@
 #include "asterisk/app.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/message.h"
+#include "asterisk/uuid.h"
 
 /*** DOCUMENTATION
 	<function name="MESSAGE" language="en_US">
@@ -241,6 +242,57 @@
 			</parameter>
 		</syntax>
 	</manager>
+        <managerEvent language="en_US" name="TextMessageDeliveryStatus">
+                <managerEventInstance class="EVENT_FLAG_MESSAGE">
+                        <synopsis>
+                                Raised after the final attempt to deliver a text (out of call) message.
+                        </synopsis>
+                <syntax>
+                        <parameter name="To" />
+                        <parameter name="From" />
+                        <parameter name="Endpoint" />
+                        <parameter name="DeliveryID">
+                                <para>If the message was sent via AMI, a unique DeliveryID is generated
+                                and included in both the acknowledgement and the delivery event.
+                                </para>
+                        </parameter>
+                        <parameter name="Delivered">
+                                <enumlist>
+                                        <enum name="1">
+                                                <para>The endpoint responded with a success (2xx) status
+                                                code.
+                                                </para>
+                                        </enum>
+                                        <enum name="0">
+                                                <para>The endpoint either rejected the message, or did
+                                                not respond.
+                                                </para>
+                                        </enum>
+                                        <enum name="-1">
+                                                <para>The message technology dispatched the message, but
+                                                was not able to determine if it was successfully delivered.
+                                                </para>
+                                        </enum>
+
+                                </enumlist>
+                        </parameter>
+                        <parameter name="StatusCode">
+                                <para>The status code received in response to the message, or 0 if
+                                none was received.
+                                </para>
+                        </parameter>
+                </syntax>
+                <description>
+                        <para>This enables external systems connected to AMI (e.g., monitoring tools,
+                        SMS gateways, or other custom applications) to observe the outcome (delivery,
+                        rejection, time out) of SIP MESSAGE requests and take appropriate action.
+                        </para>
+                </description>
+                <see-also>
+                        <ref type="manager">MessageSend</ref>
+                </see-also>
+                </managerEventInstance>
+        </managerEvent>
  ***/
 
 struct msg_data {
@@ -1246,6 +1298,19 @@ static const struct ast_msg_handler *msg_handler_find_by_tech_name(const char *t
 	return NULL;
 }
 
+void ast_msg_event(const char *to, const char *from, const char *endpoint_name,
+	int delivered, int status_code, const char *delivery_id)
+{
+        manager_event(EVENT_FLAG_MESSAGE, "TextMessageDeliveryStatus",
+                "To: %s\r\n"
+                "From: %s\r\n"
+                "Endpoint: %s\r\n"
+                "Delivered: %d\r\n"
+                "StatusCode: %d\r\n"
+                "DeliveryID: %s\r\n",
+                to, from, endpoint_name, delivered, status_code, delivery_id);
+}
+
 /*!
  * \internal
  * \brief MessageSend() application
@@ -1321,6 +1386,12 @@ static int msg_send_exec(struct ast_channel *chan, const char *data)
 	res = msg_tech->msg_send(msg, S_OR(args.destination, ""), S_OR(args.from, ""));
 	ao2_unlock(msg);
 
+        if (res == 1) {
+                res = 0;
+        } else if (res == 0) {
+                ast_msg_event(S_OR(args.destination, ""), S_OR(args.from, ""), "", -1, 0, "");
+        }
+
 	pbx_builtin_setvar_helper(chan, "MESSAGE_SEND_STATUS", res ? "FAILURE" : "SUCCESS");
 
 exit_cleanup:
@@ -1337,6 +1408,7 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	const char *from = astman_get_header(m, "From");
 	const char *body = astman_get_header(m, "Body");
 	const char *base64body = astman_get_header(m, "Base64Body");
+	const char *action_id = astman_get_header(m, "ActionID");
 	const char *to_override = NULL;
 	char base64decoded[1301] = { 0, };
 	char *tech_name = NULL;
@@ -1345,6 +1417,7 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	const struct ast_msg_tech *msg_tech;
 	struct ast_msg *msg;
 	int res = -1;
+	char delivery_id[AST_UUID_STR_LEN] = "";
 
 	if (!ast_strlen_zero(destination)) {
 		if (!ast_strlen_zero(to)) {
@@ -1385,6 +1458,15 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 		ast_msg_set_var_outbound(msg, vars->name, vars->value);
 	}
 
+	/*
+	 * The delivery event cannot be sent before the response is sent to the AMI
+	 * client. Therefore, generating the DeliveryID here is safe, provided the
+	 * AMI client does not internally process delivery events before receiving
+	 * the response.
+	 */
+	ast_uuid_generate_str(delivery_id, sizeof(delivery_id));
+	ast_msg_set_var(msg, "DeliveryID", delivery_id);
+
 	ast_msg_set_body(msg, "%s", body);
 
 	if (to_override) {
@@ -1398,10 +1480,23 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	ast_variables_destroy(vars);
 	ao2_ref(msg, -1);
 
+	if (res == 1) {
+		res = 0;
+	} else if (res == 0) {
+		ast_msg_event(S_OR(to, ""), S_OR(from, ""), "", -1, 0, delivery_id);
+	}
+
 	if (res) {
 		astman_send_error(s, m, "Message failed to send.");
 	} else {
-		astman_send_ack(s, m, "Message successfully sent");
+		astman_append(s, "Response: Success\r\n");
+		if (!ast_strlen_zero(action_id)) {
+			astman_append(s, "ActionID: %s\r\n", action_id);
+		}
+		astman_append(s, "Message: Message successfully sent\r\n"
+			"DeliveryID: %s\r\n"
+			"\r\n",
+			delivery_id);
 	}
 	return 0;
 }
@@ -1432,6 +1527,12 @@ int ast_msg_send(struct ast_msg *msg, const char *to, const char *from)
 	res = msg_tech->msg_send(msg, S_OR(to, ""), S_OR(from, ""));
 
 	ast_rwlock_unlock(&msg_techs_lock);
+
+	if (res == 1) {
+		res = 0;
+	} else if (res == 0) {
+		ast_msg_event(S_OR(to, ""), S_OR(from, ""), "", -1, 0, "");
+	}
 
 	ao2_ref(msg, -1);
 

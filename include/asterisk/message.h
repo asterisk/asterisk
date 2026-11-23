@@ -558,6 +558,17 @@ const char *ast_msg_data_get_attribute(struct ast_msg_data *msg,
 int ast_msg_data_queue_frame(struct ast_channel *channel, struct ast_msg_data *msg);
 
 /*!
+ * \brief Raise a message delivery event
+ *
+ * \param delivered Whether or not the message was delivered (1 = delivered; 0 = failed;
+ * -1 dispatched, but delivery status unknown).
+ * \param status_code The status code, if one was received from the recipient.
+ * \param delivery_id The unique delivery ID, if one was created by action_messagesend.
+ */
+void ast_msg_event(const char *to, const char *from, const char *endpoint_name,
+	int delivered, int status_code, const char *delivery_id);
+
+/*!
  *  @}
  */
 
