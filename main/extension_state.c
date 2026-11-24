@@ -586,11 +586,12 @@ static int extension_state_update_sources(struct extension_state *state, struct 
 	unsigned int version;
 	struct ast_extension_state_device_snapshot *device_snapshot = NULL;
 	struct ast_extension_state_presence_snapshot *presence_snapshot = NULL;
+	struct device_state_sources_vector added, removed;
+	AST_VECTOR(, char *) missing;
+	int i, res = 0;
 
 	ast_str_set(&str, 0, "%s", ast_get_extension_app(exten));
 	devices = ast_str_buffer(str);
-
-	ao2_lock(state);
 
 	/*
 	 * The format of the app part of a hint is "[device[&device]],[presence[&presence]]" so
@@ -601,14 +602,27 @@ static int extension_state_update_sources(struct extension_state *state, struct 
 		*presence_state_sources++ = '\0';
 	}
 
-	ast_devstate_aggregate_init(&agg);
+	/* Zero sized, these cannot fail */
+	AST_VECTOR_INIT(&added, 0);
+	AST_VECTOR_INIT(&removed, 0);
+	AST_VECTOR_INIT(&missing, 0);
+
+	/*
+	 * Subscribing to or unsubscribing from a device state topic takes the lock of that topic,
+	 * while a device state publisher holds the same lock when it calls
+	 * extension_state_device_state_cb, which locks the extension state. Doing it with the
+	 * extension state locked deadlocks (seen at startup and on dialplan reload with thousands
+	 * of hints). So: find the sources to add and remove with the state locked, subscribe and
+	 * unsubscribe with it unlocked, then lock it again to install the new sources. Callers
+	 * are serialized by the extension_states container lock.
+	 */
+	ao2_lock(state);
 
 	version = ast_random();
 
 	/* Devices are separated by '&' */
 	while ((device = strsep(&devices, "&"))) {
 		struct extension_state_device_source *source = NULL;
-		int i;
 
 		/* Skip any device names that are empty, as we can do nothing */
 		if (ast_strlen_zero(device)) {
@@ -623,22 +637,75 @@ static int extension_state_update_sources(struct extension_state *state, struct 
 				break;
 			}
 		}
-		if (!source) {
-			source = extension_state_device_source_alloc(state, device);
-			if (!source) {
-				ao2_unlock(state);
-				return -1;
-			}
-			AST_VECTOR_APPEND(&state->device_state_sources, source);
+		if (source) {
+			source->version = version;
+		} else if (AST_VECTOR_APPEND(&missing, device)) {
+			res = -1;
 		}
-
-		ast_devstate_aggregate_add(&agg, source->info->state);
-		source->version = version;
 	}
 
-	/* Do a pass and remove all old device sources */
-	AST_VECTOR_REMOVE_ALL_CMP_UNORDERED(&state->device_state_sources, version,
-		DEVICE_SOURCE_ELEM_VERSION_CMP, extension_state_device_source_destroy);
+	/* Take the old device sources out of the state, they are destroyed once it is unlocked */
+	for (i = AST_VECTOR_SIZE(&state->device_state_sources) - 1; i >= 0; i--) {
+		struct extension_state_device_source *source = AST_VECTOR_GET(&state->device_state_sources, i);
+
+		if (source->version != version) {
+			if (AST_VECTOR_APPEND(&removed, source)) {
+				/* Out of memory: keep it rather than unsubscribe with the state locked */
+				source->version = version;
+				continue;
+			}
+			AST_VECTOR_REMOVE_UNORDERED(&state->device_state_sources, i);
+		}
+	}
+
+	ao2_unlock(state);
+
+	AST_VECTOR_CALLBACK_VOID(&removed, extension_state_device_source_destroy);
+	AST_VECTOR_FREE(&removed);
+
+	for (i = 0; !res && i < AST_VECTOR_SIZE(&missing); i++) {
+		struct extension_state_device_source *source;
+
+		source = extension_state_device_source_alloc(state, AST_VECTOR_GET(&missing, i));
+
+		if (!source || AST_VECTOR_APPEND(&added, source)) {
+			if (source) {
+				extension_state_device_source_destroy(source);
+			}
+			res = -1;
+		}
+	}
+	AST_VECTOR_FREE(&missing);
+	if (res) {
+		AST_VECTOR_CALLBACK_VOID(&added, extension_state_device_source_destroy);
+		AST_VECTOR_FREE(&added);
+		return -1;
+	}
+
+	ao2_lock(state);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&added); i++) {
+		struct extension_state_device_source *source = AST_VECTOR_GET(&added, i);
+		struct ast_extension_state_device_state_info *info;
+
+		/* A change published since the subscription found no source to update: read it again */
+		info = extension_state_device_state_info_alloc(source->info->device,
+			ast_device_state(source->info->device));
+		if (info) {
+			ao2_replace(source->info, info);
+			ao2_ref(info, -1);
+		}
+		source->version = version;
+		if (!AST_VECTOR_APPEND(&state->device_state_sources, source)) {
+			/* Installed, the state owns it now; any left in added are destroyed once unlocked */
+			AST_VECTOR_REPLACE(&added, i, NULL);
+		}
+	}
+
+	ast_devstate_aggregate_init(&agg);
+	for (i = 0; i < AST_VECTOR_SIZE(&state->device_state_sources); i++) {
+		ast_devstate_aggregate_add(&agg, AST_VECTOR_GET(&state->device_state_sources, i)->info->state);
+	}
 
 	/* If device state sources exist it is what produces the device state, otherwise we use the default */
 	if (AST_VECTOR_SIZE(&state->device_state_sources)) {
@@ -711,6 +778,13 @@ static int extension_state_update_sources(struct extension_state *state, struct 
 	}
 
 	ao2_unlock(state);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&added); i++) {
+		if (AST_VECTOR_GET(&added, i)) {
+			extension_state_device_source_destroy(AST_VECTOR_GET(&added, i));
+		}
+	}
+	AST_VECTOR_FREE(&added);
 
 	return 0;
 }
