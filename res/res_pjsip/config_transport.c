@@ -685,7 +685,6 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		return -1;
 	}
 #define BIND_TRIES 3
-#define BIND_DELAY_US 100000
 
 	if (!states) {
 		return -1;
@@ -710,6 +709,13 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		transport->async_operations = 1;
 	}
 
+	if (transport->allow_reload) {
+		ast_log(LOG_ERROR, "The allow_reload setting on transport '%s' is no longer supported and is ignored. "
+			"Changes to protocol, bind, TLS, TCP, ToS or CoS options require a restart.\n",
+			transport_id);
+		transport->allow_reload = 0;
+	}
+
 	perm_state = find_internal_state_by_transport(transport);
 	if (perm_state) {
 		ast_sorcery_diff(sorcery, perm_state->transport, transport, &changes);
@@ -721,15 +727,13 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 			return 0;
 		}
 
-		/* If we aren't allowed to reload then we copy values that can't be changed from perm_state */
-		if (!transport->allow_reload) {
-			memcpy(&temp_state->state->host, &perm_state->state->host, sizeof(temp_state->state->host));
-			memcpy(&temp_state->state->tls, &perm_state->state->tls, sizeof(temp_state->state->tls));
-			memcpy(&temp_state->state->ciphers, &perm_state->state->ciphers, sizeof(temp_state->state->ciphers));
-		}
+		/* Keep the settings that require recreating the existing listener. */
+		memcpy(&temp_state->state->host, &perm_state->state->host, sizeof(temp_state->state->host));
+		memcpy(&temp_state->state->tls, &perm_state->state->tls, sizeof(temp_state->state->tls));
+		memcpy(&temp_state->state->ciphers, &perm_state->state->ciphers, sizeof(temp_state->state->ciphers));
 	}
 
-	if (!transport->flow && (!perm_state || transport->allow_reload)) {
+	if (!transport->flow && !perm_state) {
 		if (temp_state->state->host.addr.sa_family != PJ_AF_INET && temp_state->state->host.addr.sa_family != PJ_AF_INET6) {
 			ast_log(LOG_ERROR, "Transport '%s' could not be started as binding not specified\n", transport_id);
 			return -1;
@@ -785,7 +789,7 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 
 		temp_state->state->flow = 1;
 		res = PJ_SUCCESS;
-	} else if (!transport->allow_reload && perm_state) {
+	} else if (perm_state) {
 		/* We inherit the transport from perm state, untouched */
 #ifdef HAVE_PJSIP_TLS_TRANSPORT_RESTART
 		ast_log(LOG_NOTICE, "Transport '%s' is not fully reloadable, not reloading: protocol, bind, TLS (everything but certificate and private key if filename is unchanged), TCP, ToS, or CoS options.\n", transport_id);
@@ -816,12 +820,6 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	} else if (transport->type == AST_TRANSPORT_UDP) {
 
 		for (i = 0; i < BIND_TRIES && res != PJ_SUCCESS; i++) {
-			if (perm_state && perm_state->state && perm_state->state->transport) {
-				pjsip_udp_transport_pause(perm_state->state->transport,
-					PJSIP_UDP_TRANSPORT_DESTROY_SOCKET);
-				usleep(BIND_DELAY_US);
-			}
-
 			if (temp_state->state->host.addr.sa_family == pj_AF_INET()) {
 				res = pjsip_udp_transport_start(ast_sip_get_pjsip_endpoint(),
 					&temp_state->state->host.ipv4, NULL, transport->async_operations,
@@ -902,12 +900,6 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		cfg.sockopt_params.cnt = sockopt_count;
 
 		for (i = 0; i < BIND_TRIES && res != PJ_SUCCESS; i++) {
-			if (perm_state && perm_state->state && perm_state->state->factory
-				&& perm_state->state->factory->destroy) {
-				perm_state->state->factory->destroy(perm_state->state->factory);
-				usleep(BIND_DELAY_US);
-			}
-
 			res = pjsip_tcp_transport_start3(ast_sip_get_pjsip_endpoint(), &cfg,
 				&temp_state->state->factory);
 		}
@@ -969,12 +961,6 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		temp_state->state->tls.sockopt_params.cnt = sockopt_count;
 
 		for (i = 0; i < BIND_TRIES && res != PJ_SUCCESS; i++) {
-			if (perm_state && perm_state->state && perm_state->state->factory
-				&& perm_state->state->factory->destroy) {
-				perm_state->state->factory->destroy(perm_state->state->factory);
-				usleep(BIND_DELAY_US);
-			}
-
 			res = pjsip_tls_transport_start2(ast_sip_get_pjsip_endpoint(), &temp_state->state->tls,
 				&temp_state->state->host, NULL, transport->async_operations,
 				&temp_state->state->factory);
