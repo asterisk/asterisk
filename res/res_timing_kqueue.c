@@ -241,6 +241,7 @@ static int kqueue_timer_set_rate(void *data, unsigned int rate)
 	struct kevent kev;
 	struct kqueue_timer *timer = data;
 	uint64_t period_ns;
+	intptr_t period;
 	int flags;
 	int units;
 	int retval;
@@ -253,27 +254,29 @@ static int kqueue_timer_set_rate(void *data, unsigned int rate)
 			return (0);
 		}
 		flags = EV_DELETE;
-		timer->period = 0;
+		period = 0;
 		units = 0;
 	} else  {
 		flags = EV_ADD | EV_ENABLE;
 		period_ns = (uint64_t)1000000000 / rate;
-		timer->period = kqueue_scale_period(period_ns, &units);
+		period = kqueue_scale_period(period_ns, &units);
 	}
 	ast_debug(5, "[%d]: Set rate %u:%ju\n",
-		timer->handle, units, (uintmax_t)timer->period);
+		timer->handle, units, (uintmax_t)period);
 	EV_SET(&kev, timer->handle, EVFILT_TIMER, flags, units,
-		timer->period, NULL);
+		period, NULL);
 	retval = kevent(timer->handle, &kev, 1, NULL, 0, NULL);
 
 	if (retval == -1) {
 		ast_log(LOG_ERROR, "[%d]: Error queing timer: %s\n",
 			timer->handle, strerror(errno));
+	} else {
+		timer->period = period;
 	}
 
 	ao2_unlock(timer);
 
-	return 0;
+	return retval;
 }
 
 static int kqueue_timer_ack(void *data, unsigned int quantity)

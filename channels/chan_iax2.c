@@ -399,6 +399,10 @@ static int max_reg_expire;
 static int srvlookup = 0;
 
 static struct ast_timer *timer;				/* Timer for trunking */
+/* Protected by the tpeers list lock after module initialization. */
+static unsigned int trunk_timer_rate;
+static int trunk_timer_idle_disabled;
+static int trunk_timer_error_logged;
 
 static struct ast_netsock_list *netsock;
 static struct ast_netsock_list *outsock;		/*!< used if sourceaddress specified and bindaddr == INADDR_ANY */
@@ -6374,6 +6378,47 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 	return ms;
 }
 
+/*!
+ * \brief Match the trunk timer to its runtime peers.
+ * \pre The tpeers list lock is held.
+ *
+ * Do not restart an already running timer: doing so on each frame would
+ * postpone its next tick.  A failed disarm keeps the previous periodic
+ * behavior for the rest of this module load, without retry/log storms.
+ */
+static int update_trunk_timer(int have_trunk_peers)
+{
+	unsigned int rate;
+
+	if (!timer) {
+		return 0;
+	}
+
+	rate = (have_trunk_peers || trunk_timer_idle_disabled) ? 1000 / trunkfreq : 0;
+	if (rate == trunk_timer_rate) {
+		return 0;
+	}
+
+	if (ast_timer_set_rate(timer, rate)) {
+		if (!rate) {
+			trunk_timer_idle_disabled = 1;
+			ast_log(LOG_WARNING, "Unable to stop idle IAX2 trunk timer; retaining periodic timing: %s\n",
+				strerror(errno));
+			return 0;
+		}
+		if (!trunk_timer_error_logged) {
+			ast_log(LOG_ERROR, "Unable to set IAX2 trunk timer to %u ticks per second: %s\n",
+				rate, strerror(errno));
+			trunk_timer_error_logged = 1;
+		}
+		return -1;
+	}
+
+	trunk_timer_rate = rate;
+	trunk_timer_error_logged = 0;
+	return 0;
+}
+
 static struct iax2_trunk_peer *find_tpeer(struct ast_sockaddr *addr, int fd)
 {
 	struct iax2_trunk_peer *tpeer = NULL;
@@ -6391,6 +6436,14 @@ static struct iax2_trunk_peer *find_tpeer(struct ast_sockaddr *addr, int fd)
 	if (!tpeer) {
 		if ((tpeer = ast_calloc(1, sizeof(*tpeer)))) {
 			ast_mutex_init(&tpeer->lock);
+			if (update_trunk_timer(1)) {
+				/* Never accept a trunk peer whose queued data cannot be timed. */
+				ast_mutex_destroy(&tpeer->lock);
+				ast_free(tpeer);
+				tpeer = NULL;
+				AST_LIST_UNLOCK(&tpeers);
+				return NULL;
+			}
 			tpeer->lastsent = 9999;
 			ast_sockaddr_copy(&tpeer->addr, addr);
 			tpeer->trunkact = ast_tvnow();
@@ -6477,8 +6530,9 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 		}
 
 		ast_mutex_unlock(&tpeer->lock);
+		return 0;
 	}
-	return 0;
+	return -1;
 }
 
 /* IAX2 encryption requires 16 to 32 bytes of random padding to be present
@@ -6868,8 +6922,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			res = iax2_transmit(fr);
 	} else {
 		if (ast_test_flag64(pvt, IAX_TRUNK)) {
-			iax2_trunk_queue(pvt, fr);
-			res = 0;
+			res = iax2_trunk_queue(pvt, fr);
 		} else if (fr->af.frametype == AST_FRAME_VIDEO) {
 			/* Video frame have no sequence number */
 			fr->oseqno = -1;
@@ -9699,6 +9752,8 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		ast_mutex_unlock(&tpeer->lock);
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
+	/* Serialize the last-peer removal with the first-peer timer start. */
+	update_trunk_timer(!AST_LIST_EMPTY(&tpeers));
 	AST_LIST_UNLOCK(&tpeers);
 
 	if (drop) {
@@ -13950,6 +14005,10 @@ static int set_config(const char *config_file, int reload, int forced)
 				i = 0;
 			ast_set2_flag64((&globalflags), i || ast_true(v->value), IAX_RTAUTOCLEAR);
 		} else if (!strcasecmp(v->name, "trunkfreq")) {
+			int previous_trunkfreq;
+
+			AST_LIST_LOCK(&tpeers);
+			previous_trunkfreq = trunkfreq;
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10) {
 				ast_log(LOG_NOTICE, "trunkfreq must be between 10ms and 1000ms, using 10ms instead.\n");
@@ -13958,9 +14017,11 @@ static int set_config(const char *config_file, int reload, int forced)
 				ast_log(LOG_NOTICE, "trunkfreq must be between 10ms and 1000ms, using 1000ms instead.\n");
 				trunkfreq = 1000;
 			}
-			if (timer) {
-				ast_timer_set_rate(timer, 1000 / trunkfreq);
+			if (update_trunk_timer(!AST_LIST_EMPTY(&tpeers))) {
+				/* Keep the effective period consistent when the update fails. */
+				trunkfreq = previous_trunkfreq;
 			}
+			AST_LIST_UNLOCK(&tpeers);
 		} else if (!strcasecmp(v->name, "trunkmtu")) {
 			mtuv = atoi(v->value);
 			if (mtuv  == 0 )
@@ -15070,9 +15131,11 @@ static int load_module(void)
 	iax_set_error(iax_error_output);
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 
-	if ((timer = ast_timer_open())) {
-		ast_timer_set_rate(timer, 1000 / trunkfreq);
-	}
+	/* A newly opened timer is disarmed; the first runtime trunk peer starts it. */
+	timer = ast_timer_open();
+	trunk_timer_rate = 0;
+	trunk_timer_idle_disabled = 0;
+	trunk_timer_error_logged = 0;
 
 	if (set_config(config, 0, 0) == -1) {
 		if (timer) {
