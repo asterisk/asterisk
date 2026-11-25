@@ -1993,7 +1993,7 @@ static void incoming_ws_established_cb(struct ast_websocket *ast_ws_session,
 		return;
 	}
 
-	instance = ao2_weakproxy_find(instances, connection_id, OBJ_SEARCH_KEY | OBJ_NOLOCK, "");
+	instance = ao2_weakproxy_find(instances, connection_id, OBJ_SEARCH_KEY, "");
 	if (!instance) {
 		/*
 		 * This also can't really happen because websocket_http_callback won't
@@ -2057,7 +2057,7 @@ static int incoming_ws_http_callback(struct ast_tcptls_session_instance *ser,
 	 * only the path components after that in the 'uri' parameter.
 	 * This should leave only the connection id without a leading '/'.
 	 */
-	instance = ao2_weakproxy_find(instances, uri, OBJ_SEARCH_KEY | OBJ_NOLOCK, "");
+	instance = ao2_weakproxy_find(instances, uri, OBJ_SEARCH_KEY, "");
 	if (!instance) {
 		ast_log(LOG_WARNING, "%s: WebSocket instance not found\n", uri);
 		ast_http_error(ser, 404, "Not found", "WebSocket instance not found");
