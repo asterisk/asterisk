@@ -103,7 +103,6 @@ struct adapter_pvt {
 	bdaddr_t addr;					/* adddress of adapter */
 	unsigned int inuse:1;				/* are we in use ? */
 	unsigned int alignment_detection:1;		/* do alignment detection on this adapter? */
-	struct io_context *io;				/*!< io context for audio connections */
 	struct io_context *accept_io;			/*!< io context for sco listener */
 	int *sco_id;					/*!< the io context id of the sco listener socket */
 	int sco_socket;					/*!< sco listener socket */
@@ -4330,16 +4329,15 @@ static void *do_sco_listen(void *data)
 	struct adapter_pvt *adapter = (struct adapter_pvt *) data;
 
 	while (!check_unloading()) {
-		/* check for new sco connections */
-		if (ast_io_wait(adapter->accept_io, 0) == -1) {
-			/* handle errors */
+		/* Audio is handled by the channel fd; wait for new SCO connections.
+		 * Keep a finite timeout so an unload signal sent before poll cannot
+		 * leave this thread waiting indefinitely.
+		 */
+		if (ast_io_wait(adapter->accept_io, 1000) == -1) {
+			if (errno == EINTR) {
+				continue;
+			}
 			ast_log(LOG_ERROR, "ast_io_wait() failed for adapter %s\n", adapter->id);
-			break;
-		}
-
-		/* handle audio data */
-		if (ast_io_wait(adapter->io, 1) == -1) {
-			ast_log(LOG_ERROR, "ast_io_wait() failed for audio on adapter %s\n", adapter->id);
 			break;
 		}
 	}
@@ -4420,21 +4418,16 @@ static struct adapter_pvt *mbl_load_adapter(struct ast_config *cfg, const char *
 		}
 	}
 
-	/* create io contexts */
+	/* create the SCO listener I/O context */
 	if (!(adapter->accept_io = io_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create I/O context for audio connection listener\n");
 		goto e_hci_close_dev;
 	}
 
-	if (!(adapter->io = io_context_create())) {
-		ast_log(LOG_ERROR, "Unable to create I/O context for audio connections\n");
-		goto e_destroy_accept_io;
-	}
-
 	/* bind the sco listener socket */
 	if (sco_bind(adapter) < 0) {
 		ast_log(LOG_ERROR, "Skipping adapter %s. Error binding audio connection listener socket.\n", adapter->id);
-		goto e_destroy_io;
+		goto e_destroy_accept_io;
 	}
 
 	/* add the socket to the io context */
@@ -4461,8 +4454,6 @@ e_remove_sco:
 	ast_io_remove(adapter->accept_io, adapter->sco_id);
 e_close_sco:
 	close(adapter->sco_socket);
-e_destroy_io:
-	io_context_destroy(adapter->io);
 e_destroy_accept_io:
 	io_context_destroy(adapter->accept_io);
 e_hci_close_dev:
@@ -4760,7 +4751,6 @@ static int unload_module(void)
 	AST_RWLIST_WRLOCK(&adapters);
 	while ((adapter = AST_RWLIST_REMOVE_HEAD(&adapters, entry))) {
 		close(adapter->sco_socket);
-		io_context_destroy(adapter->io);
 		io_context_destroy(adapter->accept_io);
 		hci_close_dev(adapter->hci_socket);
 		ast_free(adapter);
