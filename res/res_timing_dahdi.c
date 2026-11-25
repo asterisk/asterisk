@@ -103,7 +103,7 @@ static int dahdi_timer_set_rate(void *data, unsigned int rate)
 
 	/* DAHDI timers are configured using a number of samples,
 	 * based on an 8 kHz sample rate. */
-	samples = (unsigned int) roundf((8000.0 / ((float) rate)));
+	samples = rate ? (unsigned int) roundf(8000.0 / rate) : 0;
 
 	if (ioctl(timer->fd, DAHDI_TIMERCONFIG, &samples)) {
 		ast_log(LOG_ERROR, "Failed to configure DAHDI timing fd for %d sample timer ticks\n",
