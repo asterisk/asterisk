@@ -96,6 +96,24 @@ struct stasis_app *stasis_app_get_by_name(const char *name);
 int stasis_app_is_registered(const char *name);
 
 /*!
+ * \brief Resolve a dialplan Stasis application name.
+ *
+ * A name that ends in '*' is a prefix scan. The asterisk is not part of
+ * the name: the active registered application whose name begins with the
+ * preceding text and compares greatest with strcmp() is chosen. For
+ * example, "my-app-*" resolves to "my-app-v002" when "my-app-v001" and
+ * "my-app-v002" are both active. A name without a trailing asterisk is
+ * copied unchanged and is not looked up.
+ *
+ * \param name Application name from the dialplan.
+ *
+ * \return A concrete application name, which the caller must ast_free().
+ * \retval NULL \a name was empty, allocation failed, or a trailing
+ * asterisk matched no active application.
+ */
+char *stasis_app_resolve_name(const char *name);
+
+/*!
  * \brief Register a new Stasis application.
  *
  * If an application is already registered with the given name, the old

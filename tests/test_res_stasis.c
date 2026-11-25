@@ -177,11 +177,92 @@ AST_TEST_DEFINE(app_replaced)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(app_resolve_wildcard)
+{
+	RAII_VAR(struct app_data *, app_data, NULL, ao2_cleanup);
+	char *resolved = NULL;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	static const char * const apps[] = {
+		"my-app-v002",
+		"my-app-v001",
+		"my-app-extra",
+		"other-app-v999",
+	};
+	size_t i;
+	size_t n;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = test_category;
+		info->summary = "Test Stasis app name wildcard resolution.";
+		info->description =
+			"Stasis(my-app-*) selects the greatest active name in string order.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	app_data = app_data_create();
+	ast_test_validate_cleanup(test, app_data != NULL, res, cleanup);
+
+	for (i = 0; i < ARRAY_LEN(apps); i++) {
+		ast_test_validate_cleanup(test,
+			stasis_app_register(apps[i], test_handler, app_data) == 0,
+			res, cleanup);
+	}
+
+	/* v002 was registered first. String order still prefers it over v001. */
+	resolved = stasis_app_resolve_name("my-app-*");
+	ast_test_validate_cleanup(test,
+		resolved && !strcmp(resolved, "my-app-v002"), res, cleanup);
+	ast_free(resolved);
+	resolved = NULL;
+
+	resolved = stasis_app_resolve_name("my-app-v001");
+	ast_test_validate_cleanup(test,
+		resolved && !strcmp(resolved, "my-app-v001"), res, cleanup);
+	ast_free(resolved);
+	resolved = NULL;
+
+	/* A star anywhere but the end is part of a literal name. */
+	resolved = stasis_app_resolve_name("my-*app");
+	ast_test_validate_cleanup(test,
+		resolved && !strcmp(resolved, "my-*app"), res, cleanup);
+	ast_free(resolved);
+	resolved = NULL;
+
+	resolved = stasis_app_resolve_name("missing-*");
+	ast_test_validate_cleanup(test, resolved == NULL, res, cleanup);
+
+	stasis_app_unregister("my-app-v002");
+	resolved = stasis_app_resolve_name("my-app-*");
+	ast_test_validate_cleanup(test,
+		resolved && !strcmp(resolved, "my-app-v001"), res, cleanup);
+	ast_free(resolved);
+	resolved = NULL;
+
+	stasis_app_unregister("my-app-v001");
+	stasis_app_unregister("my-app-extra");
+	resolved = stasis_app_resolve_name("my-app-*");
+	ast_test_validate_cleanup(test, resolved == NULL, res, cleanup);
+
+cleanup:
+	ast_free(resolved);
+	for (n = 0; n < ARRAY_LEN(apps); n++) {
+		if (stasis_app_is_registered(apps[n])) {
+			stasis_app_unregister(apps[n]);
+		}
+	}
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(app_invoke_dne);
 	AST_TEST_UNREGISTER(app_invoke_one);
 	AST_TEST_UNREGISTER(app_replaced);
+	AST_TEST_UNREGISTER(app_resolve_wildcard);
 	return 0;
 }
 
@@ -190,6 +271,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(app_replaced);
 	AST_TEST_REGISTER(app_invoke_one);
 	AST_TEST_REGISTER(app_invoke_dne);
+	AST_TEST_REGISTER(app_resolve_wildcard);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
