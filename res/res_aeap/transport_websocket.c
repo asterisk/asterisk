@@ -117,10 +117,11 @@ static intmax_t websocket_read(struct aeap_transport *self, void *buf, intmax_t 
 	}
 	ast_mutex_lock(&transport->base.read_lock);
 
-	if (!transport->ws) {
+	if (!transport->ws || !aeap_transport_is_connected(self)) {
 		/*
 		 * It's possible the transport was told to disconnect while waiting for input.
-		 * If so then the websocket will be NULL, so we don't want to continue.
+		 * If so then the websocket will be NULL or the transport will no
+		 * longer be connected, so we don't want to continue.
 		 */
 		return 0;
 	}
