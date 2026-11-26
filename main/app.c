@@ -2641,21 +2641,29 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 int ast_app_group_update(struct ast_channel *old, struct ast_channel *new)
 {
 	struct ast_group_info *gi = NULL;
-	struct ast_group_info *gi_new = NULL;
 
 	AST_RWLIST_WRLOCK(&groups);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, group_list) {
-		/* keep channel groups on transfer */
 		if (gi->chan == old) {
-			/* only move group if it doesn't already exist on new */
-			AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi_new, group_list) {
-				if (gi_new->chan == old && !strcasecmp(gi_new->group, gi->group) && !strcasecmp(gi_new->category, gi->category)) {
-					break;
-				}
-			}
-			AST_RWLIST_TRAVERSE_SAFE_END;
-
+			/* keep channel groups on transfer */
 			gi->chan = new;
+		} else if (gi->chan == new) {
+			/* The group assignments of old replace those of new, so drop
+			 * any that new already had.  Group membership counts are tracked
+			 * per group@category, so release this channel's reference too. */
+			manager_event(EVENT_FLAG_DIALPLAN, "GroupChannelRemove",
+				"Channel: %s\r\n"
+				"Category: %s\r\n"
+				"Group: %s\r\n"
+				"Uniqueid: %s\r\n",
+				ast_channel_name(gi->chan),
+				S_OR(gi->category, ""), gi->group,
+				ast_channel_uniqueid(gi->chan));
+
+			ast_app_group_remove_meta_ifneeded(gi->group, gi->category);
+
+			AST_RWLIST_REMOVE_CURRENT(group_list);
+			ast_free(gi);
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;

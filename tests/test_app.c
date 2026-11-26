@@ -379,8 +379,149 @@ exit_group_var_test:
 	return res;
 }
 
+/*! \brief Check a group variable has the expected value, NULL meaning it must not exist */
+static int group_var_matches(struct ast_test *test, const char *group, const char *category,
+	const char *name, const char *expected)
+{
+	char *value = ast_app_group_get_var(group, category, name);
+	int ok = (!value && !expected) || (value && expected && !strcmp(value, expected));
+
+	if (!ok) {
+		ast_test_status_update(test, "Group variable '%s' on %s@%s: expected '%s', got '%s'\n",
+			name, group, category, expected ? expected : "(none)", value ? value : "(none)");
+	}
+	ast_free(value);
+
+	return ok;
+}
+
+AST_TEST_DEFINE(app_group_update)
+{
+	struct ast_channel *old_chan = NULL;
+	struct ast_channel *new_chan = NULL;
+	struct ast_group_info *gi;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	int old_count = 0;
+	int new_count = 0;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "app_group_update";
+		info->category = "/main/app/";
+		info->summary = "App group update (masquerade) unit test";
+		info->description =
+			"This tests that ast_app_group_update() moves the group assignments of the\n"
+			"old channel to the new channel, replaces any group assignments the new\n"
+			"channel already had, and keeps group membership counts and group\n"
+			"variables consistent while doing so.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(old_chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, 0, "TestChannelOld"))) {
+		return AST_TEST_FAIL;
+	}
+	ast_channel_unlock(old_chan);
+	if (!(new_chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, 0, "TestChannelNew"))) {
+		ast_hangup(old_chan);
+		return AST_TEST_FAIL;
+	}
+	ast_channel_unlock(new_chan);
+
+	/* A channel is in at most one group per category.  Both channels are in
+	 * 'updshared' (default category), old is also in updonlyold@cat and new is
+	 * also in updonlynew@cat2. */
+	ast_app_group_set_channel(old_chan, "updshared");
+	ast_app_group_set_channel(old_chan, "updonlyold@cat");
+	ast_app_group_set_channel(new_chan, "updshared");
+	ast_app_group_set_channel(new_chan, "updonlynew@cat2");
+
+	if (ast_app_group_set_var(old_chan, "updshared", "", "v", "shared")
+		|| ast_app_group_set_var(old_chan, "updonlyold", "cat", "v", "old")
+		|| ast_app_group_set_var(new_chan, "updonlynew", "cat2", "v", "new")) {
+		ast_test_status_update(test, "Failed to set group variables\n");
+		res = AST_TEST_FAIL;
+		goto exit_group_update_test;
+	}
+
+	if (ast_app_group_get_count("updshared", "") != 2) {
+		ast_test_status_update(test, "Expected 2 channels in 'updshared' before the update, found %d\n",
+			ast_app_group_get_count("updshared", ""));
+		res = AST_TEST_FAIL;
+		goto exit_group_update_test;
+	}
+
+	ast_app_group_update(old_chan, new_chan);
+
+	/* A channel that was in both must not be counted twice, and the assignment
+	 * that only the new channel had is gone */
+	if (ast_app_group_get_count("updshared", "") != 1) {
+		ast_test_status_update(test, "Expected 1 channel in 'updshared' after the update, found %d\n",
+			ast_app_group_get_count("updshared", ""));
+		res = AST_TEST_FAIL;
+		goto exit_group_update_test;
+	}
+	if (ast_app_group_get_count("updonlyold", "cat") != 1) {
+		ast_test_status_update(test, "Expected 1 channel in 'updonlyold@cat' after the update, found %d\n",
+			ast_app_group_get_count("updonlyold", "cat"));
+		res = AST_TEST_FAIL;
+		goto exit_group_update_test;
+	}
+	if (ast_app_group_get_count("updonlynew", "cat2") != 0) {
+		ast_test_status_update(test, "Expected 0 channels in 'updonlynew@cat2' after the update, found %d\n",
+			ast_app_group_get_count("updonlynew", "cat2"));
+		res = AST_TEST_FAIL;
+		goto exit_group_update_test;
+	}
+
+	/* Everything the old channel was in now belongs to the new channel */
+	ast_app_group_list_rdlock();
+	for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, group_list)) {
+		if (gi->chan == old_chan) {
+			old_count++;
+		} else if (gi->chan == new_chan) {
+			new_count++;
+		}
+	}
+	ast_app_group_list_unlock();
+	if (old_count != 0 || new_count != 2) {
+		ast_test_status_update(test, "Expected 0 assignments on the old channel and 2 on the new one, found %d and %d\n",
+			old_count, new_count);
+		res = AST_TEST_FAIL;
+		goto exit_group_update_test;
+	}
+
+	/* Groups that still have a member keep their variables, a group that lost
+	 * its last member (updonlynew) loses them */
+	if (!group_var_matches(test, "updshared", "", "v", "shared")
+		|| !group_var_matches(test, "updonlyold", "cat", "v", "old")
+		|| !group_var_matches(test, "updonlynew", "cat2", "v", NULL)) {
+		res = AST_TEST_FAIL;
+		goto exit_group_update_test;
+	}
+
+exit_group_update_test:
+	ast_hangup(old_chan);
+	ast_hangup(new_chan);
+
+	/* The remaining assignments went with the new channel, nothing may be left */
+	if (res == AST_TEST_PASS
+		&& (ast_app_group_get_count("updshared", "") || ast_app_group_get_count("updonlyold", "cat")
+			|| !group_var_matches(test, "updshared", "", "v", NULL)
+			|| !group_var_matches(test, "updonlyold", "cat", "v", NULL))) {
+		ast_test_status_update(test, "Group assignments or variables were left behind after hanging up\n");
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
+}
+
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(app_group_update);
 	AST_TEST_UNREGISTER(app_group_var);
 	AST_TEST_UNREGISTER(app_group);
 	AST_TEST_UNREGISTER(options_parsing);
@@ -389,6 +530,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	AST_TEST_REGISTER(app_group_update);
 	AST_TEST_REGISTER(app_group_var);
 	AST_TEST_REGISTER(app_group);
 	AST_TEST_REGISTER(options_parsing);

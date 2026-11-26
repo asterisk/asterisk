@@ -37,6 +37,7 @@
 #include "asterisk/manager.h"
 #include "asterisk/strings.h"
 #include "asterisk/cli.h"
+#include "asterisk/test.h"
 
 /*** DOCUMENTATION
 	<function name="GROUP_COUNT" language="en_US">
@@ -82,10 +83,10 @@
 					Set(GROUP()=somethingelse)
 				On any Channel:
 					Assuming that channels still exist that have the above associated GROUP() assignents
-					Set(groups_found=${GROUP_LIST(.*foo.*)})
+					Set(groups_found=${GROUP_MATCH_LIST(.*foo.*)})
 				Given the above:
 					This will find the groups 'foobarbaz' and 'foobarbill' since they both match .*foo.* regex against the group name
-                                        Variable groups_found will be set to: foobarbaz,foobarbill
+					Variable groups_found will be set to: foobarbaz,foobarbill
 			</example>
 			<example title="Find groups containing category name of 'bar'">
 				On Channel 1:
@@ -98,11 +99,11 @@
 					Set(GROUP()=anything@somethingelse)
 				On any Channel:
 					Assuming that channels still exist that have the above associated GROUP() assignents
-					Set(groups_found=${GROUP_LIST(@.*bar.*)})
+					Set(groups_found=${GROUP_MATCH_LIST(@.*bar.*)})
 
 				Given the above:
 					This will find the groups 'foo@barbaz' and 'foo@barbill' since they both match .*bar.* regex against the category name
-                                        Variable groups_found will be set to: foo@barbaz,foo@barbill
+					Variable groups_found will be set to: foo@barbaz,foo@barbill
 			</example>
 			<example title="Find groups containing 'foo' and category name of 'bar'">
 				On Channel 1:
@@ -115,11 +116,11 @@
 					Set(GROUP()=anything@somethingelse)
 				On any Channel:
 					Assuming that channels still exist that have the above associated GROUP() assignents
-					Set(groups_found=${GROUP_LIST(.*foo.*@.*bar.*)})
+					Set(groups_found=${GROUP_MATCH_LIST(.*foo.*@.*bar.*)})
 
 				Given the above:
-					This will find the groups 'foo@barbaz' and 'foo@barbill' since they both match .*foo*. against the group name and .*bar.* regex against the category name
-                                        Variable groups_found will be set to: foo@barbaz,foo@barbill
+					This will find the groups 'foo@barbaz' and 'foo@barbill' since they both match .*foo.* regex against the group name and .*bar.* regex against the category name
+					Variable groups_found will be set to: foo@barbaz,foo@barbill
 			</example>
 		</description>
 		<see-also>
@@ -138,9 +139,10 @@
 		<description>
 			<para>Search for groups matching group@category and return the channels that are members of those groups, the group/category must match exactly</para>
 			<para>If only the group is specified, then return group@category results that only match against the group name</para>
-			<para>If only the category is specified, then return group@category results that only match the against the category name</para>
+			<para>If only the category is specified, then return group@category results that only match against the category name</para>
 			<para>If the search parameters are entirely empty, all channels having any kind of group membership will be returned.</para>
-			<para>After GROUP_CHANNEL_LIST is complete.  Channel variables may be set with information related to the function call.</para>
+			<para>A channel is only listed once, even if it is a member of more than one matching group.</para>
+			<para>After GROUP_CHANNEL_LIST is complete.  Channel variables may be set with information related to the function call.  No variables are set when the function is used without a channel.</para>
 			<variablelist>
 				<variable name="GROUP_CHANNEL_LIST_ERROR">
 					<value name="TRUNCATED">
@@ -148,9 +150,7 @@
 					</value>
 				</variable>
 			</variablelist>
-			<example>
-				Find channels that are members of the group 'foobarbaz':
-
+			<example title="Find channels that are members of the group 'foobarbaz'">
 				On Channel PJSIP/1234-0000001:
 					Set(GROUP()=groupName)
 				On Channel PJSIP/1234-0000003:
@@ -161,48 +161,46 @@
 					Set(GROUP()=somethingelse)
 				On any Channel:
 					Assuming that channels still exist that have the above associated GROUP() assignents
-					Set(channels_found=${GROUP_CHANNEL_LIST(foobarbaz)}
+					Set(channels_found=${GROUP_CHANNEL_LIST(foobarbaz)})
+
 				Given the above:
 					This will find the channels that are in the group 'foobarbaz'
-                                        Variable channels_found will be set to: PJSIP/1234-0000003
+					Variable channels_found will be set to: PJSIP/1234-0000003
 			</example>
-			<example>
-				Find channels that have the category name of 'barbaz'
-
+			<example title="Find channels that are in a group with the category 'barbaz'">
 				On Channel PJSIP/1234-0000001:
 					Set(GROUP()=groupName@categoryName)
 				On Channel PJSIP/1234-0000002:
 					Set(GROUP()=foo@barbaz)
-                                On Channel PJSIP/1234-0000003:
+				On Channel PJSIP/1234-0000003:
 					Set(GROUP()=oof@barbaz)
-                                On Channel PJSIP/1234-0000004:
+				On Channel PJSIP/1234-0000004:
 					Set(GROUP()=anything@somethingelse)
 				On any Channel:
 					Assuming that channels still exist that have the above associated GROUP() assignents
 					Set(channels_found=${GROUP_CHANNEL_LIST(@barbaz)})
 
 				Given the above:
-					This will find the channels that are in group 'foo@foobarbaz' and 'oof@barbaz' since they both have the category barbaz
-                                        Variable channels_found will be set to: PJSIP/1234-0000002,PJSIP/1234-0000003
+					This will find the channels that are in the groups 'foo@barbaz' and 'oof@barbaz' since they both have the category 'barbaz'
+					Variable channels_found will be set to: PJSIP/1234-0000002,PJSIP/1234-0000003
 			</example>
-			<example>
-				Find groups containing 'foo' and category name of 'bar'
-
-                                On Channel PJSIP/1234-0000001:
+			<example title="Find channels that are members of the group 'foo' with the category 'bar'">
+				On Channel PJSIP/1234-0000001:
 					Set(GROUP()=groupName@categoryName)
-                                On Channel PJSIP/1234-0000002:
+				On Channel PJSIP/1234-0000002:
 					Set(GROUP()=foo@bar)
-                                On Channel PJSIP/1234-0000003:
+				On Channel PJSIP/1234-0000003:
 					Set(GROUP()=foo@bar)
-                                On Channel PJSIP/1234-0000004:
-					Set(GROUP()=anything@somethingelse)
+				On Channel PJSIP/1234-0000004:
+					Set(GROUP()=foo@barbill)
 				On any Channel:
 					Assuming that channels still exist that have the above associated GROUP() assignents
-					Set(channels_found=${GROUP_MATCH_CHANNEL_LIST(.*foo.*@.*bar.*)})
+					Set(channels_found=${GROUP_CHANNEL_LIST(foo@bar)})
 
 				Given the above:
 					This will find the channels that are in the group@category assignment of foo@bar
-                                        Variable channels_found will be set to: PJSIP/1234-0000002,PJSIP/1234-0000003
+					The category must match exactly, so the channel in 'foo@barbill' is not included
+					Variable channels_found will be set to: PJSIP/1234-0000002,PJSIP/1234-0000003
 			</example>
 		</description>
 		<see-also>
@@ -224,9 +222,16 @@
 			<para>If only the category_regex is specified, then return group@category results that only match the category name against the category_regex.</para>
 			<para>If the search regex parameters are entirely empty, all channels having any kind of group membership will be returned.</para>
 			<para>Uses standard regular expression matching (see regex(7)).</para>
-			<example>
-				Find channels containing the string 'foo'
-
+			<para>A channel is only listed once, even if it is a member of more than one matching group.</para>
+			<para>After GROUP_MATCH_CHANNEL_LIST is complete.  Channel variables may be set with information related to the function call.  No variables are set when the function is used without a channel.</para>
+			<variablelist>
+				<variable name="GROUP_MATCH_CHANNEL_LIST_ERROR">
+					<value name="TRUNCATED">
+						The full result is not complete and was truncated
+					</value>
+				</variable>
+			</variablelist>
+			<example title="Find channels in groups containing the string 'foo'">
 				On Channel PJSIP/1234-0000001:
 					Set(GROUP()=groupName)
 				On Channel PJSIP/1234-0000003:
@@ -238,47 +243,44 @@
 				On any Channel:
 					Assuming that channels still exist that have the above associated GROUP() assignents
 					Set(channels_found=${GROUP_MATCH_CHANNEL_LIST(.*foo.*)})
-				Given the above:
-					This will find the channels that are in groups 'foobarbaz' and 'foobarbill' since they both match .*foo.* regex against the group name
-                                        Variable channels_found will be set to: PJSIP/1234-0000003,PJSIP/1234-0000004
-			</example>
-			<example>
-				Find channels in groups containing category name of 'bar'
 
+				Given the above:
+					This will find the channels that are in the groups 'foobarbaz' and 'foobarbill' since they both match .*foo.* regex against the group name
+					Variable channels_found will be set to: PJSIP/1234-0000003,PJSIP/1234-0000004
+			</example>
+			<example title="Find channels in groups containing the category name of 'bar'">
 				On Channel PJSIP/1234-0000001:
 					Set(GROUP()=groupName@categoryName)
 				On Channel PJSIP/1234-0000002:
 					Set(GROUP()=foo@barbaz)
-                                On Channel PJSIP/1234-0000003:
+				On Channel PJSIP/1234-0000003:
 					Set(GROUP()=foo@barbill)
-                                On Channel PJSIP/1234-0000004:
+				On Channel PJSIP/1234-0000004:
 					Set(GROUP()=anything@somethingelse)
 				On any Channel:
 					Assuming that channels still exist that have the above associated GROUP() assignents
 					Set(channels_found=${GROUP_MATCH_CHANNEL_LIST(@.*bar.*)})
 
 				Given the above:
-					This will find the channels that are in groups 'foo@barbaz' and 'foo@barbill' since they both match .*bar.* regex against the category name
-                                        Variable channels_found will be set to: PJSIP/1234-0000002,PJSIP/1234-0000003
+					This will find the channels that are in the groups 'foo@barbaz' and 'foo@barbill' since they both match .*bar.* regex against the category name
+					Variable channels_found will be set to: PJSIP/1234-0000002,PJSIP/1234-0000003
 			</example>
-			<example>
-				Find channels in groups where they contain 'foo' and have the matching category contain the name of 'bar'
-
-                                On Channel PJSIP/1234-0000001:
+			<example title="Find channels in groups containing 'foo' and a category name containing 'bar'">
+				On Channel PJSIP/1234-0000001:
 					Set(GROUP()=groupName@categoryName)
-                                On Channel PJSIP/1234-0000002:
+				On Channel PJSIP/1234-0000002:
 					Set(GROUP()=foo@bar)
-                                On Channel PJSIP/1234-0000003:
+				On Channel PJSIP/1234-0000003:
 					Set(GROUP()=foo@barbill)
-                                On Channel PJSIP/1234-0000004:
+				On Channel PJSIP/1234-0000004:
 					Set(GROUP()=anything@somethingelse)
 				On any Channel:
 					Assuming that channels still exist that have the above associated GROUP() assignents
-					Set(channels_found=${GROUP_MATCH_CHANNEL_LIST(.*foo.*@.*bar.*)}
+					Set(channels_found=${GROUP_MATCH_CHANNEL_LIST(.*foo.*@.*bar.*)})
 
 				Given the above:
-					This will find the channels that are in groups 'foo@barbaz' and 'foo@barbill' since they both match .*foo*. against the group name and .*bar.* regex against the category name
-                                        Variable channels_found will be set to: PJSIP/1234-0000002,PJSIP/1234-0000003
+					This will find the channels that are in the groups 'foo@bar' and 'foo@barbill' since they both match .*foo.* regex against the group name and .*bar.* regex against the category name
+					Variable channels_found will be set to: PJSIP/1234-0000002,PJSIP/1234-0000003
 			</example>
 		</description>
 		<see-also>
@@ -754,12 +756,16 @@ static int group_var_function_write(struct ast_channel *chan, const char *cmd,
 		return -1;
 	}
 
-	ast_app_group_split_group(args.groupcategory, group, sizeof(group), category, sizeof(category));
+	if (ast_app_group_split_group(args.groupcategory, group, sizeof(group), category, sizeof(category))) {
+		ast_log(LOG_WARNING, "GROUP_VAR() Unable to parse group@category '%s'\n", args.groupcategory);
+		return -1;
+	}
+
 	result = ast_app_group_set_var(chan, group, category, args.varname, value);
 
 	if (result != 0) {
 		/* We know we're not passing any NULL values, so our error has to be 'non-exist' */
-		ast_log(LOG_WARNING, "GROUP_VAR() Variable set failed (group doesn't exist)");
+		ast_log(LOG_WARNING, "GROUP_VAR() Variable set failed (group doesn't exist)\n");
 		return -1;
 	}
 
@@ -1303,17 +1309,22 @@ static int group_match_list_function_read(struct ast_channel *chan, const char *
 		return -1;
 	}
 
-	ast_app_group_split_group(data, groupmatch, sizeof(groupmatch), categorymatch, sizeof(categorymatch));
+	if (ast_app_group_split_group(data, groupmatch, sizeof(groupmatch), categorymatch, sizeof(categorymatch))) {
+		ast_log(LOG_WARNING, "GROUP_MATCH_LIST() Unable to parse group@category '%s'\n", S_OR(data, ""));
+		ast_free(foundgroup_str);
+		return -1;
+	}
 
-	/* if regex compilation fails, return zero matches */
 	if (regcomp(&regexbuf_group, groupmatch, REG_EXTENDED | REG_NOSUB)) {
 		ast_log(LOG_ERROR, "Regex compile failed on: %s\n", groupmatch);
+		ast_free(foundgroup_str);
 		return -1;
 	}
 
 	if (regcomp(&regexbuf_category, categorymatch, REG_EXTENDED | REG_NOSUB)) {
 		ast_log(LOG_ERROR, "Regex compile failed on: %s\n", categorymatch);
 		regfree(&regexbuf_group);
+		ast_free(foundgroup_str);
 		return -1;
 	}
 
@@ -1338,6 +1349,7 @@ static int group_match_list_function_read(struct ast_channel *chan, const char *
 
 	snprintf(buf, len, "%s", ast_str_buffer(foundgroup_str));
 
+	ast_free(foundgroup_str);
 	regfree(&regexbuf_group);
 	regfree(&regexbuf_category);
 
@@ -1425,64 +1437,136 @@ static struct ast_custom_function group_list_function = {
 	.write = NULL,
 };
 
+/*!
+ * \internal
+ * \brief Check whether a channel name is already present in a comma separated list
+ */
+static int channel_list_contains(const char *list, size_t list_len, const char *name, size_t name_len)
+{
+	const char *pos = list;
+	const char *end = list + list_len;
+
+	while (pos < end) {
+		const char *comma = memchr(pos, ',', end - pos);
+		size_t token_len = comma ? (size_t) (comma - pos) : (size_t) (end - pos);
+
+		if (token_len == name_len && !strncmp(pos, name, name_len)) {
+			return 1;
+		}
+		if (!comma) {
+			break;
+		}
+		pos = comma + 1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Build a comma separated list of the channels that are members of matching groups
+ *
+ * An empty group or category matches anything.  When group_regex is NULL the group
+ * and category are compared exactly (case insensitive), otherwise group_regex and
+ * category_regex (which must both be valid) are used.
+ *
+ * A channel is only listed once, even if it is a member of several matching groups.
+ * The list never contains a partial channel name.
+ *
+ * \retval 0 The complete list was written to buf
+ * \retval 1 The list did not fit in buf and was truncated
+ */
+static int group_channel_list_build(char *buf, size_t len, const char *group, const char *category,
+	const regex_t *group_regex, const regex_t *category_regex)
+{
+	struct ast_group_info *gi;
+	size_t out_len = 0;
+	int truncated = 0;
+
+	buf[0] = '\0';
+
+	ast_app_group_list_rdlock();
+	for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, group_list)) {
+		const char *name;
+		size_t name_len;
+		size_t needed;
+
+		if (group_regex) {
+			if (regexec(group_regex, gi->group, 0, NULL, 0)) {
+				continue;
+			}
+			if (!ast_strlen_zero(category) && (ast_strlen_zero(gi->category) || regexec(category_regex, gi->category, 0, NULL, 0))) {
+				continue;
+			}
+		} else {
+			if (!ast_strlen_zero(group) && strcasecmp(gi->group, group)) {
+				continue;
+			}
+			if (!ast_strlen_zero(category) && (ast_strlen_zero(gi->category) || strcasecmp(gi->category, category))) {
+				continue;
+			}
+		}
+
+		name = ast_channel_name(gi->chan);
+		name_len = strlen(name);
+
+		if (channel_list_contains(buf, out_len, name, name_len)) {
+			continue;
+		}
+
+		/* Optional separator, the name and the terminating NULL */
+		needed = (out_len ? 1 : 0) + name_len + 1;
+		if (out_len + needed > len) {
+			truncated = 1;
+			break;
+		}
+
+		if (out_len) {
+			buf[out_len++] = ',';
+		}
+		memcpy(buf + out_len, name, name_len);
+		out_len += name_len;
+		buf[out_len] = '\0';
+	}
+	ast_app_group_list_unlock();
+
+	return truncated;
+}
+
+/*!
+ * \internal
+ * \brief Set, or clear, the variable that reports a truncated channel list
+ *
+ * Only a channel has variables to set.  With no channel pbx_builtin_setvar_helper()
+ * would modify a global variable instead, so do nothing.
+ */
+static void channel_list_set_error(struct ast_channel *chan, const char *variable, int truncated)
+{
+	if (chan) {
+		pbx_builtin_setvar_helper(chan, variable, truncated ? "TRUNCATED" : NULL);
+	}
+}
+
 static int group_channel_list_function_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char group[MAX_GROUP_LEN] = "";
 	char category[MAX_CATEGORY_LEN] = "";
-	struct ast_group_info *gi = NULL;
-	int out_len = 0;
-        int remaining_buf = len;
-        char *buf_pos = buf;
-
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(groupcategory);
-	);
-	AST_STANDARD_APP_ARGS(args, data);
-
-	pbx_builtin_setvar_helper(chan, "GROUP_CHANNEL_LIST_ERROR", NULL);
+	int truncated;
 
 	buf[0] = '\0';
 
-	if (ast_strlen_zero(args.groupcategory)) {
-		ast_log(LOG_WARNING, "Syntax GROUP_CHANNEL_LIST(group[@category])\n");
+	if (ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category))) {
+		ast_log(LOG_WARNING, "GROUP_CHANNEL_LIST() Unable to parse group@category '%s'\n", S_OR(data, ""));
 		return -1;
 	}
 
-	if (ast_app_group_split_group(args.groupcategory, group, sizeof(group), category, sizeof(category))) {
-		return -1;
+	truncated = group_channel_list_build(buf, len, group, category, NULL, NULL);
+	if (truncated) {
+		ast_log(LOG_WARNING, "GROUP_CHANNEL_LIST(%s) Channel membership list too large for buffer, truncating.\n", S_OR(data, ""));
 	}
 
-	ast_app_group_list_rdlock();
-	gi = ast_app_group_list_head();
-	while (gi) {
-		if (!strcasecmp(gi->group, group) && (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))) {
-			int write_len;
-
-			/* In the odd event we go over the buffer length, don't include a partial channel name */
-			int channel_name_len = strlen(ast_channel_name(gi->chan));
-
-			if ((out_len + channel_name_len + 1) > len) { /* +1 for null */
-				ast_log(LOG_WARNING, "GROUP_CHANNEL_LIST(%s) Channel membership list too large for buffer, truncating.\n", args.groupcategory);
-				pbx_builtin_setvar_helper(chan, "GROUP_CHANNEL_LIST_ERROR", "TRUNCATED");
-				break;
-			}
-
-			write_len = snprintf(buf_pos, remaining_buf, "%s,", ast_channel_name(gi->chan));
-                        /* Note we already prevent buffer overrun above, write_len will always be characters written */
-			out_len += write_len;
-			buf_pos += write_len;
-			remaining_buf -= write_len;
-		}
-
-		gi = AST_LIST_NEXT(gi, group_list);
-	}
-	ast_app_group_list_unlock();
-
-	/* delete the last comma.  We'll always have a final comma, because we already do overlength check above, so we'll never have a partial write */
-	if (out_len) {
-		buf_pos--;
-		*buf_pos = '\0';
-	}
+	/* Done after the group list lock is released, setting a variable locks the channel */
+	channel_list_set_error(chan, "GROUP_CHANNEL_LIST_ERROR", truncated);
 
 	return 0;
 }
@@ -1494,55 +1578,39 @@ static struct ast_custom_function group_channel_list_function = {
 
 static int group_match_channel_list_function_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	char group[MAX_GROUP_LEN] = "";
-	char category[MAX_CATEGORY_LEN] = "";
-	struct ast_group_info *gi = NULL;
-	struct ast_str *out = ast_str_create(1024);
-	int out_len = 0;
+	char groupmatch[MAX_GROUP_LEN] = "";
+	char categorymatch[MAX_CATEGORY_LEN] = "";
+	regex_t regexbuf_group;
+	regex_t regexbuf_category;
+	int truncated;
 
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(groupcategory);
-	);
-	AST_STANDARD_APP_ARGS(args, data);
+	buf[0] = '\0';
 
-	if (!out) {
-		ast_log(LOG_ERROR, "Unable to allocate new variable.  Cannot proceed with GROUP_MATCH_CHANNEL_LIST().\n");
+	if (ast_app_group_split_group(data, groupmatch, sizeof(groupmatch), categorymatch, sizeof(categorymatch))) {
+		ast_log(LOG_WARNING, "GROUP_MATCH_CHANNEL_LIST() Unable to parse group@category '%s'\n", S_OR(data, ""));
 		return -1;
 	}
 
-	buf[0] = 0;
-
-	if (ast_strlen_zero(args.groupcategory)) {
-		ast_log(LOG_WARNING, "Syntax GROUP_MATCH_CHANNEL_LIST(group[@category])\n");
+	if (regcomp(&regexbuf_group, groupmatch, REG_EXTENDED | REG_NOSUB)) {
+		ast_log(LOG_ERROR, "Regex compile failed on: %s\n", groupmatch);
 		return -1;
 	}
 
-	if (ast_app_group_split_group(args.groupcategory, group, sizeof(group), category, sizeof(category))) {
+	if (regcomp(&regexbuf_category, categorymatch, REG_EXTENDED | REG_NOSUB)) {
+		ast_log(LOG_ERROR, "Regex compile failed on: %s\n", categorymatch);
+		regfree(&regexbuf_group);
 		return -1;
 	}
 
-	ast_app_group_list_rdlock();
-	gi = ast_app_group_list_head();
-	while (gi) {
-		if (!strcasecmp(gi->group, group) && (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))) {
-			ast_str_append(&out, 0, "%s,", ast_channel_name(gi->chan));
-		}
-
-		gi = AST_LIST_NEXT(gi, group_list);
-	}
-	ast_app_group_list_unlock();
-
-	out_len = strlen(ast_str_buffer(out));
-
-	if (out_len) {
-		if (out_len <= len) {
-			len -= 1; /* rid , only if we didn't go over the buffer limit */
-		}
-
-		ast_copy_string(buf, ast_str_buffer(out), len);
+	truncated = group_channel_list_build(buf, len, groupmatch, categorymatch, &regexbuf_group, &regexbuf_category);
+	if (truncated) {
+		ast_log(LOG_WARNING, "GROUP_MATCH_CHANNEL_LIST(%s) Channel membership list too large for buffer, truncating.\n", S_OR(data, ""));
 	}
 
-	ast_free(out);
+	regfree(&regexbuf_group);
+	regfree(&regexbuf_category);
+
+	channel_list_set_error(chan, "GROUP_MATCH_CHANNEL_LIST_ERROR", truncated);
 
 	return 0;
 }
@@ -1551,6 +1619,185 @@ static struct ast_custom_function group_match_channel_list_function = {
 	.name = "GROUP_MATCH_CHANNEL_LIST",
 	.read = group_match_channel_list_function_read,
 };
+
+#ifdef TEST_FRAMEWORK
+
+/*!
+ * \internal
+ * \brief Run GROUP_CHANNEL_LIST or GROUP_MATCH_CHANNEL_LIST and compare the result
+ *
+ * \retval 1 The result matched the expected value
+ */
+static int check_channel_list(struct ast_test *test, int match, const char *data, const char *expected_fmt, ...)
+	__attribute__((format(printf, 4, 5)));
+
+static int check_channel_list(struct ast_test *test, int match, const char *data, const char *expected_fmt, ...)
+{
+	char expected[512];
+	char buf[512];
+	char *args = ast_strdupa(data);
+	va_list ap;
+	int res;
+
+	va_start(ap, expected_fmt);
+	vsnprintf(expected, sizeof(expected), expected_fmt, ap);
+	va_end(ap);
+
+	if (match) {
+		res = group_match_channel_list_function_read(NULL, "GROUP_MATCH_CHANNEL_LIST", args, buf, sizeof(buf));
+	} else {
+		res = group_channel_list_function_read(NULL, "GROUP_CHANNEL_LIST", args, buf, sizeof(buf));
+	}
+
+	if (res || strcmp(buf, expected)) {
+		ast_test_status_update(test, "%s(%s): expected '%s', got '%s' (result %d)\n",
+			match ? "GROUP_MATCH_CHANNEL_LIST" : "GROUP_CHANNEL_LIST", data, expected, buf, res);
+		return 0;
+	}
+
+	return 1;
+}
+
+AST_TEST_DEFINE(test_group_channel_lists)
+{
+	struct ast_channel *chans[4] = { NULL, };
+	const char *names[4] = { NULL, };
+	enum ast_test_result_state res = AST_TEST_PASS;
+	char buf[512];
+	char data[128];
+	const char *var;
+	size_t i;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "group_channel_lists";
+		info->category = "/funcs/func_groupcount/";
+		info->summary = "GROUP_CHANNEL_LIST, GROUP_MATCH_CHANNEL_LIST and GROUP_MATCH_LIST";
+		info->description =
+			"Tests exact and regular expression matching of the group channel list\n"
+			"functions, that channels are only listed once, that truncation never\n"
+			"returns a partial channel name, and that the error variables are only\n"
+			"touched when there is a channel to set them on.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(chans); i++) {
+		chans[i] = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
+			NULL, NULL, NULL, NULL, 0, "TestGroupChannel%d", (int) i);
+		if (!chans[i]) {
+			res = AST_TEST_FAIL;
+			goto cleanup;
+		}
+		ast_channel_unlock(chans[i]);
+		names[i] = ast_channel_name(chans[i]);
+	}
+
+	/* chans[1] is in two groups, with different categories, so that matching
+	 * more than one of them must not list it twice */
+	ast_app_group_set_channel(chans[0], "gclgroupname@gclcategoryname");
+	ast_app_group_set_channel(chans[1], "gclfoo@gclbar");
+	ast_app_group_set_channel(chans[2], "gclfoo@gclbarbill");
+	ast_app_group_set_channel(chans[3], "gclanything@gclsomethingelse");
+	ast_app_group_set_channel(chans[1], "gclfoo2@gclbar2");
+
+	/* Exact matching */
+	if (!check_channel_list(test, 0, "gclfoo@gclbar", "%s", names[1])
+		|| !check_channel_list(test, 0, "GCLFOO@GCLBAR", "%s", names[1])
+		|| !check_channel_list(test, 0, "gclfoo", "%s,%s", names[1], names[2])
+		|| !check_channel_list(test, 0, "@gclbar", "%s", names[1])
+		|| !check_channel_list(test, 0, "gclfoo@nosuchcategory", "%s", "")
+		|| !check_channel_list(test, 0, "nosuchgroup", "%s", "")
+		|| !check_channel_list(test, 0, "", "%s,%s,%s,%s", names[0], names[1], names[2], names[3])) {
+		res = AST_TEST_FAIL;
+	}
+
+	/* Regular expression matching.  A match on the group name or category
+	 * alone is not exact, 'gclfoo' also matches 'gclfoo2' */
+	if (!check_channel_list(test, 1, "gclfoo.*", "%s,%s", names[1], names[2])
+		|| !check_channel_list(test, 1, "@.*gclbar.*", "%s,%s", names[1], names[2])
+		|| !check_channel_list(test, 1, "gclfoo.*@.*gclbar.*", "%s,%s", names[1], names[2])
+		|| !check_channel_list(test, 1, "^gclfoo$@^gclbar$", "%s", names[1])
+		|| !check_channel_list(test, 1, "gclfoo.*@^gclbarbill$", "%s", names[2])
+		|| !check_channel_list(test, 1, "nomatchxyz", "%s", "")
+		|| !check_channel_list(test, 1, "", "%s,%s,%s,%s", names[0], names[1], names[2], names[3])) {
+		res = AST_TEST_FAIL;
+	}
+
+	/* An invalid regular expression is an error, not an empty result */
+	snprintf(data, sizeof(data), "[[");
+	if (group_match_channel_list_function_read(NULL, "GROUP_MATCH_CHANNEL_LIST", data, buf, sizeof(buf)) != -1) {
+		ast_test_status_update(test, "GROUP_MATCH_CHANNEL_LIST with an invalid regex should fail\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* GROUP_MATCH_LIST lists group@category, in the order the groups were created */
+	snprintf(data, sizeof(data), "gclfoo.*");
+	if (group_match_list_function_read(NULL, "GROUP_MATCH_LIST", data, buf, sizeof(buf))
+		|| strcmp(buf, "gclfoo@gclbar,gclfoo@gclbarbill,gclfoo2@gclbar2")) {
+		ast_test_status_update(test, "GROUP_MATCH_LIST(%s): unexpected result '%s'\n", data, buf);
+		res = AST_TEST_FAIL;
+	}
+
+	/* Truncation: room for the first channel name only.  The partial name of
+	 * the second channel must not be written, and the caller is told. */
+	snprintf(data, sizeof(data), "gclfoo.*");
+	if (group_match_channel_list_function_read(chans[0], "GROUP_MATCH_CHANNEL_LIST", data, buf, strlen(names[1]) + 1)
+		|| strcmp(buf, names[1])) {
+		ast_test_status_update(test, "GROUP_MATCH_CHANNEL_LIST truncation: expected '%s', got '%s'\n", names[1], buf);
+		res = AST_TEST_FAIL;
+	}
+	var = pbx_builtin_getvar_helper(chans[0], "GROUP_MATCH_CHANNEL_LIST_ERROR");
+	if (ast_strlen_zero(var) || strcmp(var, "TRUNCATED")) {
+		ast_test_status_update(test, "GROUP_MATCH_CHANNEL_LIST_ERROR should be TRUNCATED, got '%s'\n", S_OR(var, ""));
+		res = AST_TEST_FAIL;
+	}
+
+	/* A complete result clears the error again */
+	if (group_match_channel_list_function_read(chans[0], "GROUP_MATCH_CHANNEL_LIST", data, buf, sizeof(buf))
+		|| pbx_builtin_getvar_helper(chans[0], "GROUP_MATCH_CHANNEL_LIST_ERROR")) {
+		ast_test_status_update(test, "GROUP_MATCH_CHANNEL_LIST_ERROR should be cleared by a complete result\n");
+		res = AST_TEST_FAIL;
+	}
+
+	snprintf(data, sizeof(data), "gclfoo");
+	if (group_channel_list_function_read(chans[0], "GROUP_CHANNEL_LIST", data, buf, strlen(names[1]) + 1)
+		|| strcmp(buf, names[1])) {
+		ast_test_status_update(test, "GROUP_CHANNEL_LIST truncation: expected '%s', got '%s'\n", names[1], buf);
+		res = AST_TEST_FAIL;
+	}
+	var = pbx_builtin_getvar_helper(chans[0], "GROUP_CHANNEL_LIST_ERROR");
+	if (ast_strlen_zero(var) || strcmp(var, "TRUNCATED")) {
+		ast_test_status_update(test, "GROUP_CHANNEL_LIST_ERROR should be TRUNCATED, got '%s'\n", S_OR(var, ""));
+		res = AST_TEST_FAIL;
+	}
+
+	/* Without a channel there is nowhere to set the error variable.  It must
+	 * not be set as a global variable instead. */
+	snprintf(data, sizeof(data), "gclfoo");
+	group_channel_list_function_read(NULL, "GROUP_CHANNEL_LIST", data, buf, strlen(names[1]) + 1);
+	snprintf(data, sizeof(data), "gclfoo.*");
+	group_match_channel_list_function_read(NULL, "GROUP_MATCH_CHANNEL_LIST", data, buf, strlen(names[1]) + 1);
+	if (pbx_builtin_getvar_helper(NULL, "GROUP_CHANNEL_LIST_ERROR")
+		|| pbx_builtin_getvar_helper(NULL, "GROUP_MATCH_CHANNEL_LIST_ERROR")) {
+		ast_test_status_update(test, "An error variable was set as a global variable when there was no channel\n");
+		pbx_builtin_setvar_helper(NULL, "GROUP_CHANNEL_LIST_ERROR", NULL);
+		pbx_builtin_setvar_helper(NULL, "GROUP_MATCH_CHANNEL_LIST_ERROR", NULL);
+		res = AST_TEST_FAIL;
+	}
+
+cleanup:
+	for (i = 0; i < ARRAY_LEN(chans); i++) {
+		if (chans[i]) {
+			ast_hangup(chans[i]);
+		}
+	}
+
+	return res;
+}
+
+#endif /* TEST_FRAMEWORK */
 
 static int unload_module(void)
 {
@@ -1565,8 +1812,12 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&group_var_function);
 	res |= ast_custom_function_unregister(&group_function);
 
+	AST_TEST_UNREGISTER(test_group_channel_lists);
+
 	res |= ast_unregister_application(dumpgroups_app);
 
+	res |= ast_manager_unregister("GroupSet");
+	res |= ast_manager_unregister("GroupRemove");
 	res |= ast_manager_unregister("GroupVarGet");
 	res |= ast_manager_unregister("GroupVarSet");
 	res |= ast_manager_unregister("GroupsShow");
@@ -1588,6 +1839,8 @@ static int load_module(void)
 	res |= ast_custom_function_register(&group_channel_list_function);
 	res |= ast_custom_function_register(&group_var_function);
 	res |= ast_custom_function_register(&group_function);
+
+	AST_TEST_REGISTER(test_group_channel_lists);
 
 	res |= ast_register_application_xml(dumpgroups_app, dumpgroups_exec);
 
