@@ -388,9 +388,13 @@ int ast_aeap_disconnect(struct ast_aeap *aeap)
 		/*
 		 * The read thread calls disconnect if an error occurs, so
 		 * unlock the aeap before "joining" to avoid a deadlock.
+		 * Copy the thread id while still locked, since the read
+		 * thread's error path clears it once we unlock.
 		 */
+		pthread_t read_thread_id = aeap->read_thread_id;
+
 		ao2_unlock(aeap);
-		pthread_join(aeap->read_thread_id, NULL);
+		pthread_join(read_thread_id, NULL);
 		ao2_lock(aeap);
 
 		aeap->read_thread_id = AST_PTHREADT_NULL;
