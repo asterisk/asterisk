@@ -82,6 +82,11 @@ static char dbappname[MAX_DB_OPTION_SIZE] = "";
 static char dbsock[MAX_DB_OPTION_SIZE] = "";
 static int dbport = 5432;
 static time_t connect_time = 0;
+static int connect_timeout = 0;
+static int query_timeout = 0;
+static int negative_connection_cache = 0;
+/*! When the last connection attempt failed (monotonic clock), zero if it didn't */
+static struct timeval connect_failed_time;
 static int order_multi_row_results_by_initial_column = 1;
 
 static int parse_config(int reload);
@@ -115,6 +120,15 @@ static struct ast_cli_entry cli_realtime[] = {
 		PQescapeStringConn(pgsqlConn, ast_str_buffer(buffer), ast_str_buffer(semi), ast_str_size(buffer), &pgresult); \
 	} while (0)
 
+/*! \brief Now on a clock that doesn't jump with changes to the system time */
+static struct timeval monotonic_now(void)
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return ast_tv(ts.tv_sec, ts.tv_nsec / 1000);
+}
+
 static void destroy_table(struct tables *table)
 {
 	struct columns *column;
@@ -127,6 +141,81 @@ static void destroy_table(struct tables *table)
 	ast_free(table);
 }
 
+/*! \brief Run a query, waiting at most query_timeout milliseconds for the server
+ *
+ *  When the server does not answer in time, or waiting for it fails, the
+ *  connection is closed (pgsqlConn is set to NULL) and NULL is returned. The
+ *  query may still complete on the server.
+ *
+ *  \note pgsql_lock must be held and pgsqlConn must be connected.
+ *
+ *  \param database   database name (used for error logging)
+ *  \param tablename  table name (used for error logging)
+ *  \param sql        sql query string to execute
+ *
+ *  \return the last result of the query, as PQexec() would return it
+ */
+static PGresult *pgsql_query_with_timeout(const char *database, const char *tablename, const char *sql)
+{
+	struct timeval start = monotonic_now();
+	PGresult *last = NULL;
+	PGresult *res;
+
+	if (!PQsendQuery(pgsqlConn, sql)) {
+		/* Let the caller see the error through the usual result handling */
+		return PQmakeEmptyPGresult(pgsqlConn, PGRES_FATAL_ERROR);
+	}
+
+	for (;;) {
+		while (PQisBusy(pgsqlConn)) {
+			int remaining = query_timeout - ast_tvdiff_ms(monotonic_now(), start);
+			int ready = remaining > 0 ? ast_wait_for_input(PQsocket(pgsqlConn), remaining) : 0;
+
+			if (ready < 0 && errno == EINTR) {
+				continue;
+			}
+			if (ready <= 0) {
+				if (ready == 0) {
+					ast_log(LOG_ERROR, "PostgreSQL RealTime: Query on '%s@%s' did not complete within %d ms, dropping the connection.\n",
+						tablename, database, query_timeout);
+				} else {
+					ast_log(LOG_ERROR, "PostgreSQL RealTime: Waiting for the result of a query on '%s@%s' failed: %s. Dropping the connection.\n",
+						tablename, database, strerror(errno));
+				}
+				PQclear(last);
+				PQfinish(pgsqlConn);
+				pgsqlConn = NULL;
+				return NULL;
+			}
+			if (!PQconsumeInput(pgsqlConn)) {
+				/* Connection broken, PQgetResult() reports the error */
+				break;
+			}
+		}
+
+		res = PQgetResult(pgsqlConn);
+		if (!res) {
+			break;
+		}
+		PQclear(last);
+		last = res;
+		switch (PQresultStatus(res)) {
+		case PGRES_COPY_IN:
+		case PGRES_COPY_OUT:
+		case PGRES_COPY_BOTH:
+			/* PQexec() returns at these too */
+			return last;
+		default:
+			break;
+		}
+		if (PQstatus(pgsqlConn) != CONNECTION_OK) {
+			break;
+		}
+	}
+
+	return last;
+}
+
 /*! \brief Helper function for pgsql_exec.  For running queries, use pgsql_exec()
  *
  *  Connect if not currently connected.  Run the given query.
@@ -136,7 +225,8 @@ static void destroy_table(struct tables *table)
  *  \param sql        sql query string to execute
  *  \param result     pointer for where to store the result handle
  *
- *  \return -1 on fatal query error
+ *  \return -1 on fatal query error, or when the query timed out (the connection
+ *          is then closed and the query may still complete on the server)
  *  \return -2 on query failure that resulted in disconnection
  *  \return 0 on success
  *
@@ -150,7 +240,8 @@ static int _pgsql_exec(const char *database, const char *tablename, const char *
 		ast_debug(1, "PostgreSQL connection not defined, connecting\n");
 
 		if (pgsql_reconnect(database) != 1) {
-			ast_log(LOG_NOTICE, "reconnect failed\n");
+			/* Already logged by pgsql_reconnect(), once per failed attempt */
+			ast_debug(1, "PostgreSQL RealTime: Not connected, query on '%s@%s' failed.\n", tablename, database);
 			*result = NULL;
 			return -1;
 		}
@@ -158,7 +249,19 @@ static int _pgsql_exec(const char *database, const char *tablename, const char *
 		ast_debug(1, "PostgreSQL connection successful\n");
 	}
 
-	*result = PQexec(pgsqlConn, sql);
+	if (query_timeout > 0) {
+		*result = pgsql_query_with_timeout(database, tablename, sql);
+		if (!pgsqlConn) {
+			/*
+			 * Timed out, already logged. Don't retry: the query may still
+			 * complete. The next query connects again, and connect_timeout
+			 * decides whether the server is down.
+			 */
+			return -1;
+		}
+	} else {
+		*result = PQexec(pgsqlConn, sql);
+	}
 	result_status = PQresultStatus(*result);
 	if (result_status != PGRES_COMMAND_OK
 		&& result_status != PGRES_TUPLES_OK
@@ -238,7 +341,7 @@ static int pgsql_exec(const char *database, const char *tablename, const char *s
 		}
 
 		if (res == -1) {
-			return -1; /* Still connected to db, but could not process query (fatal error) */
+			return -1; /* Could not process query (fatal error), or it timed out */
 		}
 
 		/* res == -2 (query on a disconnected handle) */
@@ -276,6 +379,17 @@ static struct tables *find_table(const char *database, const char *orig_tablenam
 
 	ast_debug(1, "Table '%s' not found in cache, querying now\n", orig_tablename);
 
+	/*
+	 * Must connect to the server before anything else as PQescapeStringConn()
+	 * uses pgsqlConn
+	 */
+	ast_mutex_lock(&pgsql_lock);
+	if (!pgsql_reconnect(database)) {
+		ast_mutex_unlock(&pgsql_lock);
+		AST_LIST_UNLOCK(&psql_tables);
+		return NULL;
+	}
+
 	/* Not found, scan the table */
 	if (has_schema_support) {
 		char *schemaname, *tablename, *tmp_schemaname, *tmp_tablename;
@@ -304,7 +418,6 @@ static struct tables *find_table(const char *database, const char *orig_tablenam
 		ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", tablename);
 	}
 
-	ast_mutex_lock(&pgsql_lock);
 	exec_result = pgsql_exec(database, orig_tablename, ast_str_buffer(sql), &result);
 	ast_mutex_unlock(&pgsql_lock);
 	ast_debug(1, "Query of table structure complete.  Now retrieving results.\n");
@@ -1432,6 +1545,22 @@ static int reload(void)
 	return 0;
 }
 
+/*! \brief Read a whole number option from the general section, 0 when absent or invalid */
+static int config_non_negative_int(struct ast_config *config, const char *name)
+{
+	const char *s = ast_variable_retrieve(config, "general", name);
+	int value;
+
+	if (!s) {
+		return 0;
+	}
+	if (ast_parse_arg(s, PARSE_INT32 | PARSE_IN_RANGE, &value, 0, INT_MAX)) {
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: Invalid %s '%s', using 0.\n", name, s);
+		return 0;
+	}
+	return value;
+}
+
 static int parse_config(int is_reload)
 {
 	struct ast_config *config;
@@ -1556,6 +1685,12 @@ static int parse_config(int is_reload)
 	s = ast_variable_retrieve(config, "general", "order_multi_row_results_by_initial_column");
 	order_multi_row_results_by_initial_column = !s || ast_true(s);
 
+	connect_timeout = config_non_negative_int(config, "connect_timeout");
+	query_timeout = config_non_negative_int(config, "query_timeout");
+	negative_connection_cache = config_non_negative_int(config, "negative_connection_cache");
+	/* Configuration changed, so try to connect right away */
+	connect_failed_time = ast_tv(0, 0);
+
 	ast_config_destroy(config);
 
 	if (DEBUG_ATLEAST(1)) {
@@ -1602,6 +1737,13 @@ static int pgsql_reconnect(const char *database)
 		pgsqlConn = NULL;
 	}
 
+	if (negative_connection_cache > 0 && !ast_tvzero(connect_failed_time)
+		&& ast_tvdiff_sec(monotonic_now(), connect_failed_time) < negative_connection_cache) {
+		ast_debug(1, "PostgreSQL RealTime: Not reconnecting, the last attempt failed less than %d seconds ago.\n",
+			negative_connection_cache);
+		return 0;
+	}
+
 	/* DB password can legitimately be 0-length */
 	if ((!ast_strlen_zero(dbhost) || !ast_strlen_zero(dbsock)) && !ast_strlen_zero(dbuser) && !ast_strlen_zero(my_database)) {
 		struct ast_str *conn_info = ast_str_create(128);
@@ -1622,6 +1764,10 @@ static int pgsql_reconnect(const char *database)
 			ast_str_append(&conn_info, 0, " password=%s", dbpass);
 		}
 
+		if (connect_timeout > 0) {
+			ast_str_append(&conn_info, 0, " connect_timeout=%d", connect_timeout);
+		}
+
 		pgsqlConn = PQconnectdb(ast_str_buffer(conn_info));
 		ast_free(conn_info);
 		conn_info = NULL;
@@ -1630,12 +1776,20 @@ static int pgsql_reconnect(const char *database)
 		if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
 			ast_debug(1, "PostgreSQL RealTime: Successfully connected to database.\n");
 			connect_time = time(NULL);
+			connect_failed_time = ast_tv(0, 0);
 			version = PQserverVersion(pgsqlConn);
 			return 1;
 		} else {
+			char *reason = ast_strdupa(PQerrorMessage(pgsqlConn));
+
+			connect_failed_time = monotonic_now();
 			ast_log(LOG_ERROR,
 					"PostgreSQL RealTime: Failed to connect database %s on %s: %s\n",
-					my_database, dbhost, PQresultErrorMessage(NULL));
+					my_database, dbhost, ast_trim_blanks(reason));
+			if (negative_connection_cache > 0) {
+				ast_log(LOG_WARNING, "PostgreSQL RealTime: Failing queries without connecting for %d seconds (negative_connection_cache).\n",
+					negative_connection_cache);
+			}
 			return 0;
 		}
 	} else {
@@ -1704,6 +1858,7 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 	char credentials[100] = "";
 	char buf[376]; /* 256+100+"Connected to "+" for "+NULL */
 	int is_connected = 0, ctimesec = time(NULL) - connect_time;
+	struct timeval failed_time;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1731,6 +1886,7 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 
 	ast_mutex_lock(&pgsql_lock);
 	is_connected = (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK);
+	failed_time = connect_failed_time;
 	ast_mutex_unlock(&pgsql_lock);
 
 	if (is_connected) {
@@ -1739,6 +1895,15 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 		return CLI_SUCCESS;
 	} else {
 		ast_cli(a->fd, "Unable to connect %s%s\n", connection_info, credentials);
+		if (!ast_tvzero(failed_time)) {
+			int ago = ast_tvdiff_sec(monotonic_now(), failed_time);
+			int wait = negative_connection_cache - ago;
+
+			ast_cli(a->fd, "Last failed connection attempt: %d seconds ago\n", ago);
+			if (negative_connection_cache > 0 && wait > 0) {
+				ast_cli(a->fd, "Negative connection cache: not connecting for another %d seconds\n", wait);
+			}
+		}
 		return CLI_FAILURE;
 	}
 }
