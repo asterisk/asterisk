@@ -143,10 +143,24 @@ static void bucket_file_update_path(struct ast_bucket_file *bucket_file,
 			ast_bucket_file_metadata_get(bucket_file, "ext");
 
 		if (ext) {
+			const char *slash = strrchr(bucket_file->path, '/');
+			int dir_len = slash ? slash - bucket_file->path + 1 : 0;
+			char hash[41]; /* 40 character SHA1 hash */
 			char *new_path;
-			if (ast_asprintf(&new_path, "%s%s", bucket_file->path, ext->value) != -1) {
-				rename(bucket_file->path, new_path);
-				ast_copy_string(bucket_file->path, new_path, sizeof(bucket_file->path));
+
+			/*
+			 * Playback finds the file by its name without the extension, so
+			 * name it after the URI to keep that name unique to the URI.
+			 */
+			ast_sha1_hash(hash, ast_sorcery_object_get_id(bucket_file));
+			if (ast_asprintf(&new_path, "%.*sbucket-%s%s", dir_len, bucket_file->path,
+					hash, ext->value) != -1) {
+				if (rename(bucket_file->path, new_path)) {
+					ast_log(LOG_WARNING, "Failed to rename '%s' to '%s': %s\n",
+						bucket_file->path, new_path, strerror(errno));
+				} else {
+					ast_copy_string(bucket_file->path, new_path, sizeof(bucket_file->path));
+				}
 				ast_free(new_path);
 			}
 			ao2_ref(ext, -1);
