@@ -213,23 +213,25 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	 */
 	tmp_bucket_file = ao2_find(media_cache, uri, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (tmp_bucket_file) {
-		ao2_ref(tmp_bucket_file, -1);
+		/* Another thread cached the media while we were retrieving it,
+		 * discard our copy and return theirs
+		 */
 		ast_bucket_file_delete(bucket_file);
 		ao2_ref(bucket_file, -1);
-		ao2_unlock(media_cache);
-		return 0;
+		bucket_file = tmp_bucket_file;
+	} else {
+		/* We can manipulate the 'immutable' bucket_file here, as we haven't
+		 * let anyone know of its existence yet
+		 */
+		bucket_file_update_path(bucket_file, preferred_file_name);
+		media_cache_item_sync_to_astdb(bucket_file);
+		ao2_link_flags(media_cache, bucket_file, OBJ_NOLOCK);
 	}
 
-	/* We can manipulate the 'immutable' bucket_file here, as we haven't
-	 * let anyone know of its existence yet
-	 */
-	bucket_file_update_path(bucket_file, preferred_file_name);
-	media_cache_item_sync_to_astdb(bucket_file);
 	ast_copy_string(file_path, bucket_file->path, len);
 	if ((ext = strrchr(file_path, '.'))) {
 		*ext = '\0';
 	}
-	ao2_link_flags(media_cache, bucket_file, OBJ_NOLOCK);
 	ao2_ref(bucket_file, -1);
 
 	ast_debug(5, "Returning media at local file: %s\n", file_path);
