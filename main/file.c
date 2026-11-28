@@ -764,6 +764,21 @@ static int is_remote_path(const char *filename)
 }
 
 /*!
+ * \brief Return the size of the buffer fileexists_core() needs for a file name.
+ * \param filename The file name, which may be a URI
+ * \param preflang The preferred language
+ *
+ * \note A URI is replaced by the path of its local copy in the media cache,
+ * whose length is unrelated to the URI's.
+ */
+static int fileexists_buflen(const char *filename, const char *preflang)
+{
+	int buflen = strlen(preflang) + strlen(filename) + 4;
+
+	return is_remote_path(filename) ? MAX(buflen, PATH_MAX) : buflen;
+}
+
+/*!
  * \brief test if a file exists for a given format.
  * \note result_cap is OPTIONAL
  * \retval 1 true and result_cap represents format capabilities file exists in.
@@ -889,7 +904,7 @@ static struct ast_filestream *openstream_internal(struct ast_channel *chan,
 	}
 	if (preflang == NULL)
 		preflang = "";
-	buflen = strlen(preflang) + strlen(filename) + 4;
+	buflen = fileexists_buflen(filename, preflang);
 	buf = ast_alloca(buflen);
 
 	if (!(file_fmt_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
@@ -948,7 +963,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan,
 	if (preflang == NULL) {
 		preflang = "";
 	}
-	buflen = strlen(preflang) + strlen(filename) + 4;
+	buflen = fileexists_buflen(filename, preflang);
 	buf = ast_alloca(buflen);
 
 	ast_channel_lock(chan);
@@ -1222,7 +1237,7 @@ int ast_fileexists(const char *filename, const char *fmt, const char *preflang)
 
 	if (preflang == NULL)
 		preflang = "";
-	buflen = strlen(preflang) + strlen(filename) + 4;	/* room for everything */
+	buflen = fileexists_buflen(filename, preflang);
 	buf = ast_alloca(buflen);
 	return fileexists_core(filename, fmt, preflang, buf, buflen, NULL) ? 1 : 0;
 }
