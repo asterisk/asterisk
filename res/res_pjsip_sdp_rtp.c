@@ -110,12 +110,21 @@ static int rtp_check_timeout(const void *data)
 	int elapsed;
 	int now;
 	int timeout;
+	char channel_id[AST_MAX_UNIQUEID];
 
 	if (!rtp) {
 		return 0;
 	}
 
-	chan = ast_channel_get_by_name(ast_rtp_instance_get_channel_id(rtp));
+	ast_copy_string(channel_id, ast_rtp_instance_get_channel_id(rtp), sizeof(channel_id));
+
+	if (ast_strlen_zero(channel_id)) {
+		ast_debug(3,"channel destoryed,Stopping RTP timeout schedule ID %d for unbound RTP instance '%p'\n",
+			session_media->timeout_sched_id, rtp);
+		return 0;
+	}
+
+	chan = ast_channel_get_by_name(channel_id);
 	if (!chan) {
 		return 0;
 	}
